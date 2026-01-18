@@ -1,5 +1,8 @@
+using System;
 using System.Text;
 using EmberTrace.Processing.Model;
+using EmberTrace.Internal.Metadata;
+using EmberTrace.Public;
 
 namespace EmberTrace.Reporting.Text;
 
@@ -7,7 +10,7 @@ public static class TextReportWriter
 {
     public static string Write(
         ProcessedTrace trace,
-        Func<int, string?>? nameOf = null,
+        ITraceMetadataProvider? meta = null,
         int topHotspots = 10,
         int maxDepth = 3)
     {
@@ -20,17 +23,17 @@ public static class TextReportWriter
         sb.AppendLine($"MismatchedEnd: {trace.MismatchedEndCount}");
         sb.AppendLine();
 
-        WriteHotspots(sb, trace, nameOf, topHotspots);
+        WriteHotspots(sb, trace, meta, topHotspots);
         sb.AppendLine();
-        WriteThreads(sb, trace, nameOf, maxDepth);
+        WriteThreads(sb, trace, meta, maxDepth);
 
         return sb.ToString();
     }
 
-    private static void WriteHotspots(StringBuilder sb, ProcessedTrace trace, Func<int, string?>? nameOf, int top)
+    private static void WriteHotspots(StringBuilder sb, ProcessedTrace trace, ITraceMetadataProvider? meta, int top)
     {
         sb.AppendLine("Hotspots (by inclusive)");
-        var t = new TextTable("Id", "Name", "Count", "Incl ms", "Excl ms", "Excl%");
+        var t = new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%");
 
         t.AddSeparator();
 
@@ -42,9 +45,12 @@ public static class TextReportWriter
             var r = list[i];
             var exclPct = trace.DurationMs <= 0 ? 0 : (r.ExclusiveMs / trace.DurationMs) * 100.0;
 
+            Resolve(meta, r.Id, out var name, out var cat);
+
             t.AddRow(
                 r.Id.ToString(),
-                Name(nameOf, r.Id),
+                name,
+                cat,
                 r.Count.ToString(),
                 r.InclusiveMs.ToString("F3"),
                 r.ExclusiveMs.ToString("F3"),
@@ -54,7 +60,7 @@ public static class TextReportWriter
         t.WriteTo(sb);
     }
 
-    private static void WriteThreads(StringBuilder sb, ProcessedTrace trace, Func<int, string?>? nameOf, int maxDepth)
+    private static void WriteThreads(StringBuilder sb, ProcessedTrace trace, ITraceMetadataProvider? meta, int maxDepth)
     {
         sb.AppendLine("Call trees");
 
@@ -64,23 +70,26 @@ public static class TextReportWriter
             sb.AppendLine();
             sb.AppendLine($"Thread {th.ThreadId}");
 
-            var t = new TextTable("Id", "Name", "Count", "Incl ms", "Excl ms");
+            var t = new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms");
             t.AddSeparator();
 
             for (int c = 0; c < th.Root.Children.Count; c++)
-                WriteNode(t, th.Root.Children[c], nameOf, depth: 0, maxDepth);
+                WriteNode(t, th.Root.Children[c], meta, depth: 0, maxDepth);
 
             t.WriteTo(sb);
         }
     }
 
-    private static void WriteNode(TextTable t, CallTreeNode node, Func<int, string?>? nameOf, int depth, int maxDepth)
+    private static void WriteNode(TextTable t, CallTreeNode node, ITraceMetadataProvider? meta, int depth, int maxDepth)
     {
         var id = depth == 0 ? node.Id.ToString() : new string(' ', depth * 2) + node.Id;
 
+        Resolve(meta, node.Id, out var name, out var cat);
+
         t.AddRow(
             id,
-            Name(nameOf, node.Id),
+            name,
+            cat,
             node.Count.ToString(),
             node.InclusiveMs.ToString("F3"),
             node.ExclusiveMs.ToString("F3"));
@@ -89,14 +98,19 @@ public static class TextReportWriter
             return;
 
         for (int i = 0; i < node.Children.Count; i++)
-            WriteNode(t, node.Children[i], nameOf, depth + 1, maxDepth);
+            WriteNode(t, node.Children[i], meta, depth + 1, maxDepth);
     }
 
-    private static string Name(Func<int, string?>? nameOf, int id)
+    private static void Resolve(ITraceMetadataProvider? meta, int id, out string name, out string category)
     {
-        if (nameOf is null)
-            return "";
+        if (meta is not null && meta.TryGet(id, out var m))
+        {
+            name = m.Name;
+            category = m.Category ?? "";
+            return;
+        }
 
-        return nameOf(id) ?? "";
+        name = "";
+        category = "";
     }
 }
