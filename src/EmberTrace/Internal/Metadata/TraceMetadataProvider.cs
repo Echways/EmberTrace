@@ -12,5 +12,5 @@ internal sealed class TraceMetadataProvider : ITraceMetadataProvider
         _map[id] = new TraceMeta(id, name, category);
     }
 
-    public bool TryGet(int id, out TraceMeta meta) => _map.TryGetValue(id, out meta);
+    public bool TryGet(int id, out TraceMeta metadata) => _map.TryGetValue(id, out metadata);
 }

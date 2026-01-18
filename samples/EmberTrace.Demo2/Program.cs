@@ -6,6 +6,17 @@ using EmberTrace;
 using EmberTrace.Public;
 using EmberTrace.Reporting;
 using EmberTrace.Reporting.Text;
+using EmberTrace.Abstractions.Attributes;
+
+[assembly: TraceId(Ids.App, "App", "App")]
+[assembly: TraceId(Ids.Warmup, "Warmup", "App")]
+[assembly: TraceId(Ids.Worker, "Worker", "Workers")]
+[assembly: TraceId(Ids.Fib, "Fib", "CPU")]
+[assembly: TraceId(Ids.Sort, "Sort", "CPU")]
+[assembly: TraceId(Ids.BusyWait, "BusyWait", "CPU")]
+[assembly: TraceId(Ids.Io, "IO", "IO")]
+[assembly: TraceId(Ids.Cpu, "Cpu", "CPU")]
+
 
 static int Fib(int n)
 {
@@ -90,17 +101,10 @@ using (var app = Profiler.Scope(Ids.App))
 var session = Profiler.Stop();
 var processed = session.Process();
 
-var meta = new DictionaryTraceMetadataProvider();
-meta.Add(Ids.App, "App", "App");
-meta.Add(Ids.Warmup, "Warmup", "App");
-meta.Add(Ids.Worker, "Worker", "Workers");
-meta.Add(Ids.Fib, "Fib", "CPU");
-meta.Add(Ids.Sort, "Sort", "CPU");
-meta.Add(Ids.BusyWait, "BusyWait", "CPU");
-meta.Add(Ids.Io, "IO", "IO");
-meta.Add(Ids.Cpu, "Cpu", "CPU");
-
+var meta = TraceMetadata.CreateDefault();
 Console.WriteLine(TextReportWriter.Write(processed, meta: meta, topHotspots: 12, maxDepth: 4));
+
+
 
 static class Ids
 {
