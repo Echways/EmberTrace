@@ -17,7 +17,18 @@ internal static class Program
         }
 
         var session = Profiler.Stop();
-        Console.WriteLine($"Events: {session.EventCount}");
-        Console.WriteLine($"Duration: {session.DurationMs:F3} ms");
+        var stats = session.Analyze();
+        Console.WriteLine($"Events: {stats.TotalEvents}");
+        Console.WriteLine($"Threads: {stats.ThreadsSeen}");
+        Console.WriteLine($"MismatchedEnd: {stats.MismatchedEndCount}");
+        Console.WriteLine($"Duration: {stats.DurationMs:F3} ms");
+
+        var top = stats.ByTotalTimeDesc;
+        for (int i = 0; i < Math.Min(5, top.Count); i++)
+        {
+            var s = top[i];
+            Console.WriteLine($"{s.Id}  count={s.Count}  total={s.TotalMs:F3}ms  avg={s.AverageMs:F3}ms  min={s.MinMs:F3}ms  max={s.MaxMs:F3}ms");
+        }
+
     }
 }

@@ -1,14 +1,12 @@
 using System.Collections.Generic;
 
-namespace EmberTrace.Processing.Model;
+namespace EmberTrace.Reporting;
 
-public sealed class ProcessedTrace
+public sealed class TraceStats
 {
     public required double DurationMs { get; init; }
     public required long TotalEvents { get; init; }
     public required int ThreadsSeen { get; init; }
     public required long MismatchedEndCount { get; init; }
-
-    public required IReadOnlyList<ThreadTrace> Threads { get; init; }
-    public required IReadOnlyList<HotspotRow> HotspotsByInclusiveDesc { get; init; }
+    public required IReadOnlyList<TraceIdStats> ByTotalTimeDesc { get; init; }
 }
