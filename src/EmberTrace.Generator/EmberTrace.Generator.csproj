@@ -1,17 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <!-- Генераторы лучше собирать под netstandard2.0 для совместимости с разными SDK -->
         <TargetFramework>netstandard2.0</TargetFramework>
 
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-
-        <!-- Важные флаги для analyzer/generator -->
+        
         <IsRoslynComponent>true</IsRoslynComponent>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-
-        <!-- Удобно для дебага: будут складываться generated файлы -->
+        
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
 
@@ -20,13 +17,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- Актуальные версии -->
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all" />
         <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Атрибуты нужны генератору для анализа, но наружу их тащить не надо -->
         <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" PrivateAssets="all" />
     </ItemGroup>
 
