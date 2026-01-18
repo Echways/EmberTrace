@@ -29,7 +29,7 @@ internal sealed class ThreadWriter
         if (IsClosed || _collector.IsClosed)
             return;
 
-        var e = new TraceEvent(id, Timestamp.Now(), kind);
+        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind);
 
         if (_chunk.TryWrite(e))
             return;

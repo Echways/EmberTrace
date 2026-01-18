@@ -1,5 +1,10 @@
 using System.Collections.Generic;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Processing;
+using EmberTrace.Reporting;
+using EmberTrace.Processing.Model;
+
+
 
 namespace EmberTrace.Public;
 
@@ -17,6 +22,10 @@ public sealed class TraceSession
     internal long StartTimestamp { get; }
     internal long EndTimestamp { get; }
     public SessionOptions Options { get; }
+    public TraceStats Analyze() => TraceProcessor.Analyze(this);
+    public ProcessedTrace Process() => TraceProcessor.Process(this);
+
+
 
     public double DurationMs =>
         (EndTimestamp - StartTimestamp) * 1000.0 / EmberTrace.Internal.Time.Timestamp.Frequency;
