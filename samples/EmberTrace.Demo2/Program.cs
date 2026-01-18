@@ -104,7 +104,10 @@ var processed = session.Process();
 var meta = TraceMetadata.CreateDefault();
 Console.WriteLine(TextReportWriter.Write(processed, meta: meta, topHotspots: 12, maxDepth: 4));
 
-
+var path = Path.Combine(AppContext.BaseDirectory, "embertrace_complete.json");
+using var fs = File.Create(path);
+EmberTrace.Reporting.Export.ChromeTraceExporter.WriteComplete(session, fs);
+Console.WriteLine(path);
 
 static class Ids
 {
