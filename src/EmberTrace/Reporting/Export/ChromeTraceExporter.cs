@@ -68,7 +68,8 @@ public static class ChromeTraceExporter
         Stream output,
         ITraceMetadataProvider? meta = null,
         bool sortByStartTimestamp = true,
-        int pid = 1)
+        int pid = 1,
+        string processName = "EmberTrace")
     {
         if (session is null) throw new ArgumentNullException(nameof(session));
         if (output is null) throw new ArgumentNullException(nameof(output));
@@ -88,6 +89,14 @@ public static class ChromeTraceExporter
         json.WriteString("displayTimeUnit", "ms");
         json.WritePropertyName("traceEvents");
         json.WriteStartArray();
+
+        var tids = new HashSet<int>();
+        for (int i = 0; i < complete.Count; i++)
+            tids.Add(complete[i].Tid);
+
+        WriteProcessName(json, pid, processName);
+        foreach (var tid in tids)
+            WriteThreadName(json, pid, tid, $"Thread {tid}");
 
         for (int i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, start, freq, pid);
@@ -112,10 +121,11 @@ public static class ChromeTraceExporter
         TraceSession session,
         ITraceMetadataProvider? meta = null,
         bool sortByStartTimestamp = true,
-        int pid = 1)
+        int pid = 1,
+        string processName = "EmberTrace")
     {
         using var ms = new MemoryStream(capacity: 256 * 1024);
-        WriteComplete(session, ms, meta, sortByStartTimestamp, pid);
+        WriteComplete(session, ms, meta, sortByStartTimestamp, pid, processName);
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
@@ -268,6 +278,38 @@ public static class ChromeTraceExporter
         json.WriteNumber("dur", durUs);
         json.WriteNumber("pid", pid);
         json.WriteNumber("tid", e.Tid);
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteNumber("id", e.Id);
+        json.WriteEndObject();
+        json.WriteEndObject();
+    }
+
+    private static void WriteProcessName(Utf8JsonWriter json, int pid, string name)
+    {
+        json.WriteStartObject();
+        json.WriteString("name", "process_name");
+        json.WriteString("ph", "M");
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", 0);
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteEndObject();
+        json.WriteEndObject();
+    }
+
+    private static void WriteThreadName(Utf8JsonWriter json, int pid, int tid, string name)
+    {
+        json.WriteStartObject();
+        json.WriteString("name", "thread_name");
+        json.WriteString("ph", "M");
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", tid);
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteEndObject();
         json.WriteEndObject();
     }
 
