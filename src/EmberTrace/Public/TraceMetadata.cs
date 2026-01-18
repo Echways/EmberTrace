@@ -6,16 +6,15 @@ public readonly record struct TraceMeta(int Id, string Name, string? Category);
 
 public static class TraceMetadata
 {
+    private static ITraceMetadataProvider? _registered;
+
+    public static void Register(ITraceMetadataProvider provider)
+    {
+        Interlocked.Exchange(ref _registered, provider);
+    }
+
     public static ITraceMetadataProvider CreateDefault()
     {
-        var asm = Assembly.GetEntryAssembly();
-        if (asm is not null)
-        {
-            var t = asm.GetType("EmberTrace.Internal.Metadata.GeneratedTraceMetadataProvider", throwOnError: false);
-            if (t is not null && Activator.CreateInstance(t) is ITraceMetadataProvider p)
-                return p;
-        }
-
-        return new DictionaryTraceMetadataProvider();
+        return Volatile.Read(ref _registered) ?? new DictionaryTraceMetadataProvider();
     }
 }

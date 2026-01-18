@@ -57,12 +57,12 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
 
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine();
-        sb.AppendLine("namespace EmberTrace.Internal.Metadata;");
-        sb.AppendLine();
-        sb.AppendLine("internal sealed class GeneratedTraceMetadataProvider : global::EmberTrace.Public.ITraceMetadataProvider");
+        sb.AppendLine("namespace EmberTrace.Internal.Metadata");
         sb.AppendLine("{");
-        sb.AppendLine("    private static readonly Dictionary<int, global::EmberTrace.Public.TraceMeta> Map = new()");
+        sb.AppendLine("    internal sealed class GeneratedTraceMetadataProvider : global::EmberTrace.Public.ITraceMetadataProvider");
         sb.AppendLine("    {");
+        sb.AppendLine("        private static readonly Dictionary<int, global::EmberTrace.Public.TraceMeta> Map = new()");
+        sb.AppendLine("        {");
 
         var seen = new HashSet<int>();
         for (int i = 0; i < items.Count; i++)
@@ -71,7 +71,7 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
             if (!seen.Add(it.Id))
                 continue;
 
-            sb.Append("        [");
+            sb.Append("            [");
             sb.Append(it.Id);
             sb.Append("] = new global::EmberTrace.Public.TraceMeta(");
             sb.Append(it.Id);
@@ -82,15 +82,23 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
             sb.AppendLine("),");
         }
 
-        sb.AppendLine("    };");
+        sb.AppendLine("        };");
         sb.AppendLine();
-        sb.AppendLine("    public bool TryGet(int id, out global::EmberTrace.Public.TraceMeta meta) => Map.TryGetValue(id, out meta);");
+        sb.AppendLine("        public bool TryGet(int id, out global::EmberTrace.Public.TraceMeta meta) => Map.TryGetValue(id, out meta);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    internal static class EmberTraceMetadataModuleInitializer");
+        sb.AppendLine("    {");
+        sb.AppendLine("        [System.Runtime.CompilerServices.ModuleInitializer]");
+        sb.AppendLine("        internal static void Init()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            global::EmberTrace.Public.TraceMetadata.Register(new GeneratedTraceMetadataProvider());");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
         sb.AppendLine("}");
 
         return sb.ToString();
     }
-
-
 
     private static string Escape(string s)
     {
