@@ -1,10 +1,10 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/EmberTrace.Demo/EmberTraceDemo.csproj" />
-    <Project Path="src/EmberTrace.Generator/EmberTrace.Generator.csproj" />
-    <Project Path="src/EmberTrace/EmberTrace.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj" />
+    <Project Path="src/EmberTrace.Generator/EmberTrace.Generator.csproj" />
+    <Project Path="src/EmberTrace/EmberTrace.csproj" />
   </Folder>
 </Solution>
