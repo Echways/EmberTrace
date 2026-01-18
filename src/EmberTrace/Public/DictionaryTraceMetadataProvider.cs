@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using EmberTrace.Public;
 
-namespace EmberTrace.Internal.Metadata;
+namespace EmberTrace.Public;
 
-internal sealed class TraceMetadataProvider : ITraceMetadataProvider
+public sealed class DictionaryTraceMetadataProvider : ITraceMetadataProvider
 {
     private readonly Dictionary<int, TraceMeta> _map = new();
 

@@ -90,24 +90,17 @@ using (var app = Profiler.Scope(Ids.App))
 var session = Profiler.Stop();
 var processed = session.Process();
 
-var names = new System.Collections.Generic.Dictionary<int, string>
-{
-    [Ids.App] = "App",
-    [Ids.Warmup] = "Warmup",
-    [Ids.Worker] = "Worker",
-    [Ids.Fib] = "Fib",
-    [Ids.Sort] = "Sort",
-    [Ids.BusyWait] = "BusyWait",
-    [Ids.Io] = "IO",
-    [Ids.Cpu] = "Cpu"
-};
+var meta = new DictionaryTraceMetadataProvider();
+meta.Add(Ids.App, "App", "App");
+meta.Add(Ids.Warmup, "Warmup", "App");
+meta.Add(Ids.Worker, "Worker", "Workers");
+meta.Add(Ids.Fib, "Fib", "CPU");
+meta.Add(Ids.Sort, "Sort", "CPU");
+meta.Add(Ids.BusyWait, "BusyWait", "CPU");
+meta.Add(Ids.Io, "IO", "IO");
+meta.Add(Ids.Cpu, "Cpu", "CPU");
 
-Console.WriteLine(TextReportWriter.Write(
-    processed,
-    nameOf: id => names.TryGetValue(id, out var n) ? n : null,
-    topHotspots: 12,
-    maxDepth: 4));
-
+Console.WriteLine(TextReportWriter.Write(processed, meta: meta, topHotspots: 12, maxDepth: 4));
 
 static class Ids
 {
