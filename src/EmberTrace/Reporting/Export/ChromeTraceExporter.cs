@@ -203,13 +203,17 @@ public static class ChromeTraceExporter
                     top = stack[^1];
                 }
 
+                var depth = stack.Count - 1;
+                var parentId = depth > 0 ? stack[depth - 1].Id : 0;
+
                 stack.RemoveAt(stack.Count - 1);
 
                 var dur = e.Timestamp - top.Start;
                 if (dur <= 0)
                     continue;
 
-                list.Add(new CompleteEvent(e.Id, e.ThreadId, top.Start, dur));
+                list.Add(new CompleteEvent(e.Id, e.ThreadId, top.Start, dur, depth, parentId));
+
             }
         }
 
@@ -281,6 +285,9 @@ public static class ChromeTraceExporter
         json.WritePropertyName("args");
         json.WriteStartObject();
         json.WriteNumber("id", e.Id);
+        json.WriteNumber("depth", e.Depth);
+        if (e.ParentId != 0)
+            json.WriteNumber("parent", e.ParentId);
         json.WriteEndObject();
         json.WriteEndObject();
     }
@@ -334,47 +341,28 @@ public static class ChromeTraceExporter
         category = "";
     }
 
-    private readonly struct BeginEndEvent
+    private readonly struct BeginEndEvent(int id, int tid, long ts, byte phase)
     {
-        public readonly int Id;
-        public readonly int Tid;
-        public readonly long Ts;
-        public readonly byte Phase;
-
-        public BeginEndEvent(int id, int tid, long ts, byte phase)
-        {
-            Id = id;
-            Tid = tid;
-            Ts = ts;
-            Phase = phase;
-        }
+        public readonly int Id = id;
+        public readonly int Tid = tid;
+        public readonly long Ts = ts;
+        public readonly byte Phase = phase;
     }
 
-    private readonly struct CompleteEvent
+    private readonly struct CompleteEvent(int id, int tid, long startTs, long dur, int depth, int parentId)
     {
-        public readonly int Id;
-        public readonly int Tid;
-        public readonly long StartTs;
-        public readonly long Dur;
-
-        public CompleteEvent(int id, int tid, long startTs, long dur)
-        {
-            Id = id;
-            Tid = tid;
-            StartTs = startTs;
-            Dur = dur;
-        }
+        public readonly int Id = id;
+        public readonly int Tid = tid;
+        public readonly long StartTs = startTs;
+        public readonly long Dur = dur;
+        public readonly int Depth = depth;
+        public readonly int ParentId = parentId;
     }
 
-    private readonly struct Frame
-    {
-        public readonly int Id;
-        public readonly long Start;
 
-        public Frame(int id, long start)
-        {
-            Id = id;
-            Start = start;
-        }
+    private readonly struct Frame(int id, long start)
+    {
+        public readonly int Id = id;
+        public readonly long Start = start;
     }
 }
