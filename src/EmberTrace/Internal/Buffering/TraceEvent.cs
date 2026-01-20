@@ -1,3 +1,5 @@
+using EmberTrace.Sessions;
+
 namespace EmberTrace.Internal.Buffering;
 
 internal readonly struct TraceEvent(int id, int threadId, long timestamp, TraceEventKind kind, long flowId)

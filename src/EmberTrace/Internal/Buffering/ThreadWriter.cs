@@ -1,5 +1,6 @@
 using System.Threading;
 using EmberTrace.Internal.Time;
+using EmberTrace.Sessions;
 
 namespace EmberTrace.Internal.Buffering;
 

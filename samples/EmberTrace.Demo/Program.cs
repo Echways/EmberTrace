@@ -3,10 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EmberTrace.Abstractions.Attributes;
-using EmberTrace.Public;
-using EmberTrace.Reporting;
-using EmberTrace.Reporting.Export;
-using EmberTrace.Reporting.Text;
+using EmberTrace;
 
 [assembly: TraceId(Ids.App, "App", "App")]
 [assembly: TraceId(Ids.Warmup, "Warmup", "App")]
@@ -18,26 +15,26 @@ using EmberTrace.Reporting.Text;
 
 static void Busy(int spins)
 {
-    using var s = Profiler.Scope(Ids.Cpu);
+    using var s = Tracer.Scope(Ids.Cpu);
     Thread.SpinWait(spins);
 }
 
 static void SimulatedIo(int ms)
 {
-    using var s = Profiler.Scope(Ids.IO);
+    using var s = Tracer.Scope(Ids.IO);
     Thread.Sleep(ms);
 }
 
 static void ProducerWork()
 {
-    using var s = Profiler.Scope(Ids.Producer);
+    using var s = Tracer.Scope(Ids.Producer);
     Busy(180_000);
     SimulatedIo(5);
 }
 
 static void ConsumerWork(int n)
 {
-    using var s = Profiler.Scope(Ids.Consumer);
+    using var s = Tracer.Scope(Ids.Consumer);
     for (int i = 0; i < n; i++)
     {
         if ((i & 1) == 0)
@@ -47,24 +44,23 @@ static void ConsumerWork(int n)
     }
 }
 
-var opts = new SessionOptions { ChunkCapacity = 32_768, OverflowPolicy = OverflowPolicy.Drop };
-Profiler.Start(opts);
+Tracer.Start();
 
-using (Profiler.Scope(Ids.App))
+using (Tracer.Scope(Ids.App))
 {
-    using (Profiler.Scope(Ids.Warmup))
+    using (Tracer.Scope(Ids.Warmup))
     {
         Busy(120_000);
         SimulatedIo(4);
     }
 
-    var pair = Profiler.FlowStartNewPair(Ids.JobFlow);
+    var flow = Tracer.FlowStartNewHandle(Ids.JobFlow);
     ProducerWork();
-    pair.Step();
+    flow.Step();
 
     var t = Task.Run(() =>
     {
-        Profiler.FlowEnd(pair);
+        Tracer.FlowEnd(flow);
         ConsumerWork(5);
     });
 
@@ -72,16 +68,16 @@ using (Profiler.Scope(Ids.App))
     t.Wait();
 }
 
-var session = Profiler.Stop();
+var session = Tracer.Stop();
 
 var processed = session.Process();
-var meta = TraceMetadata.CreateDefault();
+var meta = Tracer.CreateMetadata();
 
-Console.WriteLine(TextReportWriter.Write(processed, meta: meta, topHotspots: 20, maxDepth: 6));
+Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 6));
 
 var outPath = Path.Combine(AppContext.BaseDirectory, "embertrace_flowpair_complete.json");
 using (var fs = File.Create(outPath))
-    ChromeTraceExporter.WriteComplete(session, fs, meta: meta);
+    TraceExport.WriteChromeComplete(session, fs, meta: meta);
 
 Console.WriteLine(outPath);
 
