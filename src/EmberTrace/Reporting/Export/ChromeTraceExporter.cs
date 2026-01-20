@@ -16,7 +16,8 @@ public static class ChromeTraceExporter
         Stream output,
         ITraceMetadataProvider? meta = null,
         bool sortByTimestamp = true,
-        int pid = 1)
+        int pid = 1,
+        string processName = "EmberTrace")
     {
         if (session is null) throw new ArgumentNullException(nameof(session));
         if (output is null) throw new ArgumentNullException(nameof(output));
@@ -33,18 +34,29 @@ public static class ChromeTraceExporter
         json.WritePropertyName("traceEvents");
         json.WriteStartArray();
 
+        var tids = CollectThreadIds(session, includeSynthetic: false);
+        WriteProcessName(json, pid, processName);
+        foreach (var tid in tids)
+            WriteThreadName(json, pid, tid, $"Thread {tid}");
+
         if (sortByTimestamp)
         {
-            var events = CollectBeginEnd(session, start);
+            var events = CollectRawEvents(session, start);
             events.Sort(static (a, b) =>
             {
-                var c = a.Ts.CompareTo(b.Ts);
+                var c = a.Timestamp.CompareTo(b.Timestamp);
                 if (c != 0) return c;
-                return a.Phase.CompareTo(b.Phase);
+
+                var pa = PhaseRank(a.Kind);
+                var pb = PhaseRank(b.Kind);
+                c = pa.CompareTo(pb);
+                if (c != 0) return c;
+
+                return a.ThreadId.CompareTo(b.ThreadId);
             });
 
             for (int i = 0; i < events.Count; i++)
-                WriteBeginEndEvent(json, events[i], meta, start, freq, pid);
+                WriteRawEvent(json, events[i], meta, start, freq, pid);
         }
         else
         {
@@ -54,7 +66,7 @@ public static class ChromeTraceExporter
                 var c = chunks[ci];
                 var arr = c.Events;
                 for (int i = 0; i < c.Count; i++)
-                    WriteBeginEndEvent(json, arr[i], meta, start, freq, pid);
+                    WriteRawEvent(json, arr[i], meta, start, freq, pid);
             }
         }
 
@@ -90,13 +102,15 @@ public static class ChromeTraceExporter
         json.WritePropertyName("traceEvents");
         json.WriteStartArray();
 
-        var tids = new HashSet<int>();
-        for (int i = 0; i < complete.Count; i++)
-            tids.Add(complete[i].Tid);
-
+        var tids = CollectThreadIds(session, includeSynthetic: true);
         WriteProcessName(json, pid, processName);
         foreach (var tid in tids)
             WriteThreadName(json, pid, tid, $"Thread {tid}");
+
+        var flows = CollectFlowEvents(session, start);
+        flows.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        for (int i = 0; i < flows.Count; i++)
+            WriteFlowEvent(json, flows[i], meta, start, freq, pid);
 
         for (int i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, start, freq, pid);
@@ -110,10 +124,11 @@ public static class ChromeTraceExporter
         TraceSession session,
         ITraceMetadataProvider? meta = null,
         bool sortByTimestamp = true,
-        int pid = 1)
+        int pid = 1,
+        string processName = "EmberTrace")
     {
         using var ms = new MemoryStream(capacity: 256 * 1024);
-        WriteBeginEnd(session, ms, meta, sortByTimestamp, pid);
+        WriteBeginEnd(session, ms, meta, sortByTimestamp, pid, processName);
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
@@ -129,9 +144,9 @@ public static class ChromeTraceExporter
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
-    private static List<BeginEndEvent> CollectBeginEnd(TraceSession session, long start)
+    private static List<TraceEvent> CollectRawEvents(TraceSession session, long start)
     {
-        var list = new List<BeginEndEvent>(checked((int)Math.Min(int.MaxValue, session.EventCount)));
+        var list = new List<TraceEvent>(checked((int)Math.Min(int.MaxValue, session.EventCount)));
 
         var chunks = session.Chunks;
         for (int ci = 0; ci < chunks.Count; ci++)
@@ -143,8 +158,7 @@ public static class ChromeTraceExporter
                 var e = arr[i];
                 if (e.Timestamp < start)
                     continue;
-
-                list.Add(new BeginEndEvent(e.Id, e.ThreadId, e.Timestamp, e.Kind == TraceEventKind.Begin ? (byte)0 : (byte)1));
+                list.Add(e);
             }
         }
 
@@ -166,6 +180,9 @@ public static class ChromeTraceExporter
             {
                 var e = arr[i];
                 if (e.Timestamp < start)
+                    continue;
+
+                if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
                     continue;
 
                 if (!stacks.TryGetValue(e.ThreadId, out var stack))
@@ -213,32 +230,85 @@ public static class ChromeTraceExporter
                     continue;
 
                 list.Add(new CompleteEvent(e.Id, e.ThreadId, top.Start, dur, depth, parentId));
-
             }
         }
 
         return list;
     }
 
-    private static void WriteBeginEndEvent(
+    private static List<FlowEvent> CollectFlowEvents(TraceSession session, long start)
+    {
+        var list = new List<FlowEvent>(capacity: checked((int)Math.Min(int.MaxValue, session.EventCount)));
+
+        var chunks = session.Chunks;
+        for (int ci = 0; ci < chunks.Count; ci++)
+        {
+            var c = chunks[ci];
+            var arr = c.Events;
+
+            for (int i = 0; i < c.Count; i++)
+            {
+                var e = arr[i];
+                if (e.Timestamp < start)
+                    continue;
+
+                if (e.Kind != TraceEventKind.FlowStart && e.Kind != TraceEventKind.FlowStep && e.Kind != TraceEventKind.FlowEnd)
+                    continue;
+
+                if (e.FlowId == 0)
+                    continue;
+
+                list.Add(new FlowEvent(e.Id, e.ThreadId, e.Timestamp, e.FlowId, FlowPhaseOf(e.Kind)));
+            }
+        }
+
+        return list;
+    }
+
+    private static HashSet<int> CollectThreadIds(TraceSession session, bool includeSynthetic)
+    {
+        var tids = new HashSet<int>();
+
+        var chunks = session.Chunks;
+        for (int ci = 0; ci < chunks.Count; ci++)
+        {
+            var c = chunks[ci];
+            var arr = c.Events;
+            for (int i = 0; i < c.Count; i++)
+            {
+                var e = arr[i];
+                tids.Add(e.ThreadId);
+            }
+        }
+
+        if (includeSynthetic)
+            tids.Add(0);
+
+        return tids;
+    }
+
+    private static void WriteRawEvent(
         Utf8JsonWriter json,
-        in BeginEndEvent e,
+        in TraceEvent e,
         ITraceMetadataProvider meta,
         long start,
         long freq,
         int pid)
     {
-        var tsUs = ToUs(e.Ts - start, freq);
-        Resolve(meta, e.Id, out var name, out var cat);
+        if (e.Kind == TraceEventKind.Begin || e.Kind == TraceEventKind.End)
+        {
+            WriteBeginEndEvent(json, e, meta, start, freq, pid);
+            return;
+        }
 
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", e.Phase == 0 ? "B" : "E");
-        json.WriteNumber("ts", tsUs);
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.Tid);
-        json.WriteEndObject();
+        if (e.Kind == TraceEventKind.FlowStart || e.Kind == TraceEventKind.FlowStep || e.Kind == TraceEventKind.FlowEnd)
+        {
+            if (e.FlowId == 0)
+                return;
+
+            var fe = new FlowEvent(e.Id, e.ThreadId, e.Timestamp, e.FlowId, FlowPhaseOf(e.Kind));
+            WriteFlowEvent(json, fe, meta, start, freq, pid);
+        }
     }
 
     private static void WriteBeginEndEvent(
@@ -282,6 +352,7 @@ public static class ChromeTraceExporter
         json.WriteNumber("dur", durUs);
         json.WriteNumber("pid", pid);
         json.WriteNumber("tid", e.Tid);
+
         json.WritePropertyName("args");
         json.WriteStartObject();
         json.WriteNumber("id", e.Id);
@@ -289,6 +360,35 @@ public static class ChromeTraceExporter
         if (e.ParentId != 0)
             json.WriteNumber("parent", e.ParentId);
         json.WriteEndObject();
+
+        json.WriteEndObject();
+    }
+
+    private static void WriteFlowEvent(
+        Utf8JsonWriter json,
+        in FlowEvent e,
+        ITraceMetadataProvider meta,
+        long start,
+        long freq,
+        int pid)
+    {
+        var tsUs = ToUs(e.Timestamp - start, freq);
+        Resolve(meta, e.Id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", e.Phase);
+        json.WriteNumber("ts", tsUs);
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", e.Tid);
+        json.WriteNumber("id", e.FlowId);
+
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteNumber("id", e.Id);
+        json.WriteEndObject();
+
         json.WriteEndObject();
     }
 
@@ -341,28 +441,77 @@ public static class ChromeTraceExporter
         category = "";
     }
 
-    private readonly struct BeginEndEvent(int id, int tid, long ts, byte phase)
+    private static int PhaseRank(TraceEventKind kind)
     {
-        public readonly int Id = id;
-        public readonly int Tid = tid;
-        public readonly long Ts = ts;
-        public readonly byte Phase = phase;
+        return kind switch
+        {
+            TraceEventKind.FlowStart => 0,
+            TraceEventKind.Begin => 1,
+            TraceEventKind.FlowStep => 2,
+            TraceEventKind.End => 3,
+            TraceEventKind.FlowEnd => 4,
+            _ => 5
+        };
     }
 
-    private readonly struct CompleteEvent(int id, int tid, long startTs, long dur, int depth, int parentId)
+    private static string FlowPhaseOf(TraceEventKind kind)
     {
-        public readonly int Id = id;
-        public readonly int Tid = tid;
-        public readonly long StartTs = startTs;
-        public readonly long Dur = dur;
-        public readonly int Depth = depth;
-        public readonly int ParentId = parentId;
+        return kind switch
+        {
+            TraceEventKind.FlowStart => "s",
+            TraceEventKind.FlowStep => "t",
+            TraceEventKind.FlowEnd => "f",
+            _ => "t"
+        };
     }
 
-
-    private readonly struct Frame(int id, long start)
+    private readonly struct CompleteEvent
     {
-        public readonly int Id = id;
-        public readonly long Start = start;
+        public readonly int Id;
+        public readonly int Tid;
+        public readonly long StartTs;
+        public readonly long Dur;
+        public readonly int Depth;
+        public readonly int ParentId;
+
+        public CompleteEvent(int id, int tid, long startTs, long dur, int depth, int parentId)
+        {
+            Id = id;
+            Tid = tid;
+            StartTs = startTs;
+            Dur = dur;
+            Depth = depth;
+            ParentId = parentId;
+        }
+    }
+
+    private readonly struct FlowEvent
+    {
+        public readonly int Id;
+        public readonly int Tid;
+        public readonly long Timestamp;
+        public readonly long FlowId;
+        public readonly string Phase;
+
+        public FlowEvent(int id, int tid, long timestamp, long flowId, string phase)
+        {
+            Id = id;
+            Tid = tid;
+            Timestamp = timestamp;
+            FlowId = flowId;
+            Phase = phase;
+        }
+    }
+
+    private readonly struct Frame
+    {
+        public readonly int Id;
+        public readonly long Start;
+
+        public Frame(int id, long start)
+        {
+            Id = id;
+            Start = start;
+        }
     }
 }

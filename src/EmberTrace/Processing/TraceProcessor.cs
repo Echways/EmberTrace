@@ -99,6 +99,10 @@ internal static class TraceProcessor
             for (int i = 0; i < c.Count; i++)
             {
                 var e = events[i];
+                
+                if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
+                    continue;
+                
                 totalEvents++;
 
                 if (!perThread.TryGetValue(e.ThreadId, out var stack))
@@ -210,6 +214,10 @@ internal static class TraceProcessor
             for (int i = 0; i < c.Count; i++)
             {
                 var e = events[i];
+                
+                if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
+                    continue;
+
                 totalEvents++;
 
                 if (!roots.TryGetValue(e.ThreadId, out var root))
