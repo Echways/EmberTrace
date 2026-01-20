@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
+
 
 namespace EmberTrace;
 
@@ -686,6 +688,54 @@ public static class TraceExport
 
             return _base.TryGet(id, out metadata);
         }
+    }
+    
+    public static MarkedCompleteResult MarkedCompleteEx(
+        Action body,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? name = null)
+    {
+        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
+        return MarkedCompleteEx(n, body, running, resumeOptions, pid, processName);
+    }
+
+    public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
+        Func<Task> body,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? name = null)
+    {
+        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
+        return MarkedCompleteExAsync(n, body, running, resumeOptions, pid, processName);
+    }
+
+    public static TraceSession MarkedComplete(
+        Action body,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? name = null)
+    {
+        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
+        return MarkedComplete(n, DefaultTracePath(n), body, running, resumeOptions, pid, processName);
+    }
+
+    public static Task<TraceSession> MarkedCompleteAsync(
+        Func<Task> body,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? name = null)
+    {
+        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
+        return MarkedCompleteAsync(n, DefaultTracePath(n), body, running, resumeOptions, pid, processName);
     }
 
     readonly struct Frame
