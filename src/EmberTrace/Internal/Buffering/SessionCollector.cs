@@ -7,6 +7,7 @@ internal sealed class SessionCollector
 {
     private readonly List<Chunk> _chunks = new();
     private readonly List<ThreadWriter> _writers = new();
+    private readonly object _sync = new();
 
     private int _closed;
 
@@ -14,18 +15,43 @@ internal sealed class SessionCollector
 
     public void Close() => Interlocked.Exchange(ref _closed, 1);
 
-    public void AddChunk(Chunk chunk) => _chunks.Add(chunk);
+    public void AddChunk(Chunk chunk)
+    {
+        lock (_sync)
+            _chunks.Add(chunk);
+    }
 
-    public void RegisterWriter(ThreadWriter writer) => _writers.Add(writer);
+    public void RegisterWriter(ThreadWriter writer)
+    {
+        lock (_sync)
+            _writers.Add(writer);
+    }
 
-    public IReadOnlyList<Chunk> Chunks => _chunks;
+    public IReadOnlyList<Chunk> Chunks
+    {
+        get
+        {
+            lock (_sync)
+                return _chunks.ToArray();
+        }
+    }
 
-    public IReadOnlyList<ThreadWriter> Writers => _writers;
+    public IReadOnlyList<ThreadWriter> Writers
+    {
+        get
+        {
+            lock (_sync)
+                return _writers.ToArray();
+        }
+    }
 
     public void Clear()
     {
-        _chunks.Clear();
-        _writers.Clear();
-        _closed = 0;
+        lock (_sync)
+        {
+            _chunks.Clear();
+            _writers.Clear();
+            _closed = 0;
+        }
     }
 }
