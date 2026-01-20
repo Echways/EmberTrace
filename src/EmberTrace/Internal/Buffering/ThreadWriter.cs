@@ -24,12 +24,12 @@ internal sealed class ThreadWriter
 
     public void Close() => Interlocked.Exchange(ref _closed, 1);
 
-    public void Write(int id, TraceEventKind kind)
+    public void Write(int id, TraceEventKind kind, long flowId)
     {
         if (IsClosed || _collector.IsClosed)
             return;
 
-        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind);
+        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind, flowId);
 
         if (_chunk.TryWrite(e))
             return;

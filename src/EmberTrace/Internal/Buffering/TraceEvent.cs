@@ -1,17 +1,10 @@
 namespace EmberTrace.Internal.Buffering;
 
-internal readonly struct TraceEvent
+internal readonly struct TraceEvent(int id, int threadId, long timestamp, TraceEventKind kind, long flowId)
 {
-    public readonly int Id;
-    public readonly int ThreadId;
-    public readonly long Timestamp;
-    public readonly TraceEventKind Kind;
-
-    public TraceEvent(int id, int threadId, long timestamp, TraceEventKind kind)
-    {
-        Id = id;
-        ThreadId = threadId;
-        Timestamp = timestamp;
-        Kind = kind;
-    }
+    public readonly int Id = id;
+    public readonly int ThreadId = threadId;
+    public readonly long Timestamp = timestamp;
+    public readonly TraceEventKind Kind = kind;
+    public readonly long FlowId = flowId;
 }
