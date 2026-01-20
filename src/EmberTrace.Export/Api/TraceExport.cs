@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
-
 namespace EmberTrace;
 
 public enum MarkedRunningSessionMode
@@ -116,7 +115,7 @@ public static class TraceExport
         return r.CapturedSession;
     }
 
-    public static Task<TraceSession> MarkedCompleteAsync(
+    public static async Task<TraceSession> MarkedCompleteAsync(
         string name,
         string outputPath,
         Func<Task> body,
@@ -125,8 +124,8 @@ public static class TraceExport
         int pid = 1,
         string processName = "EmberTrace")
     {
-        return MarkedCompleteExAsync(name, outputPath, body, running, resumeOptions, pid, processName)
-            .ContinueWith(static t => t.Result.CapturedSession);
+        var r = await MarkedCompleteExAsync(name, outputPath, body, running, resumeOptions, pid, processName).ConfigureAwait(false);
+        return r.CapturedSession;
     }
 
     public static TraceSession MarkedComplete(string name, Action body)
@@ -315,6 +314,144 @@ public static class TraceExport
             throw bodyError;
 
         return new MarkedCompleteResult(name, markerId, outputPath, stopped, window.MinTs, window.MaxTs);
+    }
+
+    public static MarkedCompleteResult MarkedCompleteEx(
+        Action body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null)
+    {
+        var name = MakeNameFromCaller(caller, tag);
+        return MarkedCompleteEx(name, body, running, resumeOptions, pid, processName);
+    }
+
+    public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
+        Func<Task> body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null)
+    {
+        var name = MakeNameFromCaller(caller, tag);
+        return MarkedCompleteExAsync(name, body, running, resumeOptions, pid, processName);
+    }
+
+    public static TraceSession MarkedComplete(
+        Action body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null)
+    {
+        var name = MakeNameFromCaller(caller, tag);
+        return MarkedComplete(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+    }
+
+    public static Task<TraceSession> MarkedCompleteAsync(
+        Func<Task> body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null)
+    {
+        var name = MakeNameFromCaller(caller, tag);
+        return MarkedCompleteAsync(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+    }
+
+    public static MarkedCompleteResult MarkedCompleteExUnique(
+        Action body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null,
+        [CallerLineNumber] int line = 0)
+    {
+        var baseName = MakeNameFromCaller(caller, tag);
+        var name = $"{baseName}_L{line}";
+        return MarkedCompleteEx(name, body, running, resumeOptions, pid, processName);
+    }
+
+    public static Task<MarkedCompleteResult> MarkedCompleteExUniqueAsync(
+        Func<Task> body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null,
+        [CallerLineNumber] int line = 0)
+    {
+        var baseName = MakeNameFromCaller(caller, tag);
+        var name = $"{baseName}_L{line}";
+        return MarkedCompleteExAsync(name, body, running, resumeOptions, pid, processName);
+    }
+
+    public static TraceSession MarkedCompleteUnique(
+        Action body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null,
+        [CallerLineNumber] int line = 0)
+    {
+        var baseName = MakeNameFromCaller(caller, tag);
+        var name = $"{baseName}_L{line}";
+        return MarkedComplete(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+    }
+
+    public static Task<TraceSession> MarkedCompleteUniqueAsync(
+        Func<Task> body,
+        string? tag = null,
+        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
+        SessionOptions? resumeOptions = null,
+        int pid = 1,
+        string processName = "EmberTrace",
+        [CallerMemberName] string? caller = null,
+        [CallerLineNumber] int line = 0)
+    {
+        var baseName = MakeNameFromCaller(caller, tag);
+        var name = $"{baseName}_L{line}";
+        return MarkedCompleteAsync(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+    }
+
+    static string MakeNameFromCaller(string? caller, string? tag)
+    {
+        var baseName = string.IsNullOrWhiteSpace(caller) ? "Marked" : caller;
+        if (string.IsNullOrWhiteSpace(tag))
+            return baseName;
+
+        return $"{baseName}_{SanitizeTag(tag)}";
+    }
+
+    static string SanitizeTag(string tag)
+    {
+        Span<char> buf = stackalloc char[tag.Length];
+        var n = 0;
+
+        for (int i = 0; i < tag.Length; i++)
+        {
+            var c = tag[i];
+            if (char.IsLetterOrDigit(c) || c == '-' || c == '_')
+                buf[n++] = c;
+            else
+                buf[n++] = '_';
+        }
+
+        return new string(buf[..n]);
     }
 
     static ITraceMetadataProvider CreateOverlayMeta(int markerId, string name)
@@ -688,54 +825,6 @@ public static class TraceExport
 
             return _base.TryGet(id, out metadata);
         }
-    }
-    
-    public static MarkedCompleteResult MarkedCompleteEx(
-        Action body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        [CallerMemberName] string? name = null)
-    {
-        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
-        return MarkedCompleteEx(n, body, running, resumeOptions, pid, processName);
-    }
-
-    public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
-        Func<Task> body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        [CallerMemberName] string? name = null)
-    {
-        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
-        return MarkedCompleteExAsync(n, body, running, resumeOptions, pid, processName);
-    }
-
-    public static TraceSession MarkedComplete(
-        Action body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        [CallerMemberName] string? name = null)
-    {
-        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
-        return MarkedComplete(n, DefaultTracePath(n), body, running, resumeOptions, pid, processName);
-    }
-
-    public static Task<TraceSession> MarkedCompleteAsync(
-        Func<Task> body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        [CallerMemberName] string? name = null)
-    {
-        var n = string.IsNullOrWhiteSpace(name) ? "Marked" : name;
-        return MarkedCompleteAsync(n, DefaultTracePath(n), body, running, resumeOptions, pid, processName);
     }
 
     readonly struct Frame
