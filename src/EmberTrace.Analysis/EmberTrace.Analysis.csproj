@@ -1,19 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
 
         <AssemblyName>EmberTrace.Analysis</AssemblyName>
         <RootNamespace>EmberTrace.Analysis</RootNamespace>
 
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <NoWarn>$(NoWarn);1591</NoWarn>
-    </PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
 
-    <ItemGroup>
-        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
-    </ItemGroup>
+    <PackageId>EmberTrace.Analysis</PackageId>
+    <Title>EmberTrace.Analysis</Title>
+    <Description>Processing and aggregation for EmberTrace sessions.</Description>
+    <Authors>Echways</Authors>
+    <PackageTags>tracing;analysis;profiling;dotnet</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 
 </Project>
