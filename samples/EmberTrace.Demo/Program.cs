@@ -1,96 +1,124 @@
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
-using EmberTrace.Abstractions.Attributes;
 using EmberTrace;
-
-[assembly: TraceId(Ids.App, "App", "App")]
-[assembly: TraceId(Ids.Warmup, "Warmup", "App")]
-[assembly: TraceId(Ids.Producer, "Producer", "Flow")]
-[assembly: TraceId(Ids.Consumer, "Consumer", "Flow")]
-[assembly: TraceId(Ids.JobFlow, "JobFlow", "Flow")]
-[assembly: TraceId(Ids.Cpu, "Cpu", "CPU")]
-[assembly: TraceId(Ids.IO, "IO", "IO")]
+using EmberTrace.ReportText;
+using EmberTrace.Sessions;
 
 static void Busy(int spins)
 {
-    using var s = Tracer.Scope(Ids.Cpu);
-    Thread.SpinWait(spins);
+    using var s = Tracer.Scope(Ids.Busy);
+    var x = 0;
+    for (var i = 0; i < spins; i++)
+        x = (x * 1664525) + 1013904223;
+    if (x == 42) Console.WriteLine(x);
 }
 
-static void SimulatedIo(int ms)
+static async Task SimulatedIoAsync(int ms)
 {
-    using var s = Tracer.Scope(Ids.IO);
-    Thread.Sleep(ms);
+    await using var s = Tracer.ScopeAsync(Ids.Io);
+    await Task.Delay(ms).ConfigureAwait(false);
 }
 
-static void ProducerWork()
+static void WriteTextReport(string title, TraceSession session)
 {
-    using var s = Tracer.Scope(Ids.Producer);
-    Busy(180_000);
-    SimulatedIo(5);
+    var processed = session.Process();
+    var meta = Tracer.CreateMetadata();
+    var text = TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 8);
+    Console.WriteLine();
+    Console.WriteLine("==== " + title + " ====");
+    Console.WriteLine(text);
 }
 
-static void ConsumerWork(int n)
+static void EnsureOutDir()
 {
-    using var s = Tracer.Scope(Ids.Consumer);
-    for (int i = 0; i < n; i++)
+    Directory.CreateDirectory("out");
+}
+
+EnsureOutDir();
+
+Console.WriteLine("1) Standalone MarkedComplete (session not running)");
+TraceExport.MarkedComplete(
+    name: "StandaloneBlock",
+    outputPath: Path.Combine("out", "standalone.json"),
+    body: () =>
     {
-        if ((i & 1) == 0)
-            Busy(120_000);
-        else
-            SimulatedIo(6);
-    }
-}
-
-Tracer.Start();
-
-using (Tracer.Scope(Ids.App))
-{
-    using (Tracer.Scope(Ids.Warmup))
-    {
-        Busy(120_000);
-        SimulatedIo(4);
-    }
-
-    var flow = Tracer.FlowStartNewHandle(Ids.JobFlow);
-    ProducerWork();
-    flow.Step();
-
-    var t = Task.Run(() =>
-    {
-        Tracer.FlowEnd(flow);
-        ConsumerWork(5);
+        using var app = Tracer.Scope(Ids.App);
+        using var warm = Tracer.Scope(Ids.Warmup);
+        Busy(300_000);
+        Busy(200_000);
     });
 
-    Busy(140_000);
-    t.Wait();
+Console.WriteLine("Saved: out/standalone.json");
+
+Console.WriteLine();
+Console.WriteLine("2) SliceAndResume while a session is already running (sync + async inside)");
+
+var resumeOpts = new SessionOptions
+{
+    ChunkCapacity = 64 * 1024,
+    OverflowPolicy = OverflowPolicy.Drop
+};
+
+Tracer.Start(resumeOpts);
+
+using (Tracer.Scope(Ids.RunningOuter))
+{
+    Busy(250_000);
+    Busy(150_000);
 }
 
-var session = Tracer.Stop();
+try
+{
+    TraceExport.MarkedComplete(
+        name: "SliceBlock",
+        outputPath: Path.Combine("out", "slice.json"),
+        body: () =>
+        {
+            using var app = Tracer.Scope(Ids.App);
+            Busy(400_000);
+            SimulatedIoAsync(30).GetAwaiter().GetResult();
+            Busy(200_000);
+        },
+        running: MarkedRunningSessionMode.SliceAndResume,
+        resumeOptions: resumeOpts);
 
-var processed = session.Process();
-var meta = Tracer.CreateMetadata();
+    Console.WriteLine("Saved: out/slice.json");
+}
+catch (Exception ex)
+{
+    Console.WriteLine("SliceBlock threw: " + ex.GetType().Name + " - " + ex.Message);
+}
 
-Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 6));
+using (Tracer.Scope(Ids.AfterSlice))
+{
+    Busy(220_000);
+    SimulatedIoAsync(20).GetAwaiter().GetResult();
+    Busy(120_000);
+}
 
-var outPath = Path.Combine(AppContext.BaseDirectory, "embertrace_flowpair_complete.json");
-using (var fs = File.Create(outPath))
-    TraceExport.WriteChromeComplete(session, fs, meta: meta);
+var resumedSession = Tracer.Stop();
 
-Console.WriteLine(outPath);
+WriteTextReport("Resumed session report (after SliceAndResume)", resumedSession);
+
+var resumedJson = Path.Combine("out", "resumed_full.json");
+using (var fs = File.Create(resumedJson))
+{
+    var meta = Tracer.CreateMetadata();
+    TraceExport.WriteChromeComplete(resumedSession, fs, meta: meta);
+}
+
+Console.WriteLine("Saved: out/resumed_full.json");
+
+Console.WriteLine();
+Console.WriteLine("Done.");
 
 static class Ids
 {
-    public const int App = 1000;
-    public const int Warmup = 1100;
-
-    public const int Producer = 2000;
-    public const int Consumer = 2100;
-
-    public const int JobFlow = 9001;
-
-    public const int Cpu = 3002;
-    public const int IO = 3001;
+    public static readonly int App = Tracer.Id("App");
+    public static readonly int Warmup = Tracer.Id("Warmup");
+    public static readonly int Busy = Tracer.Id("Busy");
+    public static readonly int Io = Tracer.Id("Io");
+    public static readonly int RunningOuter = Tracer.Id("RunningOuter");
+    public static readonly int AfterSlice = Tracer.Id("AfterSlice");
 }
