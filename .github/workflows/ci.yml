@@ -22,8 +22,17 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Install dotnet-format
+        run: dotnet tool install -g dotnet-format
+
+      - name: Lint (dotnet format)
+        run: dotnet format --verify-no-changes
+
       - name: Build
         run: dotnet build --no-restore -c Release
 
       - name: Test
         run: dotnet test tests/EmberTrace.Tests/EmberTrace.Tests.csproj --no-build -c Release
+
+      - name: Run Demo3
+        run: dotnet run --project samples/EmberTrace.Demo3/EmberTraceDemo3.csproj -c Release
