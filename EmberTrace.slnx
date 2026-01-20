@@ -2,6 +2,7 @@
   <Folder Name="/samples/">
     <Project Path="samples/EmberTrace.Demo/EmberTraceDemo.csproj" />
     <Project Path="samples/EmberTrace.Demo2/EmberTraceDemo2.csproj" />
+    <Project Path="samples/EmberTrace.Demo3/EmberTraceDemo3.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj" />
