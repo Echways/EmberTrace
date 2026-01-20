@@ -148,4 +148,7 @@ internal static class Profiler
 
         w.Write(id, kind, flowId);
     }
+    
+    public static void EndScope(int id) => End(id);
+
 }
