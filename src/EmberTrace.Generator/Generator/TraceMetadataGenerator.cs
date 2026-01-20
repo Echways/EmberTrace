@@ -92,7 +92,7 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
         sb.AppendLine("        [System.Runtime.CompilerServices.ModuleInitializer]");
         sb.AppendLine("        internal static void Init()");
         sb.AppendLine("        {");
-            sb.AppendLine("            global::EmberTrace.Metadata.TraceMetadata.Register(new GeneratedTraceMetadataProvider());");
+        sb.AppendLine("            global::EmberTrace.Metadata.TraceMetadata.Register(new GeneratedTraceMetadataProvider());");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");

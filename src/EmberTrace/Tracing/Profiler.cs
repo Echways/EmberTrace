@@ -104,7 +104,7 @@ internal static class Profiler
         if (flowId == 0) return;
         Write(id, TraceEventKind.FlowEnd, flowId);
     }
-    
+
     public static long FlowStartNew(int id)
     {
         var flowId = NewFlowId();
@@ -120,7 +120,7 @@ internal static class Profiler
         var flowId = NewFlowId();
         FlowStart(id, flowId);
         return new FlowScope(id, flowId, active: true);
-    }    
+    }
     public static FlowHandle FlowStartNewHandle(int id)
     {
         if (!IsRunning)
@@ -130,7 +130,7 @@ internal static class Profiler
         FlowStart(id, flowId);
         return new FlowHandle(id, flowId);
     }
-    
+
     private static void Write(int id, TraceEventKind kind, long flowId)
     {
         var collector = _collector;
@@ -148,7 +148,7 @@ internal static class Profiler
 
         w.Write(id, kind, flowId);
     }
-    
+
     public static void EndScope(int id) => End(id);
 
 }
