@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <AssemblyName>EmberTrace.ReportText</AssemblyName>
+    <RootNamespace>EmberTrace.ReportText</RootNamespace>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
+    <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
+  </ItemGroup>
+
+</Project>

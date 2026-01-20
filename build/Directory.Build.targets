@@ -1,0 +1,9 @@
+<Project>
+    <PropertyGroup Condition="'$(IsRoslynComponent)' == 'true'">
+        <EmitCompilerGeneratedFiles Condition="'$(EmitCompilerGeneratedFiles)' == ''">true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath Condition="'$(CompilerGeneratedFilesOutputPath)' == ''">$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
+        <CopyLocalLockFileAssemblies Condition="'$(CopyLocalLockFileAssemblies)' == ''">false</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+
+    <Target Name="EmberTrace_ValidateDirectoryBuildFiles" BeforeTargets="PrepareForBuild" />
+</Project>

@@ -8,6 +8,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj" />
+        <ProjectReference Include="..\..\src\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
+        <ProjectReference Include="..\..\src\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />
+        <ProjectReference Include="..\..\src\EmberTrace.Export\EmberTrace.Export.csproj" />
         <ProjectReference Include="..\..\src\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" />
         <ProjectReference Include="..\..\src\EmberTrace.Generator\EmberTrace.Generator.csproj"
                           OutputItemType="Analyzer"
