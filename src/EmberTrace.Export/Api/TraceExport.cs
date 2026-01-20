@@ -323,10 +323,12 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null)
     {
         var name = MakeNameFromCaller(caller, tag);
-        return MarkedCompleteEx(name, body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedCompleteEx(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
@@ -336,10 +338,12 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null)
     {
         var name = MakeNameFromCaller(caller, tag);
-        return MarkedCompleteExAsync(name, body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedCompleteExAsync(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static TraceSession MarkedComplete(
@@ -349,10 +353,12 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null)
     {
         var name = MakeNameFromCaller(caller, tag);
-        return MarkedComplete(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedComplete(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static Task<TraceSession> MarkedCompleteAsync(
@@ -362,10 +368,12 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null)
     {
         var name = MakeNameFromCaller(caller, tag);
-        return MarkedCompleteAsync(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedCompleteAsync(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static MarkedCompleteResult MarkedCompleteExUnique(
@@ -375,12 +383,14 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null,
         [CallerLineNumber] int line = 0)
     {
         var baseName = MakeNameFromCaller(caller, tag);
         var name = $"{baseName}_L{line}";
-        return MarkedCompleteEx(name, body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedCompleteEx(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static Task<MarkedCompleteResult> MarkedCompleteExUniqueAsync(
@@ -390,12 +400,14 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null,
         [CallerLineNumber] int line = 0)
     {
         var baseName = MakeNameFromCaller(caller, tag);
         var name = $"{baseName}_L{line}";
-        return MarkedCompleteExAsync(name, body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedCompleteExAsync(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static TraceSession MarkedCompleteUnique(
@@ -405,12 +417,14 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null,
         [CallerLineNumber] int line = 0)
     {
         var baseName = MakeNameFromCaller(caller, tag);
         var name = $"{baseName}_L{line}";
-        return MarkedComplete(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedComplete(name, path, body, running, resumeOptions, pid, processName);
     }
 
     public static Task<TraceSession> MarkedCompleteUniqueAsync(
@@ -420,12 +434,14 @@ public static class TraceExport
         SessionOptions? resumeOptions = null,
         int pid = 1,
         string processName = "EmberTrace",
+        string? outputPath = null,
         [CallerMemberName] string? caller = null,
         [CallerLineNumber] int line = 0)
     {
         var baseName = MakeNameFromCaller(caller, tag);
         var name = $"{baseName}_L{line}";
-        return MarkedCompleteAsync(name, DefaultTracePath(name), body, running, resumeOptions, pid, processName);
+        var path = string.IsNullOrWhiteSpace(outputPath) ? DefaultTracePath(name) : outputPath;
+        return MarkedCompleteAsync(name, path, body, running, resumeOptions, pid, processName);
     }
 
     static string MakeNameFromCaller(string? caller, string? tag)
