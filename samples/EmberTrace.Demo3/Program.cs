@@ -111,6 +111,8 @@ TraceExport.MarkedComplete(
         SortWork(25_000);
     });
 
+Console.WriteLine("Saved: " + standalonePath);
+
 Console.WriteLine("2) Full session: scopes + flows + async + export + analysis");
 var options = new SessionOptions
 {
@@ -156,6 +158,10 @@ var fullComplete = Path.Combine("out", "full_complete.json");
 var fullBeginEnd = Path.Combine("out", "full_beginend.json");
 ExportFull(session, fullComplete, fullBeginEnd);
 
+Console.WriteLine("Saved: " + fullComplete);
+Console.WriteLine("Saved: " + fullBeginEnd);
+Console.WriteLine("Open in chrome://tracing");
+
 Console.WriteLine("3) MarkedCompleteAsync (not running)");
 var markedAsyncPath = Path.Combine("out", "marked_async.json");
 await TraceExport.MarkedCompleteAsync(
@@ -166,6 +172,8 @@ await TraceExport.MarkedCompleteAsync(
         await using (Tracer.ScopeAsync(Ids.MarkAsync))
             await Task.Delay(30);
     });
+
+Console.WriteLine("Saved: " + markedAsyncPath);
 
 Console.WriteLine("4) SliceAndResume");
 Tracer.Start(options);
@@ -192,6 +200,10 @@ var sliceResult = TraceExport.MarkedCompleteEx(
 var sliceFull = Path.Combine("out", "marked_slice_full.json");
 sliceResult.SaveFullChromeComplete(sliceFull, meta: meta);
 
+Console.WriteLine("Saved: " + slicePath);
+Console.WriteLine("Saved: " + sliceFull);
+Console.WriteLine("Open in chrome://tracing");
+
 using (Tracer.Scope(Ids.AfterSlice))
 {
     CpuSpin(140_000);
@@ -203,6 +215,10 @@ var resumed = Tracer.Stop();
 var resumedComplete = Path.Combine("out", "resumed_complete.json");
 var resumedBeginEnd = Path.Combine("out", "resumed_beginend.json");
 ExportFull(resumed, resumedComplete, resumedBeginEnd);
+
+Console.WriteLine("Saved: " + resumedComplete);
+Console.WriteLine("Saved: " + resumedBeginEnd);
+Console.WriteLine("Open in chrome://tracing");
 
 Console.WriteLine("ALL OK");
 
