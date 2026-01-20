@@ -14,6 +14,16 @@
 
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>$(NoWarn);1591</NoWarn>
+
+        <PackageId>EmberTrace.Generator</PackageId>
+        <Title>EmberTrace.Generator</Title>
+        <Description>Roslyn source generator for EmberTrace trace ids and metadata.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;sourcegenerator;roslyn;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageType>Analyzer</PackageType>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,6 +33,12 @@
 
     <ItemGroup>
         <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+        <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
+        <None Include="$(OutputPath)$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
 
 </Project>

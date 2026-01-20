@@ -10,10 +10,22 @@
 
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>$(NoWarn);1591</NoWarn>
+
+        <PackageId>EmberTrace</PackageId>
+        <Title>EmberTrace</Title>
+        <Description>Low-overhead in-process tracer/profiler for .NET with scopes, flows, and offline analysis.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;profiling;chrome-trace;performance;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
         <InternalsVisibleTo Include="EmberTrace.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" />
     </ItemGroup>
 
 </Project>

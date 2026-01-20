@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <AssemblyName>EmberTrace.All</AssemblyName>
+    <RootNamespace>EmberTrace.All</RootNamespace>
+
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeReferencedProjects>true</IncludeReferencedProjects>
+
+    <PackageId>EmberTrace.All</PackageId>
+    <Title>EmberTrace.All</Title>
+    <Description>Meta package that pulls EmberTrace runtime, generator, analysis, export, and text reporting.</Description>
+    <Authors>Echways</Authors>
+    <PackageTags>tracing;profiling;chrome-trace;analysis;dotnet</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
+    <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" />
+    <ProjectReference Include="..\EmberTrace.Generator\EmberTrace.Generator.csproj" />
+    <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
+    <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj" />
+    <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

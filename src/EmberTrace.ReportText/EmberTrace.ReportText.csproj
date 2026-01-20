@@ -10,11 +10,23 @@
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <PackageId>EmberTrace.ReportText</PackageId>
+    <Title>EmberTrace.ReportText</Title>
+    <Description>Text report writer for EmberTrace analysis results.</Description>
+    <Authors>Echways</Authors>
+    <PackageTags>tracing;reporting;analysis;dotnet</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
     <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

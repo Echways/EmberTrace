@@ -10,10 +10,22 @@
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <PackageId>EmberTrace.Export</PackageId>
+    <Title>EmberTrace.Export</Title>
+    <Description>Export EmberTrace sessions to Chrome Trace format.</Description>
+    <Authors>Echways</Authors>
+    <PackageTags>tracing;export;chrome-trace;dotnet</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

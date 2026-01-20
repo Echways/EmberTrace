@@ -10,6 +10,18 @@
 
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>$(NoWarn);1591</NoWarn>
+
+        <PackageId>EmberTrace.Abstractions</PackageId>
+        <Title>EmberTrace.Abstractions</Title>
+        <Description>Attributes for EmberTrace trace ids and metadata.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;attributes;sourcegenerator;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
 
 </Project>
