@@ -1,0 +1,21 @@
+Summary
+Duration: 20.385 ms
+Events: 6
+Threads: 1
+MismatchedEnd: 0
+
+Hotspots (by inclusive)
+Id    Name     Category  Count  Incl ms  Excl ms  Excl%
+--    ----     --------  -----  -------  -------  -----
+2200  IoWait   IO        1      20.161   20.161   98.90
+1000  App      App       1      0.090    0.001    0.00 
+2100  CpuWork  CPU       1      0.089    0.089    0.44 
+
+Call trees
+
+Thread 5
+Id      Name     Category  Count  Incl ms  Excl ms
+--      ----     --------  -----  -------  -------
+2200    IoWait   IO        1      20.161   20.161 
+1000    App      App       1      0.090    0.001  
+  2100  CpuWork  CPU       1      0.089    0.089  
