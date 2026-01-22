@@ -23,7 +23,7 @@ dotnet add package EmberTrace.All
 - `EmberTrace.ReportText` — текстовый отчёт (`TraceText.Write(...)`)
 - `EmberTrace.Export` — Chrome Trace export (`TraceExport.*`)
 
-## Быстрый старт (2–3 минуты)
+## Быстрый старт
 
 1) Опиши id и метаданные (в любом файле проекта, *на уровне assembly*):
 
@@ -96,7 +96,7 @@ dotnet test -c Release
 
 ## Скриншоты
 
-**Пример простого trace в Perfetto**
+**Пример простой трассы в Perfetto**
 
 ![Perfetto timeline](docs/assets/getting-started-first-trace.png)
 
