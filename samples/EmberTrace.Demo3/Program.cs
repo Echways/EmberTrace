@@ -1,25 +1,416 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using EmberTrace;
 using EmberTrace.Abstractions.Attributes;
 using EmberTrace.Flow;
+using EmberTrace.Metadata;
 using EmberTrace.ReportText;
 using EmberTrace.Sessions;
 
 [assembly: TraceId(Ids.App, "App", "App")]
 [assembly: TraceId(Ids.Warmup, "Warmup", "App")]
+[assembly: TraceId(Ids.Load, "Load", "App")]
+[assembly: TraceId(Ids.Parse, "Parse", "CPU")]
+[assembly: TraceId(Ids.Render, "Render", "CPU")]
+[assembly: TraceId(Ids.Queue, "Queue", "Workers")]
 [assembly: TraceId(Ids.Worker, "Worker", "Workers")]
 [assembly: TraceId(Ids.Cpu, "CpuWork", "CPU")]
 [assembly: TraceId(Ids.Io, "IoWait", "IO")]
 [assembly: TraceId(Ids.Sort, "Sort", "CPU")]
 [assembly: TraceId(Ids.AsyncBlock, "AsyncBlock", "Async")]
 [assembly: TraceId(Ids.JobFlow, "JobFlow", "Flow")]
-[assembly: TraceId(Ids.MarkStandalone, "MarkedStandalone", "Marked")]
-[assembly: TraceId(Ids.MarkSlice, "MarkedSlice", "Marked")]
-[assembly: TraceId(Ids.MarkAsync, "MarkedAsync", "Marked")]
-[assembly: TraceId(Ids.AfterSlice, "AfterSlice", "App")]
+
+var outDir = ResolveOutDir();
+var projectDir = ResolveProjectDir();
+Directory.CreateDirectory(outDir);
+
+var scenarios = new List<Scenario>
+{
+    new("api-tracer-perfetto", "Nested scopes + one flow chain (Tracer API reference).",
+        () => RunApiTracerPerfetto(outDir)),
+    new("flows-propagation", "Flow propagation across threads/async (Flow concept).",
+        () => RunFlowsPropagation(outDir)),
+    new("export-opened", "Chrome Trace export to open in Perfetto/SpeedScope (Export guide).",
+        () => RunExportOpened(outDir)),
+    new("analysis-slice", "Text report for analysis screenshot (Analysis guide).",
+        () => RunAnalysisSlice(outDir)),
+    new("usage-instrumentation", "Code snippet for usage screenshot (Usage guide).",
+        () => WriteUsageSnippet(outDir)),
+    new("getting-started-first-trace", "Minimal first trace + report (Getting started).",
+        () => RunGettingStartedFirstTrace(outDir)),
+    new("generator-generated-code", "Copy generator output from obj for screenshot.",
+        () => CopyGeneratorOutput(projectDir, outDir)),
+    new("troubleshooting-common", "Before/after metadata report for troubleshooting.",
+        () => RunTroubleshootingCommon(outDir))
+};
+
+await RunScenarios(args, scenarios);
+
+static async Task RunScenarios(string[] args, List<Scenario> scenarios)
+{
+    Console.WriteLine("== EmberTrace.Demo3 ==");
+
+    if (args.Any(a => string.Equals(a, "--list", StringComparison.OrdinalIgnoreCase)))
+    {
+        foreach (var scenario in scenarios)
+            Console.WriteLine($"{scenario.Name} - {scenario.Description}");
+        return;
+    }
+
+    var single = ReadArgValue(args, "--scenario", "-s");
+    var runList = string.IsNullOrWhiteSpace(single)
+        ? scenarios
+        : scenarios.Where(s => string.Equals(s.Name, single, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    if (!runList.Any())
+    {
+        Console.WriteLine("Unknown scenario: " + single);
+        Console.WriteLine("Use --list to see available scenarios.");
+        return;
+    }
+
+    foreach (var scenario in runList)
+    {
+        Console.WriteLine();
+        Console.WriteLine("== " + scenario.Name + " ==");
+        Console.WriteLine(scenario.Description);
+        await scenario.Run().ConfigureAwait(false);
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("ALL OK");
+}
+
+static string? ReadArgValue(string[] args, string longName, string shortName)
+{
+    for (var i = 0; i < args.Length; i++)
+    {
+        if (string.Equals(args[i], longName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(args[i], shortName, StringComparison.OrdinalIgnoreCase))
+        {
+            if (i + 1 < args.Length)
+                return args[i + 1];
+        }
+    }
+
+    return null;
+}
+
+static Task RunApiTracerPerfetto(string outDir)
+{
+    var options = DefaultSessionOptions();
+    Tracer.Start(options);
+
+    using (Tracer.Scope(Ids.App))
+    {
+        using (Tracer.Scope(Ids.Warmup))
+            CpuSpin(160_000);
+
+        using (Tracer.Scope(Ids.Load))
+            CpuSpin(120_000);
+
+        var flowId = Tracer.FlowStartNew(Ids.JobFlow);
+        using (Tracer.Scope(Ids.Parse))
+            SortWork(10_000);
+        Tracer.FlowStep(Ids.JobFlow, flowId);
+        using (Tracer.Scope(Ids.Render))
+            CpuSpin(140_000);
+        Tracer.FlowEnd(Ids.JobFlow, flowId);
+    }
+
+    var session = Tracer.Stop();
+    var meta = Tracer.CreateMetadata();
+    var path = Path.Combine(outDir, "api-tracer-perfetto.json");
+    ExportChromeComplete(session, path, meta);
+    Console.WriteLine("Saved: " + path);
+    return Task.CompletedTask;
+}
+
+static async Task RunFlowsPropagation(string outDir)
+{
+    var options = DefaultSessionOptions();
+    Tracer.Start(options);
+
+    await using (Tracer.ScopeAsync(Ids.App))
+    {
+        var flowId = Tracer.FlowStartNew(Ids.JobFlow);
+
+        using (Tracer.Scope(Ids.Queue))
+        {
+            Tracer.FlowStep(Ids.JobFlow, flowId);
+            CpuSpin(120_000);
+        }
+
+        var t1 = Task.Run(async () =>
+        {
+            await using (Tracer.ScopeAsync(Ids.Worker))
+            {
+                Tracer.FlowStep(Ids.JobFlow, flowId);
+                CpuSpin(100_000);
+                await Task.Delay(40);
+                Tracer.FlowStep(Ids.JobFlow, flowId);
+            }
+        });
+
+        var t2 = Task.Run(async () =>
+        {
+            await using (Tracer.ScopeAsync(Ids.Worker))
+            {
+                await Task.Delay(30);
+                Tracer.FlowStep(Ids.JobFlow, flowId);
+                SortWork(10_000);
+            }
+        });
+
+        await Task.WhenAll(t1, t2).ConfigureAwait(false);
+
+        using (Tracer.Scope(Ids.Render))
+        {
+            Tracer.FlowEnd(Ids.JobFlow, flowId);
+            CpuSpin(110_000);
+        }
+    }
+
+    var session = Tracer.Stop();
+    var meta = Tracer.CreateMetadata();
+    var path = Path.Combine(outDir, "flows-propagation.json");
+    ExportChromeComplete(session, path, meta);
+    Console.WriteLine("Saved: " + path);
+}
+
+static async Task RunExportOpened(string outDir)
+{
+    var options = DefaultSessionOptions();
+    Tracer.Start(options);
+
+    using (Tracer.Scope(Ids.App))
+    {
+        CpuSpin(90_000);
+        SortWork(9_000);
+    }
+
+    await IoDelay(18);
+
+    var session = Tracer.Stop();
+    var meta = Tracer.CreateMetadata();
+
+    var completePath = Path.Combine(outDir, "export-opened.json");
+    var beginEndPath = Path.Combine(outDir, "export-opened-beginend.json");
+    ExportChromeComplete(session, completePath, meta);
+    ExportChromeBeginEnd(session, beginEndPath, meta);
+
+    Console.WriteLine("Saved: " + completePath);
+    Console.WriteLine("Saved: " + beginEndPath);
+}
+
+static async Task RunAnalysisSlice(string outDir)
+{
+    var options = DefaultSessionOptions();
+    Tracer.Start(options);
+
+    using (Tracer.Scope(Ids.App))
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            CpuSpin(140_000);
+            SortWork(12_000);
+        }
+    }
+
+    await IoDelay(25);
+
+    var session = Tracer.Stop();
+    var processed = session.Process();
+    var meta = Tracer.CreateMetadata();
+
+    var reportText = TraceText.Write(processed, meta: meta, topHotspots: 12, maxDepth: 6);
+    var reportPath = Path.Combine(outDir, "analysis-slice.txt");
+    File.WriteAllText(reportPath, reportText);
+
+    var tracePath = Path.Combine(outDir, "analysis-slice.json");
+    ExportChromeComplete(session, tracePath, meta);
+
+    Console.WriteLine("Saved: " + reportPath);
+    Console.WriteLine("Saved: " + tracePath);
+}
+
+static Task WriteUsageSnippet(string outDir)
+{
+    var snippetPath = Path.Combine(outDir, "usage-instrumentation.cs");
+    var lines = new[]
+    {
+        "using System.IO;",
+        "using System.Threading.Tasks;",
+        "using EmberTrace;",
+        "using EmberTrace.Abstractions.Attributes;",
+        "",
+        "[assembly: TraceId(1000, \"App\", \"App\")]",
+        "[assembly: TraceId(2100, \"IoWait\", \"IO\")]",
+        "",
+        "static async Task RunAsync()",
+        "{",
+        "    Tracer.Start();",
+        "",
+        "    using (Tracer.Scope(1000))",
+        "    {",
+        "        await using (Tracer.ScopeAsync(2100))",
+        "            await Task.Delay(10);",
+        "    }",
+        "",
+        "    var session = Tracer.Stop();",
+        "    var meta = Tracer.CreateMetadata();",
+        "",
+        "    Directory.CreateDirectory(\"out\");",
+        "    using var fs = File.Create(\"out/trace.json\");",
+        "    TraceExport.WriteChromeComplete(session, fs, meta: meta);",
+        "}",
+        "",
+        "await RunAsync();"
+    };
+    File.WriteAllText(snippetPath, string.Join(Environment.NewLine, lines));
+    Console.WriteLine("Saved: " + snippetPath);
+    return Task.CompletedTask;
+}
+
+static async Task RunGettingStartedFirstTrace(string outDir)
+{
+    var options = DefaultSessionOptions();
+    Tracer.Start(options);
+
+    using (Tracer.Scope(Ids.App))
+        CpuSpin(70_000);
+
+    await IoDelay(20);
+
+    var session = Tracer.Stop();
+    var processed = session.Process();
+    var meta = Tracer.CreateMetadata();
+
+    var tracePath = Path.Combine(outDir, "getting-started-first-trace.json");
+    ExportChromeComplete(session, tracePath, meta);
+
+    var reportPath = Path.Combine(outDir, "getting-started-first-trace.txt");
+    var reportText = TraceText.Write(processed, meta: meta, topHotspots: 8, maxDepth: 4);
+    File.WriteAllText(reportPath, reportText);
+
+    Console.WriteLine("Saved: " + tracePath);
+    Console.WriteLine("Saved: " + reportPath);
+}
+
+static Task CopyGeneratorOutput(string projectDir, string outDir)
+{
+    if (string.IsNullOrWhiteSpace(projectDir))
+    {
+        Console.WriteLine("Project directory not found; cannot locate generator output.");
+        return Task.CompletedTask;
+    }
+
+    var objDir = Path.Combine(projectDir, "obj");
+    if (!Directory.Exists(objDir))
+    {
+        Console.WriteLine("obj/ not found; build the project first.");
+        return Task.CompletedTask;
+    }
+
+    string? sourcePath = null;
+
+    var exactName = "EmberTrace.GeneratedTraceMetadataProvider.g.cs";
+    foreach (var file in Directory.EnumerateFiles(objDir, exactName, SearchOption.AllDirectories))
+    {
+        if (LooksLikeGeneratorOutput(file))
+        {
+            sourcePath = file;
+            break;
+        }
+    }
+
+    if (sourcePath == null)
+    {
+        foreach (var file in Directory.EnumerateFiles(objDir, "*.g.cs", SearchOption.AllDirectories))
+        {
+            if (LooksLikeGeneratorOutput(file))
+            {
+                sourcePath = file;
+                break;
+            }
+        }
+    }
+
+    if (sourcePath == null)
+    {
+        Console.WriteLine("Generator output not found; rebuild with -p:EmitCompilerGeneratedFiles=true.");
+        return Task.CompletedTask;
+    }
+
+    var destPath = Path.Combine(outDir, "generator-generated-code.cs");
+    File.Copy(sourcePath, destPath, overwrite: true);
+    Console.WriteLine("Saved: " + destPath);
+    return Task.CompletedTask;
+}
+
+static Task RunTroubleshootingCommon(string outDir)
+{
+    var options = DefaultSessionOptions();
+    Tracer.Start(options);
+
+    using (Tracer.Scope(Ids.App))
+    {
+        CpuSpin(80_000);
+        SortWork(6_000);
+    }
+
+    var session = Tracer.Stop();
+    var processed = session.Process();
+
+    var withoutMeta = TraceText.Write(processed, meta: null, topHotspots: 6, maxDepth: 4);
+    var withMeta = TraceText.Write(processed, meta: Tracer.CreateMetadata(), topHotspots: 6, maxDepth: 4);
+
+    var path = Path.Combine(outDir, "troubleshooting-common.txt");
+    var text = "== Without metadata ==" + Environment.NewLine +
+               withoutMeta + Environment.NewLine + Environment.NewLine +
+               "== With metadata ==" + Environment.NewLine +
+               withMeta;
+    File.WriteAllText(path, text);
+    Console.WriteLine("Saved: " + path);
+    return Task.CompletedTask;
+}
+
+static bool LooksLikeGeneratorOutput(string path)
+{
+    const int maxChars = 8000;
+    using var reader = new StreamReader(path);
+    var buffer = new char[maxChars];
+    var read = reader.ReadBlock(buffer, 0, buffer.Length);
+    var text = new string(buffer, 0, read);
+    return text.Contains("GeneratedTraceMetadataProvider", StringComparison.Ordinal) &&
+           text.Contains("TraceMetadata.Register", StringComparison.Ordinal);
+}
+
+static void ExportChromeComplete(TraceSession session, string path, ITraceMetadataProvider meta)
+{
+    EnsureDir(path);
+    using var fs = File.Create(path);
+    TraceExport.WriteChromeComplete(session, fs, meta: meta);
+}
+
+static void ExportChromeBeginEnd(TraceSession session, string path, ITraceMetadataProvider meta)
+{
+    EnsureDir(path);
+    using var fs = File.Create(path);
+    TraceExport.WriteChromeBeginEnd(session, fs, meta: meta);
+}
+
+static SessionOptions DefaultSessionOptions()
+{
+    return new SessionOptions
+    {
+        ChunkCapacity = 128 * 1024,
+        OverflowPolicy = OverflowPolicy.Drop
+    };
+}
 
 static void EnsureDir(string path)
 {
@@ -64,168 +455,60 @@ static void SortWork(int n)
         Console.WriteLine(a[0]);
 }
 
-static async Task WorkerAsync(int workerId, int loops, FlowHandle flow)
+static string ResolveOutDir()
 {
-    await using (Tracer.ScopeAsync(Ids.Worker))
-    {
-        for (int i = 0; i < loops; i++)
-        {
-            CpuSpin(90_000 + workerId * 10_000);
-            flow.Step();
-            await IoDelay(10 + workerId * 5).ConfigureAwait(false);
-            flow.Step();
-            SortWork(18_000);
-        }
-    }
+    var cwd = Directory.GetCurrentDirectory();
+    if (File.Exists(Path.Combine(cwd, "EmberTrace.slnx")))
+        return Path.Combine(cwd, "samples", "EmberTrace.Demo3", "out");
+    if (File.Exists(Path.Combine(cwd, "EmberTraceDemo3.csproj")))
+        return Path.Combine(cwd, "out");
+    return Path.Combine(cwd, "out");
 }
 
-static void ExportFull(TraceSession session, string completePath, string beginEndPath)
+static string ResolveProjectDir()
 {
-    EnsureDir(completePath);
-    EnsureDir(beginEndPath);
+    var baseDir = AppContext.BaseDirectory;
+    var probe = FindUpwards(baseDir, "EmberTraceDemo3.csproj");
+    if (!string.IsNullOrWhiteSpace(probe))
+        return Path.GetDirectoryName(probe) ?? string.Empty;
 
-    var meta = Tracer.CreateMetadata();
+    var cwd = Directory.GetCurrentDirectory();
+    probe = FindUpwards(cwd, "EmberTraceDemo3.csproj");
+    if (!string.IsNullOrWhiteSpace(probe))
+        return Path.GetDirectoryName(probe) ?? string.Empty;
 
-    using (var fs = File.Create(completePath))
-        TraceExport.WriteChromeComplete(session, fs, meta: meta);
+    var repoPath = Path.Combine(cwd, "samples", "EmberTrace.Demo3", "EmberTraceDemo3.csproj");
+    if (File.Exists(repoPath))
+        return Path.GetDirectoryName(repoPath) ?? string.Empty;
 
-    using (var fs = File.Create(beginEndPath))
-        TraceExport.WriteChromeBeginEnd(session, fs, meta: meta);
+    return string.Empty;
 }
 
-Directory.CreateDirectory("out");
-
-Console.WriteLine("== EmberTrace.Demo3 ==");
-
-Console.WriteLine("1) MarkedComplete (not running)");
-var standalonePath = Path.Combine("out", "marked_standalone.json");
-TraceExport.MarkedComplete(
-    name: "MarkedStandalone",
-    outputPath: standalonePath,
-    body: () =>
-    {
-        using var app = Tracer.Scope(Ids.App);
-        using var warm = Tracer.Scope(Ids.Warmup);
-
-        CpuSpin(200_000);
-        SortWork(25_000);
-    });
-
-Console.WriteLine("Saved: " + standalonePath);
-
-Console.WriteLine("2) Full session: scopes + flows + async + export + analysis");
-var options = new SessionOptions
+static string FindUpwards(string startDir, string fileName)
 {
-    ChunkCapacity = 128 * 1024,
-    OverflowPolicy = OverflowPolicy.Drop
-};
-
-Tracer.Start(options);
-
-await using (Tracer.ScopeAsync(Ids.App))
-{
-    using (Tracer.Scope(Ids.Warmup))
+    var current = new DirectoryInfo(startDir);
+    while (current is not null)
     {
-        Thread.SpinWait(200_000);
-        SortWork(8_000);
+        var candidate = Path.Combine(current.FullName, fileName);
+        if (File.Exists(candidate))
+            return candidate;
+        current = current.Parent;
     }
 
-    var flow = Tracer.FlowStartNewHandle(Ids.JobFlow);
-
-    var t1 = Task.Run(() => WorkerAsync(1, 2, flow));
-    var t2 = Task.Run(() => WorkerAsync(2, 2, flow));
-    await Task.WhenAll(t1, t2);
-
-    flow.End();
-
-    var flowId = Tracer.FlowStartNew(Ids.JobFlow);
-    CpuSpin(150_000);
-    Tracer.FlowStep(Ids.JobFlow, flowId);
-    SortWork(12_000);
-    Tracer.FlowEnd(Ids.JobFlow, flowId);
-
-    await using (Tracer.ScopeAsync(Ids.AsyncBlock))
-        await Task.Delay(20);
+    return string.Empty;
 }
 
-var session = Tracer.Stop();
-var processed = session.Process();
-var meta = Tracer.CreateMetadata();
-
-Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 8));
-
-var fullComplete = Path.Combine("out", "full_complete.json");
-var fullBeginEnd = Path.Combine("out", "full_beginend.json");
-ExportFull(session, fullComplete, fullBeginEnd);
-
-Console.WriteLine("Saved: " + fullComplete);
-Console.WriteLine("Saved: " + fullBeginEnd);
-Console.WriteLine("Open in chrome://tracing");
-
-Console.WriteLine("3) MarkedCompleteAsync (not running)");
-var markedAsyncPath = Path.Combine("out", "marked_async.json");
-await TraceExport.MarkedCompleteAsync(
-    name: "MarkedAsync",
-    outputPath: markedAsyncPath,
-    body: async () =>
-    {
-        await using (Tracer.ScopeAsync(Ids.MarkAsync))
-            await Task.Delay(30);
-    });
-
-Console.WriteLine("Saved: " + markedAsyncPath);
-
-Console.WriteLine("4) SliceAndResume");
-Tracer.Start(options);
-
-using (Tracer.Scope(Ids.App))
-{
-    CpuSpin(120_000);
-    SortWork(10_000);
-}
-
-var slicePath = Path.Combine("out", "marked_slice.json");
-var sliceResult = TraceExport.MarkedCompleteEx(
-    name: "MarkedSlice",
-    outputPath: slicePath,
-    body: () =>
-    {
-        using var app = Tracer.Scope(Ids.App);
-        CpuSpin(220_000);
-        SortWork(20_000);
-    },
-    running: MarkedRunningSessionMode.SliceAndResume,
-    resumeOptions: options);
-
-var sliceFull = Path.Combine("out", "marked_slice_full.json");
-sliceResult.SaveFullChromeComplete(sliceFull, meta: meta);
-
-Console.WriteLine("Saved: " + slicePath);
-Console.WriteLine("Saved: " + sliceFull);
-Console.WriteLine("Open in chrome://tracing");
-
-using (Tracer.Scope(Ids.AfterSlice))
-{
-    CpuSpin(140_000);
-    SortWork(12_000);
-}
-
-var resumed = Tracer.Stop();
-
-var resumedComplete = Path.Combine("out", "resumed_complete.json");
-var resumedBeginEnd = Path.Combine("out", "resumed_beginend.json");
-ExportFull(resumed, resumedComplete, resumedBeginEnd);
-
-Console.WriteLine("Saved: " + resumedComplete);
-Console.WriteLine("Saved: " + resumedBeginEnd);
-Console.WriteLine("Open in chrome://tracing");
-
-Console.WriteLine("ALL OK");
+record Scenario(string Name, string Description, Func<Task> Run);
 
 static class Ids
 {
     public const int App = 1000;
     public const int Warmup = 1010;
+    public const int Load = 1020;
+    public const int Parse = 1030;
+    public const int Render = 1040;
+
+    public const int Queue = 1900;
     public const int Worker = 2000;
     public const int Cpu = 2100;
     public const int Io = 2200;
@@ -233,10 +516,4 @@ static class Ids
     public const int AsyncBlock = 2400;
 
     public const int JobFlow = 3000;
-
-    public const int MarkStandalone = 9001;
-    public const int MarkSlice = 9002;
-    public const int MarkAsync = 9003;
-
-    public const int AfterSlice = 9100;
 }
