@@ -16,7 +16,7 @@
     <Description>Text report writer for EmberTrace analysis results.</Description>
     <Authors>Echways</Authors>
     <PackageTags>tracing;reporting;analysis;dotnet</PackageTags>
-    <PackageLicenseExpression>GNU General Public License v3.0</PackageLicenseExpression>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

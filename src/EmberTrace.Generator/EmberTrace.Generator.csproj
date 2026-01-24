@@ -20,7 +20,7 @@
         <Description>Roslyn source generator for EmberTrace trace ids and metadata.</Description>
         <Authors>Echways</Authors>
         <PackageTags>tracing;sourcegenerator;roslyn;dotnet</PackageTags>
-        <PackageLicenseExpression>GNU General Public License v3.0</PackageLicenseExpression>
+        <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageType>Analyzer</PackageType>
         <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -28,17 +28,24 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.0.0-1.25277.114" PrivateAssets="all" />
     </ItemGroup>
 
-    <ItemGroup>
+    <ItemGroup Condition="'$(UseLocalEmberTrace)'=='true'">
         <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" PrivateAssets="all" />
     </ItemGroup>
+    <ItemGroup Condition="'$(UseLocalEmberTrace)'!='true'">
+        <PackageReference Include="EmberTrace.Abstractions" Version="$(Version)" PrivateAssets="all" />
+    </ItemGroup>
+
 
     <ItemGroup>
         <None Include="..\..\README.md" Pack="true" PackagePath="" />
-        <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
-        <None Include="$(OutputPath)$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
+    <PropertyGroup>
+        <IncludeBuildOutput>true</IncludeBuildOutput>
+        <BuildOutputTargetFolder>analyzers/dotnet/cs</BuildOutputTargetFolder>
+        <NoBuild>false</NoBuild>
+    </PropertyGroup>
 
 </Project>
