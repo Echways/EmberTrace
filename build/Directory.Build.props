@@ -23,4 +23,8 @@
     <PropertyGroup Condition="'$(Configuration)' == 'Release' Or '$(CI)' == 'true'">
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
+
+    <PropertyGroup>
+        <Version>0.1.0</Version>
+    </PropertyGroup>
 </Project>
