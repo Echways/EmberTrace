@@ -16,7 +16,7 @@
         <Description>Attributes for EmberTrace trace ids and metadata.</Description>
         <Authors>Echways</Authors>
         <PackageTags>tracing;attributes;sourcegenerator;dotnet</PackageTags>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageLicenseExpression>GNU General Public License v3.0</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 

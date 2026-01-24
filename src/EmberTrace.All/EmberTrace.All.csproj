@@ -1,36 +1,46 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
 
-    <AssemblyName>EmberTrace.All</AssemblyName>
-    <RootNamespace>EmberTrace.All</RootNamespace>
+        <PackageId>EmberTrace.All</PackageId>
+        <Title>EmberTrace.All</Title>
+        <Description>Meta package that pulls EmberTrace runtime, generator, analysis, export, and text reporting.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;profiling;chrome-trace;analysis;dotnet</PackageTags>
+        <PackageLicenseExpression>GNU General Public License v3.0</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <IncludeReferencedProjects>false</IncludeReferencedProjects>
+    </PropertyGroup>
 
-    <IncludeBuildOutput>false</IncludeBuildOutput>
-    <IncludeReferencedProjects>true</IncludeReferencedProjects>
+    <PropertyGroup>
+        <UseLocalEmberTrace>false</UseLocalEmberTrace>
+    </PropertyGroup>
 
-    <PackageId>EmberTrace.All</PackageId>
-    <Title>EmberTrace.All</Title>
-    <Description>Meta package that pulls EmberTrace runtime, generator, analysis, export, and text reporting.</Description>
-    <Authors>Echways</Authors>
-    <PackageTags>tracing;profiling;chrome-trace;analysis;dotnet</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-  </PropertyGroup>
+    <ItemGroup Condition="'$(UseLocalEmberTrace)'=='true'">
+        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
+        <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" />
+        <ProjectReference Include="..\EmberTrace.Generator\EmberTrace.Generator.csproj" />
+        <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
+        <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj" />
+        <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
-    <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" />
-    <ProjectReference Include="..\EmberTrace.Generator\EmberTrace.Generator.csproj" />
-    <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
-    <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj" />
-    <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />
-  </ItemGroup>
+    <ItemGroup Condition="'$(UseLocalEmberTrace)'!='true'">
+        <PackageReference Include="EmberTrace"              Version="$(Version)" />
+        <PackageReference Include="EmberTrace.Abstractions" Version="$(Version)" />
+        <PackageReference Include="EmberTrace.Generator"    Version="$(Version)" />
+        <PackageReference Include="EmberTrace.Analysis"     Version="$(Version)" />
+        <PackageReference Include="EmberTrace.Export"       Version="$(Version)" />
+        <PackageReference Include="EmberTrace.ReportText"   Version="$(Version)" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="" />
-  </ItemGroup>
 
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
 </Project>

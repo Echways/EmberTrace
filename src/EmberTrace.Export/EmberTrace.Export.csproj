@@ -16,7 +16,7 @@
     <Description>Export EmberTrace sessions to Chrome Trace format.</Description>
     <Authors>Echways</Authors>
     <PackageTags>tracing;export;chrome-trace;dotnet</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>GNU General Public License v3.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

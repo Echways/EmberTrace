@@ -1,35 +1,6 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0": {
-      "embertrace": {
-        "type": "Project"
-      },
-      "embertrace.abstractions": {
-        "type": "Project"
-      },
-      "embertrace.analysis": {
-        "type": "Project",
-        "dependencies": {
-          "EmberTrace": "[1.0.0, )"
-        }
-      },
-      "embertrace.export": {
-        "type": "Project",
-        "dependencies": {
-          "EmberTrace": "[1.0.0, )"
-        }
-      },
-      "embertrace.generator": {
-        "type": "Project"
-      },
-      "embertrace.reporttext": {
-        "type": "Project",
-        "dependencies": {
-          "EmberTrace": "[1.0.0, )",
-          "EmberTrace.Analysis": "[1.0.0, )"
-        }
-      }
-    }
+    "net10.0": {}
   }
 }
