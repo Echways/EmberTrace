@@ -24,6 +24,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageType>Analyzer</PackageType>
         <IncludeBuildOutput>false</IncludeBuildOutput>
+        <NoWarn>$(NoWarn);NU5128</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
