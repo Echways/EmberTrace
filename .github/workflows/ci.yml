@@ -20,7 +20,9 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore
+        run: |
+          dotnet nuget locals all --clear
+          dotnet restore EmberTrace.slnx -p:RestorePackagesWithLockFile=true -p:RestoreLockedMode=false -p:RestoreForceEvaluate=true
 
       - name: Install dotnet-format
         run: dotnet tool install -g dotnet-format

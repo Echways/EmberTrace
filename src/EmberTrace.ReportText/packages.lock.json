@@ -8,7 +8,7 @@
       "embertrace.analysis": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[1.0.0, )"
+          "EmberTrace": "[0.1.1, )"
         }
       }
     }
