@@ -20,7 +20,7 @@
         <Description>Roslyn source generator for EmberTrace trace ids and metadata.</Description>
         <Authors>Echways</Authors>
         <PackageTags>tracing;sourcegenerator;roslyn;dotnet</PackageTags>
-        <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageType>Analyzer</PackageType>
         <IncludeBuildOutput>false</IncludeBuildOutput>

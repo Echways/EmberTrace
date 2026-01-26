@@ -11,7 +11,7 @@
         <Description>Meta package that pulls EmberTrace runtime, generator, analysis, export, and text reporting.</Description>
         <Authors>Echways</Authors>
         <PackageTags>tracing;profiling;chrome-trace;analysis;dotnet</PackageTags>
-        <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         
         <IncludeBuildOutput>false</IncludeBuildOutput>

@@ -1,53 +1,6 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0": {
-      "EmberTrace": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "HZsu1oFEokIO4qGEKQMa4XaoEvOnCRSliTnV6yZU/C/kwZgMScq4TKiDPgk6FlElER0aDCKtI1EvIvdAmQFYOg=="
-      },
-      "EmberTrace.Abstractions": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "MG8nrK9sCRSLWcIBrdd1V39mY5ZRIzOMZaPpxsrnytt7A3lRtWsMPdQCLNl2t/69R7LBasQNyIfYh7F86MViZw=="
-      },
-      "EmberTrace.Analysis": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "D2nB5phFQEYFFnGwsDX0SXeqG64ToRR4bBe7RF8fD2XeqYABinqfZqyLQWlFVx4rTxeJPlH7QE3TuzdwUNjQDw==",
-        "dependencies": {
-          "EmberTrace": "0.1.0"
-        }
-      },
-      "EmberTrace.Export": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "yH2dCyp7yFv6v/helimQCVcDWNND7hEZhaku11yxDWbyvmqoMBKSB1f0eDCcPXv5hQ350DdFg0oTCMqK2iovpw==",
-        "dependencies": {
-          "EmberTrace": "0.1.0"
-        }
-      },
-      "EmberTrace.Generator": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "r4GpOhcnTubwe9fRCuBMuGdY17mjGpPrQy2KzjAXnf78GAi+IO+4ShU8Z57FNQMqoxyhTgmhfgckKlOgrMMbhw=="
-      },
-      "EmberTrace.ReportText": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "uUDqqGMXoWAZDMIcFSL2bkaQktJTIjAPJT78mm3HVfwdYbDY9PlyJrhuy17Tfi/+MgqGKZ9FvIhV/DxXarOMQg==",
-        "dependencies": {
-          "EmberTrace": "0.1.0",
-          "EmberTrace.Analysis": "0.1.0"
-        }
-      }
-    }
+    "net10.0": {}
   }
 }

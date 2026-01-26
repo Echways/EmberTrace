@@ -16,7 +16,7 @@
     <Description>Processing and aggregation for EmberTrace sessions.</Description>
     <Authors>Echways</Authors>
     <PackageTags>tracing;analysis;profiling;dotnet</PackageTags>
-    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

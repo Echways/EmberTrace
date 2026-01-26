@@ -2,12 +2,6 @@
   "version": 1,
   "dependencies": {
     ".NETStandard,Version=v2.0": {
-      "EmberTrace.Abstractions": {
-        "type": "Direct",
-        "requested": "[0.1.0, )",
-        "resolved": "0.1.0",
-        "contentHash": "MG8nrK9sCRSLWcIBrdd1V39mY5ZRIzOMZaPpxsrnytt7A3lRtWsMPdQCLNl2t/69R7LBasQNyIfYh7F86MViZw=="
-      },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "Direct",
         "requested": "[5.0.0-1.25277.114, )",
