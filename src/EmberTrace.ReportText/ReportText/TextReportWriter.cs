@@ -109,7 +109,7 @@ internal static class TextReportWriter
             return;
         }
 
-        name = "";
+        name = id.ToString();
         category = "";
     }
 }

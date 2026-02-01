@@ -6,10 +6,10 @@ namespace EmberTrace.Internal.Buffering;
 
 internal sealed class ThreadWriter
 {
-    private readonly SessionCollector _collector;
-    private readonly ChunkPool _pool;
+    private SessionCollector? _collector;
+    private ChunkPool? _pool;
 
-    private Chunk _chunk;
+    private Chunk? _chunk;
     private int _closed;
 
     public ThreadWriter(SessionCollector collector, ChunkPool pool)
@@ -25,18 +25,31 @@ internal sealed class ThreadWriter
 
     public void Close() => Interlocked.Exchange(ref _closed, 1);
 
+    public void CloseAndDetach()
+    {
+        Interlocked.Exchange(ref _closed, 1);
+        _collector = null;
+        _pool = null;
+        _chunk = null;
+    }
+
     public void Write(int id, TraceEventKind kind, long flowId)
     {
-        if (IsClosed || _collector.IsClosed)
+        var collector = _collector;
+        var pool = _pool;
+        var chunk = _chunk;
+
+        if (IsClosed || collector is null || pool is null || chunk is null || collector.IsClosed)
             return;
 
         var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind, flowId);
 
-        if (_chunk.TryWrite(e))
+        if (chunk.TryWrite(e))
             return;
 
-        _chunk = _pool.Rent();
-        _collector.AddChunk(_chunk);
-        _chunk.TryWrite(e);
+        chunk = pool.Rent();
+        collector.AddChunk(chunk);
+        _chunk = chunk;
+        chunk.TryWrite(e);
     }
 }
