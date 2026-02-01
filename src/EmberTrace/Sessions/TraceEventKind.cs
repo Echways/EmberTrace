@@ -6,5 +6,7 @@ public enum TraceEventKind : byte
     End = 2,
     FlowStart = 3,
     FlowStep = 4,
-    FlowEnd = 5
+    FlowEnd = 5,
+    Instant = 6,
+    Counter = 7
 }

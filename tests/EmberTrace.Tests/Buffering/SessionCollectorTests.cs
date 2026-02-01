@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Sessions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Buffering;
@@ -11,8 +12,13 @@ public class SessionCollectorTests
     [TestMethod]
     public async Task AddChunk_And_RegisterWriter_AreThreadSafe()
     {
-        var collector = new SessionCollector();
         var pool = new ChunkPool(8);
+        var options = new SessionOptions
+        {
+            ChunkCapacity = 8,
+            OverflowPolicy = OverflowPolicy.DropNew
+        };
+        var collector = new SessionCollector(options, pool, options.ChunkCapacity);
 
         const int chunkTasks = 6;
         const int chunksPerTask = 500;
@@ -20,18 +26,18 @@ public class SessionCollectorTests
         const int writersPerTask = 250;
 
         var addChunkTasks = Enumerable.Range(0, chunkTasks)
-            .Select(_ => Task.Run(() =>
+            .Select(_idx => Task.Run(() =>
             {
                 for (int i = 0; i < chunksPerTask; i++)
-                    collector.AddChunk(new Chunk(1));
+                    collector.TryRentChunk(out _);
             }));
 
         var addWriterTasks = Enumerable.Range(0, writerTasks)
-            .Select(_ => Task.Run(() =>
+            .Select(_idx => Task.Run(() =>
             {
                 for (int i = 0; i < writersPerTask; i++)
                 {
-                    var writer = new ThreadWriter(collector, pool);
+                    var writer = new ThreadWriter(collector);
                     collector.RegisterWriter(writer);
                 }
             }));
@@ -48,11 +54,16 @@ public class SessionCollectorTests
     [TestMethod]
     public void Clear_ResetsCollections()
     {
-        var collector = new SessionCollector();
         var pool = new ChunkPool(4);
+        var options = new SessionOptions
+        {
+            ChunkCapacity = 4,
+            OverflowPolicy = OverflowPolicy.DropNew
+        };
+        var collector = new SessionCollector(options, pool, options.ChunkCapacity);
 
-        collector.AddChunk(new Chunk(1));
-        collector.RegisterWriter(new ThreadWriter(collector, pool));
+        collector.TryRentChunk(out _);
+        collector.RegisterWriter(new ThreadWriter(collector));
 
         collector.Clear();
 

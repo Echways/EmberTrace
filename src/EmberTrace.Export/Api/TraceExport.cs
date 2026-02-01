@@ -550,8 +550,32 @@ public static class TraceExport
 
         var flows = CollectFlows(events);
         flows.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
-        for (int i = 0; i < flows.Count; i++)
-            WriteFlowEvent(json, flows[i], meta, minTs, freq, pid);
+
+        var markers = CollectInstantCounters(events);
+        markers.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+
+        var fi = 0;
+        var mi = 0;
+        while (fi < flows.Count || mi < markers.Count)
+        {
+            if (mi >= markers.Count || (fi < flows.Count && flows[fi].Timestamp <= markers[mi].Timestamp))
+            {
+                WriteFlowEvent(json, flows[fi], meta, minTs, freq, pid);
+                fi++;
+                continue;
+            }
+
+            var m = markers[mi++];
+            switch (m.Kind)
+            {
+                case TraceEventKind.Instant:
+                    WriteInstantEvent(json, m, meta, minTs, freq, pid);
+                    break;
+                case TraceEventKind.Counter:
+                    WriteCounterEvent(json, m, meta, minTs, freq, pid);
+                    break;
+            }
+        }
 
         var complete = CollectComplete(events);
         complete.Sort(static (a, b) => a.StartTs.CompareTo(b.StartTs));
@@ -585,6 +609,19 @@ public static class TraceExport
                 continue;
 
             list.Add(new FlowEv(e.Id, e.ThreadId, e.Timestamp, e.FlowId, ph));
+        }
+
+        return list;
+    }
+
+    static List<TraceEventRecord> CollectInstantCounters(List<TraceEventRecord> events)
+    {
+        var list = new List<TraceEventRecord>();
+        for (int i = 0; i < events.Count; i++)
+        {
+            var e = events[i];
+            if (e.Kind == TraceEventKind.Instant || e.Kind == TraceEventKind.Counter)
+                list.Add(e);
         }
 
         return list;
@@ -729,6 +766,53 @@ public static class TraceExport
         json.WritePropertyName("args");
         json.WriteStartObject();
         json.WriteNumber("id", e.Id);
+        json.WriteEndObject();
+        json.WriteEndObject();
+    }
+
+    static void WriteInstantEvent(
+        Utf8JsonWriter json,
+        in TraceEventRecord e,
+        ITraceMetadataProvider meta,
+        long baseTs,
+        long freq,
+        int pid)
+    {
+        var tsUs = ToUs(e.Timestamp - baseTs, freq);
+        Resolve(meta, e.Id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", "i");
+        json.WriteNumber("ts", tsUs);
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", e.ThreadId);
+        json.WriteString("s", "t");
+        json.WriteEndObject();
+    }
+
+    static void WriteCounterEvent(
+        Utf8JsonWriter json,
+        in TraceEventRecord e,
+        ITraceMetadataProvider meta,
+        long baseTs,
+        long freq,
+        int pid)
+    {
+        var tsUs = ToUs(e.Timestamp - baseTs, freq);
+        Resolve(meta, e.Id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", "C");
+        json.WriteNumber("ts", tsUs);
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", e.ThreadId);
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteNumber("value", e.Value);
         json.WriteEndObject();
         json.WriteEndObject();
     }
