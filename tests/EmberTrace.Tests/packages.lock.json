@@ -122,6 +122,19 @@
       },
       "embertrace": {
         "type": "Project"
+      },
+      "embertrace.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.1.1, )"
+        }
+      },
+      "embertrace.reporttext": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.1.1, )",
+          "EmberTrace.Analysis": "[0.1.1, )"
+        }
       }
     }
   }

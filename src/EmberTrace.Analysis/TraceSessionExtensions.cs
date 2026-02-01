@@ -92,7 +92,7 @@ public static class TraceSessionExtensions
         public double ToMs(long ticks) => ticks * 1000.0 / _frequency;
     }
 
-    public static TraceStats Analyze(this TraceSession session)
+    public static TraceStats Analyze(this TraceSession session, bool strict = false)
     {
         if (session is null) throw new ArgumentNullException(nameof(session));
 
@@ -101,6 +101,8 @@ public static class TraceSessionExtensions
         var perId = new Dictionary<int, Agg>(capacity: 256);
 
         long totalEvents = 0;
+        long unmatchedBegin = 0;
+        long unmatchedEnd = 0;
         long mismatchedEnd = 0;
 
         foreach (var e in session.EnumerateEvents())
@@ -124,13 +126,17 @@ public static class TraceSessionExtensions
 
             if (stack.Count == 0)
             {
-                mismatchedEnd++;
+                unmatchedEnd++;
                 continue;
             }
 
             var top = stack[^1];
             if (top.Id != e.Id)
             {
+                mismatchedEnd++;
+                if (strict)
+                    continue;
+
                 var idx = -1;
                 for (int s = stack.Count - 2; s >= 0; s--)
                 {
@@ -143,11 +149,15 @@ public static class TraceSessionExtensions
 
                 if (idx < 0)
                 {
-                    mismatchedEnd++;
+                    unmatchedEnd++;
                     continue;
                 }
 
-                stack.RemoveRange(idx + 1, stack.Count - (idx + 1));
+                var removed = stack.Count - (idx + 1);
+                if (removed > 0)
+                    unmatchedBegin += removed;
+
+                stack.RemoveRange(idx + 1, removed);
                 top = stack[^1];
             }
 
@@ -167,6 +177,9 @@ public static class TraceSessionExtensions
 
             agg.Add(ms);
         }
+
+        foreach (var kv in perThread)
+            unmatchedBegin += kv.Value.Count;
 
         var list = new List<TraceIdStats>(perId.Count);
         foreach (var kv in perId)
@@ -193,12 +206,14 @@ public static class TraceSessionExtensions
             DurationMs = session.DurationMs,
             TotalEvents = totalEvents,
             ThreadsSeen = perThread.Count,
+            UnmatchedBeginCount = unmatchedBegin,
+            UnmatchedEndCount = unmatchedEnd,
             MismatchedEndCount = mismatchedEnd,
             ByTotalTimeDesc = list
         };
     }
 
-    public static ProcessedTrace Process(this TraceSession session)
+    public static ProcessedTrace Process(this TraceSession session, bool strict = false, bool groupByThread = true)
     {
         if (session is null) throw new ArgumentNullException(nameof(session));
 
@@ -209,6 +224,8 @@ public static class TraceSessionExtensions
         var hotspots = new Dictionary<int, HotAgg>(capacity: 256);
 
         long totalEvents = 0;
+        long unmatchedBegin = 0;
+        long unmatchedEnd = 0;
         long mismatchedEnd = 0;
 
         foreach (var e in session.EnumerateEvents())
@@ -242,13 +259,17 @@ public static class TraceSessionExtensions
 
             if (stack.Count == 0)
             {
-                mismatchedEnd++;
+                unmatchedEnd++;
                 continue;
             }
 
             var top = stack[^1];
             if (top.Id != e.Id)
             {
+                mismatchedEnd++;
+                if (strict)
+                    continue;
+
                 var idx = -1;
                 for (int s = stack.Count - 2; s >= 0; s--)
                 {
@@ -261,11 +282,15 @@ public static class TraceSessionExtensions
 
                 if (idx < 0)
                 {
-                    mismatchedEnd++;
+                    unmatchedEnd++;
                     continue;
                 }
 
-                stack.RemoveRange(idx + 1, stack.Count - (idx + 1));
+                var removed = stack.Count - (idx + 1);
+                if (removed > 0)
+                    unmatchedBegin += removed;
+
+                stack.RemoveRange(idx + 1, removed);
                 top = stack[^1];
             }
 
@@ -300,6 +325,9 @@ public static class TraceSessionExtensions
             }
         }
 
+        foreach (var kv in stacks)
+            unmatchedBegin += kv.Value.Count;
+
         var threadList = new List<ThreadTrace>(roots.Count);
         foreach (var kv in roots)
         {
@@ -311,6 +339,34 @@ public static class TraceSessionExtensions
         }
 
         threadList.Sort((a, b) => a.ThreadId.CompareTo(b.ThreadId));
+
+        var globalRoot = new MutableNode(0);
+        foreach (var kv in roots)
+        {
+            var root = kv.Value;
+            if (root.Children is null)
+                continue;
+
+            foreach (var child in root.Children.Values)
+            {
+                var target = globalRoot.GetOrAddChild(child.Id);
+                MergeInto(target, child);
+            }
+        }
+
+        var globalFrozen = Freeze(globalRoot, conv);
+
+        if (!groupByThread)
+        {
+            threadList = new List<ThreadTrace>
+            {
+                new ThreadTrace
+                {
+                    ThreadId = 0,
+                    Root = globalFrozen
+                }
+            };
+        }
 
         var hotList = new List<HotspotRow>(hotspots.Count);
         foreach (var kv in hotspots)
@@ -333,10 +389,104 @@ public static class TraceSessionExtensions
             DurationMs = session.DurationMs,
             TotalEvents = totalEvents,
             ThreadsSeen = roots.Count,
+            UnmatchedBeginCount = unmatchedBegin,
+            UnmatchedEndCount = unmatchedEnd,
             MismatchedEndCount = mismatchedEnd,
+            DroppedEvents = session.DroppedEvents,
+            DroppedChunks = session.DroppedChunks,
+            SampledOutEvents = session.SampledOutEvents,
+            WasOverflow = session.WasOverflow,
             Threads = threadList,
+            GlobalRoot = globalFrozen,
             HotspotsByInclusiveDesc = hotList
         };
+    }
+
+    public static IReadOnlyList<FlowAnalysis> AnalyzeFlows(this TraceSession session, int top = 10)
+    {
+        if (session is null) throw new ArgumentNullException(nameof(session));
+
+        var freq = session.TimestampFrequency;
+        var flows = new Dictionary<long, List<FlowEvent>>(capacity: 16);
+
+        foreach (var e in session.EnumerateEventsSorted())
+        {
+            if (e.FlowId == 0)
+                continue;
+
+            if (e.Kind != TraceEventKind.FlowStart
+                && e.Kind != TraceEventKind.FlowStep
+                && e.Kind != TraceEventKind.FlowEnd)
+                continue;
+
+            if (!flows.TryGetValue(e.FlowId, out var list))
+            {
+                list = new List<FlowEvent>();
+                flows.Add(e.FlowId, list);
+            }
+
+            list.Add(new FlowEvent(e.Id, e.Kind, e.Timestamp));
+        }
+
+        var results = new List<FlowAnalysis>(flows.Count);
+
+        foreach (var kv in flows)
+        {
+            var flowId = kv.Key;
+            var list = kv.Value;
+            if (list.Count < 2)
+                continue;
+
+            var startIndex = list.FindIndex(static x => x.Kind == TraceEventKind.FlowStart);
+            if (startIndex < 0)
+                continue;
+
+            var endIndex = list.FindLastIndex(static x => x.Kind == TraceEventKind.FlowEnd);
+            if (endIndex <= startIndex)
+                continue;
+
+            var start = list[startIndex];
+            var end = list[endIndex];
+            if (end.Timestamp < start.Timestamp)
+                continue;
+
+            var steps = new List<FlowStepInfo>(endIndex - startIndex);
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                var current = list[i];
+                var next = list[i + 1];
+                var dt = next.Timestamp - current.Timestamp;
+                if (dt < 0)
+                    dt = 0;
+
+                steps.Add(new FlowStepInfo
+                {
+                    Id = current.Id,
+                    Kind = current.Kind,
+                    Timestamp = current.Timestamp,
+                    DurationMs = dt * 1000.0 / freq
+                });
+            }
+
+            var totalMs = (end.Timestamp - start.Timestamp) * 1000.0 / freq;
+
+            results.Add(new FlowAnalysis
+            {
+                FlowId = flowId,
+                Id = start.Id,
+                StartTimestamp = start.Timestamp,
+                EndTimestamp = end.Timestamp,
+                TotalDurationMs = totalMs,
+                Steps = steps
+            });
+        }
+
+        results.Sort((a, b) => b.TotalDurationMs.CompareTo(a.TotalDurationMs));
+
+        if (top > 0 && results.Count > top)
+            results = results.GetRange(0, top);
+
+        return results;
     }
 
     private static CallTreeNode Freeze(MutableNode n, TickConverter conv)
@@ -361,5 +511,36 @@ public static class TraceSessionExtensions
             ExclusiveMs = conv.ToMs(n.ExclusiveTicks),
             Children = children ?? Array.Empty<CallTreeNode>()
         };
+    }
+
+    private static void MergeInto(MutableNode target, MutableNode source)
+    {
+        target.Count += source.Count;
+        target.InclusiveTicks += source.InclusiveTicks;
+        target.ExclusiveTicks += source.ExclusiveTicks;
+
+        if (source.Children is null)
+            return;
+
+        foreach (var kv in source.Children)
+        {
+            var child = kv.Value;
+            var targetChild = target.GetOrAddChild(child.Id);
+            MergeInto(targetChild, child);
+        }
+    }
+
+    private readonly struct FlowEvent
+    {
+        public readonly int Id;
+        public readonly TraceEventKind Kind;
+        public readonly long Timestamp;
+
+        public FlowEvent(int id, TraceEventKind kind, long timestamp)
+        {
+            Id = id;
+            Kind = kind;
+            Timestamp = timestamp;
+        }
     }
 }

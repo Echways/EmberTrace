@@ -34,6 +34,8 @@ public static class Tracer
 
     public static long FlowStartNew(int id) => Profiler.FlowStartNew(id);
 
+    public static FlowScope Flow(int id) => Profiler.Flow(id);
+
     public static void FlowStart(int id, long flowId) => Profiler.FlowStart(id, flowId);
 
     public static void FlowStep(int id, long flowId) => Profiler.FlowStep(id, flowId);
