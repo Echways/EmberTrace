@@ -7,18 +7,14 @@ namespace EmberTrace.Internal.Buffering;
 internal sealed class ThreadWriter
 {
     private SessionCollector? _collector;
-    private ChunkPool? _pool;
 
     private Chunk? _chunk;
     private int _closed;
 
-    public ThreadWriter(SessionCollector collector, ChunkPool pool)
+    public ThreadWriter(SessionCollector collector)
     {
         _collector = collector;
-        _pool = pool;
-
-        _chunk = pool.Rent();
-        _collector.AddChunk(_chunk);
+        _chunk = collector.TryRentChunk(out var chunk) ? chunk : null;
     }
 
     public bool IsClosed => Volatile.Read(ref _closed) == 1;
@@ -29,27 +25,39 @@ internal sealed class ThreadWriter
     {
         Interlocked.Exchange(ref _closed, 1);
         _collector = null;
-        _pool = null;
         _chunk = null;
     }
 
-    public void Write(int id, TraceEventKind kind, long flowId)
+    public void Write(int id, TraceEventKind kind, long flowId, long value)
     {
         var collector = _collector;
-        var pool = _pool;
         var chunk = _chunk;
 
-        if (IsClosed || collector is null || pool is null || chunk is null || collector.IsClosed)
+        if (IsClosed || collector is null || collector.IsClosed)
             return;
 
-        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind, flowId);
+        if (chunk is null || chunk.IsFull)
+        {
+            if (chunk is not null)
+                collector.MarkChunkInactive(chunk);
 
-        if (chunk.TryWrite(e))
+            if (!collector.TryRentChunk(out chunk))
+            {
+                collector.RecordDroppedEvent();
+                return;
+            }
+
+            _chunk = chunk;
+        }
+
+        if (!collector.TryAcceptEvent())
             return;
 
-        chunk = pool.Rent();
-        collector.AddChunk(chunk);
-        _chunk = chunk;
+        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind, flowId, value);
+
+        if (chunk is null)
+            return;
+
         chunk.TryWrite(e);
     }
 }

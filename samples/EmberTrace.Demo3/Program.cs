@@ -408,7 +408,7 @@ static SessionOptions DefaultSessionOptions()
     return new SessionOptions
     {
         ChunkCapacity = 128 * 1024,
-        OverflowPolicy = OverflowPolicy.Drop
+        OverflowPolicy = OverflowPolicy.DropNew
     };
 }
 

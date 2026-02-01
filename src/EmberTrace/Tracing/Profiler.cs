@@ -36,8 +36,9 @@ internal static class Profiler
         Interlocked.Increment(ref _sessionVersion);
 
         _options = options ?? new SessionOptions();
-        _collector = new SessionCollector();
-        _pool = new ChunkPool(Math.Max(1024, _options.ChunkCapacity));
+        var chunkCapacity = Math.Max(1024, _options.ChunkCapacity);
+        _pool = new ChunkPool(chunkCapacity);
+        _collector = new SessionCollector(_options, _pool, chunkCapacity);
         _writer = null;
 
         _startTs = Timestamp.Now();
@@ -57,6 +58,10 @@ internal static class Profiler
         var pool = _pool;
         var options = _options ?? new SessionOptions();
         IReadOnlyList<Chunk> sessionChunks = Array.Empty<Chunk>();
+        var droppedEvents = 0L;
+        var droppedChunks = 0L;
+        var sampledOutEvents = 0L;
+        var wasOverflow = false;
 
         if (collector is not null)
         {
@@ -67,6 +72,10 @@ internal static class Profiler
 
             var chunks = collector.Chunks;
             sessionChunks = chunks;
+            droppedEvents = collector.DroppedEvents;
+            droppedChunks = collector.DroppedChunks;
+            sampledOutEvents = collector.SampledOutEvents;
+            wasOverflow = collector.WasOverflow;
 
             if (pool is not null && chunks.Count > 0)
             {
@@ -91,20 +100,28 @@ internal static class Profiler
         _pool = null;
         _writer = null;
 
-        return new TraceSession(sessionChunks, _startTs, _endTs, options);
+        return new TraceSession(
+            sessionChunks,
+            _startTs,
+            _endTs,
+            options,
+            droppedEvents,
+            droppedChunks,
+            sampledOutEvents,
+            wasOverflow);
     }
 
     public static Scope Scope(int id)
     {
         if (!IsRunning) return new Scope(id, active: false);
-        Write(id, TraceEventKind.Begin, 0);
+        Write(id, TraceEventKind.Begin, 0, 0);
         return new Scope(id, active: true);
     }
 
     internal static void End(int id)
     {
         if (!IsRunning) return;
-        Write(id, TraceEventKind.End, 0);
+        Write(id, TraceEventKind.End, 0, 0);
     }
 
     public static long NewFlowId()
@@ -117,21 +134,21 @@ internal static class Profiler
     {
         if (!IsRunning) return;
         if (flowId == 0) return;
-        Write(id, TraceEventKind.FlowStart, flowId);
+        Write(id, TraceEventKind.FlowStart, flowId, 0);
     }
 
     public static void FlowStep(int id, long flowId)
     {
         if (!IsRunning) return;
         if (flowId == 0) return;
-        Write(id, TraceEventKind.FlowStep, flowId);
+        Write(id, TraceEventKind.FlowStep, flowId, 0);
     }
 
     public static void FlowEnd(int id, long flowId)
     {
         if (!IsRunning) return;
         if (flowId == 0) return;
-        Write(id, TraceEventKind.FlowEnd, flowId);
+        Write(id, TraceEventKind.FlowEnd, flowId, 0);
     }
 
     public static long FlowStartNew(int id)
@@ -139,6 +156,18 @@ internal static class Profiler
         var flowId = NewFlowId();
         FlowStart(id, flowId);
         return flowId;
+    }
+
+    public static void Instant(int id)
+    {
+        if (!IsRunning) return;
+        Write(id, TraceEventKind.Instant, 0, 0);
+    }
+
+    public static void Counter(int id, long value)
+    {
+        if (!IsRunning) return;
+        Write(id, TraceEventKind.Counter, 0, value);
     }
 
     public static FlowScope Flow(int id)
@@ -160,7 +189,7 @@ internal static class Profiler
         return new FlowHandle(id, flowId);
     }
 
-    private static void Write(int id, TraceEventKind kind, long flowId)
+    private static void Write(int id, TraceEventKind kind, long flowId, long value)
     {
         var collector = _collector;
         var pool = _pool;
@@ -178,12 +207,12 @@ internal static class Profiler
         var w = _writer;
         if (w is null || w.IsClosed)
         {
-            w = new ThreadWriter(collector, pool);
+            w = new ThreadWriter(collector);
             collector.RegisterWriter(w);
             _writer = w;
         }
 
-        w.Write(id, kind, flowId);
+        w.Write(id, kind, flowId, value);
     }
 
     public static void EndScope(int id) => End(id);

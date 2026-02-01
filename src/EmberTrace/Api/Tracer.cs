@@ -40,6 +40,10 @@ public static class Tracer
 
     public static void FlowEnd(int id, long flowId) => Profiler.FlowEnd(id, flowId);
 
+    public static void Instant(int id) => Profiler.Instant(id);
+
+    public static void Counter(int id, long value) => Profiler.Counter(id, value);
+
     public static FlowHandle FlowStartNewHandle(int id) => Profiler.FlowStartNewHandle(id);
 
     public static void FlowEnd(FlowHandle handle) => handle.End();

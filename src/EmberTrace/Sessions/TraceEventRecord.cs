@@ -5,4 +5,5 @@ public readonly record struct TraceEventRecord(
     int ThreadId,
     long Timestamp,
     TraceEventKind Kind,
-    long FlowId);
+    long FlowId,
+    long Value);

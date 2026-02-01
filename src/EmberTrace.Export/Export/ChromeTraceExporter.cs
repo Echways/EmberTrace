@@ -40,22 +40,11 @@ internal static class ChromeTraceExporter
 
         if (sortByTimestamp)
         {
-            var events = CollectEvents(session, start);
-            events.Sort(static (a, b) =>
+            foreach (var e in session.EnumerateEventsSorted())
             {
-                var c = a.Timestamp.CompareTo(b.Timestamp);
-                if (c != 0) return c;
-
-                var pa = PhaseRank(a.Kind);
-                var pb = PhaseRank(b.Kind);
-                c = pa.CompareTo(pb);
-                if (c != 0) return c;
-
-                return a.ThreadId.CompareTo(b.ThreadId);
-            });
-
-            for (int i = 0; i < events.Count; i++)
-                WriteEventBeginEnd(json, events[i], meta, start, freq, pid);
+                if (e.Timestamp < start) continue;
+                WriteEventBeginEnd(json, e, meta, start, freq, pid);
+            }
         }
         else
         {
@@ -91,8 +80,8 @@ internal static class ChromeTraceExporter
         if (sortByStartTimestamp)
             complete.Sort(static (a, b) => a.StartTs.CompareTo(b.StartTs));
 
-        var flows = CollectFlows(session, start);
-        flows.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        var markers = CollectFlows(session, start);
+        markers.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
 
         using var json = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = false });
 
@@ -106,8 +95,24 @@ internal static class ChromeTraceExporter
         for (int i = 0; i < tids.Count; i++)
             WriteThreadName(json, pid, tids[i], $"Thread {tids[i]}");
 
-        for (int i = 0; i < flows.Count; i++)
-            WriteFlowEvent(json, flows[i], meta, start, freq, pid);
+        for (int i = 0; i < markers.Count; i++)
+        {
+            var e = markers[i];
+            switch (e.Kind)
+            {
+                case TraceEventKind.FlowStart:
+                case TraceEventKind.FlowStep:
+                case TraceEventKind.FlowEnd:
+                    WriteFlowEvent(json, e, meta, start, freq, pid);
+                    break;
+                case TraceEventKind.Instant:
+                    WriteInstantEvent(json, e, meta, start, freq, pid);
+                    break;
+                case TraceEventKind.Counter:
+                    WriteCounterEvent(json, e, meta, start, freq, pid);
+                    break;
+            }
+        }
 
         for (int i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, start, freq, pid);
@@ -260,7 +265,8 @@ internal static class ChromeTraceExporter
         foreach (var e in session.EnumerateEvents())
         {
             if (e.Timestamp < start) continue;
-            if (e.Kind == TraceEventKind.FlowStart || e.Kind == TraceEventKind.FlowStep || e.Kind == TraceEventKind.FlowEnd)
+            if (e.Kind == TraceEventKind.FlowStart || e.Kind == TraceEventKind.FlowStep || e.Kind == TraceEventKind.FlowEnd
+                || e.Kind == TraceEventKind.Instant || e.Kind == TraceEventKind.Counter)
                 list.Add(e);
         }
         return list;
@@ -286,6 +292,12 @@ internal static class ChromeTraceExporter
             case TraceEventKind.FlowStep:
             case TraceEventKind.FlowEnd:
                 WriteFlowEvent(json, e, meta, start, freq, pid);
+                break;
+            case TraceEventKind.Instant:
+                WriteInstantEvent(json, e, meta, start, freq, pid);
+                break;
+            case TraceEventKind.Counter:
+                WriteCounterEvent(json, e, meta, start, freq, pid);
                 break;
         }
     }
@@ -357,7 +369,52 @@ internal static class ChromeTraceExporter
         json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
         json.WriteNumber("pid", pid);
         json.WriteNumber("tid", e.ThreadId);
-        json.WriteString("id", e.FlowId.ToString());
+        json.WriteNumber("id", e.FlowId);
+        json.WriteEndObject();
+    }
+
+    private static void WriteInstantEvent(
+        Utf8JsonWriter json,
+        TraceEventRecord e,
+        ITraceMetadataProvider meta,
+        long start,
+        long freq,
+        int pid)
+    {
+        Resolve(meta, e.Id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", "i");
+        json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", e.ThreadId);
+        json.WriteString("s", "t");
+        json.WriteEndObject();
+    }
+
+    private static void WriteCounterEvent(
+        Utf8JsonWriter json,
+        TraceEventRecord e,
+        ITraceMetadataProvider meta,
+        long start,
+        long freq,
+        int pid)
+    {
+        Resolve(meta, e.Id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", "C");
+        json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", e.ThreadId);
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteNumber("value", e.Value);
+        json.WriteEndObject();
         json.WriteEndObject();
     }
 
@@ -399,8 +456,10 @@ internal static class ChromeTraceExporter
             TraceEventKind.FlowStart => 1,
             TraceEventKind.FlowStep => 2,
             TraceEventKind.FlowEnd => 3,
-            TraceEventKind.End => 4,
-            _ => 5
+            TraceEventKind.Instant => 4,
+            TraceEventKind.Counter => 5,
+            TraceEventKind.End => 6,
+            _ => 7
         };
     }
 

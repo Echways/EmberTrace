@@ -22,6 +22,8 @@ internal sealed class Chunk
         return true;
     }
 
+    public bool IsFull => Count >= Events.Length;
+
     public void Reset()
     {
         Count = 0;
