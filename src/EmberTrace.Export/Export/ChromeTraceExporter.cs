@@ -413,7 +413,7 @@ internal static class ChromeTraceExporter
             return;
         }
 
-        name = "";
+        name = id.ToString();
         category = "";
     }
 }

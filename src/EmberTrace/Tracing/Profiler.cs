@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
@@ -19,6 +20,9 @@ internal static class Profiler
     private static ChunkPool? _pool;
 
     [ThreadStatic] private static ThreadWriter? _writer;
+    [ThreadStatic] private static int _writerVersion;
+
+    private static int _sessionVersion;
 
     private static long _nextFlowId;
 
@@ -28,6 +32,8 @@ internal static class Profiler
     {
         if (Interlocked.Exchange(ref _enabled, 1) == 1)
             throw new InvalidOperationException("Profiler session already running.");
+
+        Interlocked.Increment(ref _sessionVersion);
 
         _options = options ?? new SessionOptions();
         _collector = new SessionCollector();
@@ -48,21 +54,44 @@ internal static class Profiler
         _endTs = Timestamp.Now();
 
         var collector = _collector;
+        var pool = _pool;
         var options = _options ?? new SessionOptions();
+        IReadOnlyList<Chunk> sessionChunks = Array.Empty<Chunk>();
 
         if (collector is not null)
         {
             collector.Close();
             var writers = collector.Writers;
             foreach (var t in writers)
-                t.Close();
+                t.CloseAndDetach();
+
+            var chunks = collector.Chunks;
+            sessionChunks = chunks;
+
+            if (pool is not null && chunks.Count > 0)
+            {
+                var snapshot = new Chunk[chunks.Count];
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    var source = chunks[i];
+                    var copy = new Chunk(source.Count);
+                    if (source.Count > 0)
+                        Array.Copy(source.Events, copy.Events, source.Count);
+                    copy.Count = source.Count;
+                    snapshot[i] = copy;
+
+                    pool.Return(source);
+                }
+
+                sessionChunks = snapshot;
+            }
         }
 
         _collector = null;
         _pool = null;
         _writer = null;
 
-        return new TraceSession(collector?.Chunks ?? Array.Empty<Chunk>(), _startTs, _endTs, options);
+        return new TraceSession(sessionChunks, _startTs, _endTs, options);
     }
 
     public static Scope Scope(int id)
@@ -137,6 +166,14 @@ internal static class Profiler
         var pool = _pool;
         if (collector is null || pool is null || collector.IsClosed)
             return;
+
+        var version = Volatile.Read(ref _sessionVersion);
+        if (_writerVersion != version)
+        {
+            _writer?.CloseAndDetach();
+            _writer = null;
+            _writerVersion = version;
+        }
 
         var w = _writer;
         if (w is null || w.IsClosed)

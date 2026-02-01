@@ -13,7 +13,7 @@
         <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
 
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <NoWarn>$(NoWarn);1591</NoWarn>
+        <NoWarn>$(NoWarn);1591;RS2008</NoWarn>
 
         <PackageId>EmberTrace.Generator</PackageId>
         <Title>EmberTrace.Generator</Title>
