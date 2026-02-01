@@ -9,8 +9,10 @@ public static class TraceText
         ProcessedTrace trace,
         ITraceMetadataProvider? meta = null,
         int topHotspots = 10,
-        int maxDepth = 3)
+        int maxDepth = 3,
+        string? categoryFilter = null,
+        double minPercent = 0)
     {
-        return ReportText.TextReportWriter.Write(trace, meta, topHotspots, maxDepth);
+        return ReportText.TextReportWriter.Write(trace, meta, topHotspots, maxDepth, categoryFilter, minPercent);
     }
 }
