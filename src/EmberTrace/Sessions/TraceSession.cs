@@ -13,6 +13,7 @@ public sealed class TraceSession
         long startTimestamp,
         long endTimestamp,
         SessionOptions options,
+        IReadOnlyDictionary<int, string> threadNames,
         long droppedEvents,
         long droppedChunks,
         long sampledOutEvents,
@@ -22,6 +23,7 @@ public sealed class TraceSession
         StartTimestamp = startTimestamp;
         EndTimestamp = endTimestamp;
         Options = options;
+        ThreadNames = threadNames;
         DroppedEvents = droppedEvents;
         DroppedChunks = droppedChunks;
         SampledOutEvents = sampledOutEvents;
@@ -31,6 +33,7 @@ public sealed class TraceSession
     public long StartTimestamp { get; }
     public long EndTimestamp { get; }
     public SessionOptions Options { get; }
+    public IReadOnlyDictionary<int, string> ThreadNames { get; }
     public long DroppedEvents { get; }
     public long DroppedChunks { get; }
     public long SampledOutEvents { get; }

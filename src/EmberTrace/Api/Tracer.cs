@@ -10,10 +10,21 @@ using EmberTrace.Tracing;
 
 namespace EmberTrace;
 
-public static class Tracer
+public static partial class Tracer
 {
     private static readonly ConcurrentDictionary<int, string> IdToName = new();
     private static readonly ConcurrentDictionary<string, int> NameToId = new(StringComparer.Ordinal);
+    private static RuntimeMetadataProvider? _runtimeMetadata;
+    private static int _runtimeMetadataEnabled;
+    private static int _runtimeMetadataRegistered;
+    private const string DefaultCategory = "Default";
+
+    static Tracer()
+    {
+#if DEBUG
+        EnableRuntimeMetadata();
+#endif
+    }
 
 #if DEBUG
     private static int _idCollisionMode = (int)TracerIdCollisionMode.Warn;
@@ -42,6 +53,23 @@ public static class Tracer
 
     public static void FlowEnd(int id, long flowId) => Profiler.FlowEnd(id, flowId);
 
+    public static long FlowFromActivityCurrent(int id)
+    {
+        if (!IsRunning)
+            return 0;
+
+        if (!EmberTrace.ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
+            return 0;
+
+        if (flowId == 0)
+            return 0;
+
+        Profiler.FlowStart(id, flowId);
+        Profiler.FlowStep(id, flowId);
+        Profiler.FlowEnd(id, flowId);
+        return flowId;
+    }
+
     public static void Instant(int id) => Profiler.Instant(id);
 
     public static void Counter(int id, long value) => Profiler.Counter(id, value);
@@ -64,7 +92,16 @@ public static class Tracer
     {
         var id = StableId(name);
         RegisterIdCollision(name, id);
+        RegisterRuntimeMetadata(id, name);
         return id;
+    }
+
+    public static int CategoryId(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return 0;
+
+        return StableId(category);
     }
 
     internal static int StableId(string name)
@@ -120,6 +157,44 @@ public static class Tracer
 
         if (mode == TracerIdCollisionMode.Warn)
             Trace.TraceWarning($"Tracer.Id collision: '{existingName}' and '{newName}' map to {id}.");
+    }
+
+    internal static void EnableRuntimeMetadata()
+    {
+        Volatile.Write(ref _runtimeMetadataEnabled, 1);
+        var provider = EnsureRuntimeMetadataProvider();
+        if (provider is null)
+            return;
+
+        foreach (var entry in IdToName)
+            provider.Register(entry.Key, entry.Value, DefaultCategory);
+    }
+
+    private static void RegisterRuntimeMetadata(int id, string name)
+    {
+        var provider = EnsureRuntimeMetadataProvider();
+        if (provider is null)
+            return;
+
+        provider.Register(id, name, DefaultCategory);
+    }
+
+    private static RuntimeMetadataProvider? EnsureRuntimeMetadataProvider()
+    {
+        if (Volatile.Read(ref _runtimeMetadataEnabled) == 0)
+            return null;
+
+        var provider = _runtimeMetadata;
+        if (provider is null)
+        {
+            var created = new RuntimeMetadataProvider();
+            provider = Interlocked.CompareExchange(ref _runtimeMetadata, created, null) ?? created;
+        }
+
+        if (Interlocked.CompareExchange(ref _runtimeMetadataRegistered, 1, 0) == 0)
+            TraceMetadata.Register(provider);
+
+        return provider;
     }
 }
 

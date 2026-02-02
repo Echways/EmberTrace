@@ -12,6 +12,7 @@
     <Project Path="src/EmberTrace.Export/EmberTrace.Export.csproj" />
     <Project Path="src/EmberTrace.ReportText/EmberTrace.ReportText.csproj" />
     <Project Path="src/EmberTrace.All/EmberTrace.All.csproj" />
+    <Project Path="src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EmberTrace.Tests/EmberTrace.Tests.csproj" />

@@ -544,7 +544,7 @@ public static class TraceExport
             tids.Add(events[i].ThreadId);
 
         foreach (var tid in tids)
-            WriteThreadName(json, pid, tid, $"Thread {tid}");
+            WriteThreadName(json, pid, tid, ResolveThreadName(session, tid));
 
         WriteSyntheticTopLevel(json, pid, minTs, maxTs, freq, markerId, markerName);
 
@@ -843,6 +843,14 @@ public static class TraceExport
         json.WriteString("name", name);
         json.WriteEndObject();
         json.WriteEndObject();
+    }
+
+    static string ResolveThreadName(TraceSession session, int tid)
+    {
+        if (session.ThreadNames.TryGetValue(tid, out var name) && !string.IsNullOrWhiteSpace(name))
+            return name;
+
+        return $"Thread {tid}";
     }
 
     static long ToUs(long deltaTicks, long freq)

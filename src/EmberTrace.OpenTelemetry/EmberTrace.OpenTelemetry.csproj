@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+
+        <AssemblyName>EmberTrace.OpenTelemetry</AssemblyName>
+        <RootNamespace>EmberTrace.OpenTelemetry</RootNamespace>
+
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+
+        <PackageId>EmberTrace.OpenTelemetry</PackageId>
+        <Title>EmberTrace.OpenTelemetry</Title>
+        <Description>Exports EmberTrace sessions to OpenTelemetry spans with timestamps and optional flow links.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;opentelemetry;otel;spans;profiling;performance;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+</Project>

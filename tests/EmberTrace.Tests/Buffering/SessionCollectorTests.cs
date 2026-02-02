@@ -37,7 +37,7 @@ public class SessionCollectorTests
             {
                 for (int i = 0; i < writersPerTask; i++)
                 {
-                    var writer = new ThreadWriter(collector);
+                    var writer = new ThreadWriter(collector, default);
                     collector.RegisterWriter(writer);
                 }
             }));
@@ -63,7 +63,7 @@ public class SessionCollectorTests
         var collector = new SessionCollector(options, pool, options.ChunkCapacity);
 
         collector.TryRentChunk(out _);
-        collector.RegisterWriter(new ThreadWriter(collector));
+        collector.RegisterWriter(new ThreadWriter(collector, default));
 
         collector.Clear();
 
