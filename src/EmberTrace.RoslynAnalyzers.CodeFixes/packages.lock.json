@@ -59,7 +59,7 @@
           "Microsoft.CodeAnalysis.Elfie": "1.0.0",
           "Microsoft.CodeAnalysis.Scripting.Common": "[4.10.0]",
           "Microsoft.CodeAnalysis.Workspaces.Common": "[4.10.0]",
-          "Microsoft.DiaSymReader": "2.0.0",
+          "Microsoft.DiaSymReader": "0.2.0",
           "System.Buffers": "4.5.1",
           "System.Collections.Immutable": "8.0.0",
           "System.Composition": "8.0.0",
@@ -182,7 +182,7 @@
       },
       "Microsoft.DiaSymReader": {
         "type": "Transitive",
-        "resolved": "2.0.0",
+        "resolved": "0.2.0",
         "contentHash": "QcZrCETsBJqy/vQpFtJc+jSXQ0K5sucQ6NUFbTNVHD4vfZZOwjZ/3sBzczkC4DityhD3AVO/+K/+9ioLs1AgRA=="
       },
       "Microsoft.NETCore.Platforms": {

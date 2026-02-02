@@ -13,11 +13,22 @@ def find_results(path: Path) -> Path:
     if path.is_file():
         return path
 
-    candidates = sorted(path.glob("**/*-report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not candidates:
-        raise FileNotFoundError(f"No BenchmarkDotNet report JSON found under {path}")
+    search_roots = []
+    if path.exists():
+        search_roots.append(path)
 
-    return candidates[0]
+    if not search_roots:
+        for root in (Path.cwd(), Path.cwd() / "benchmarks"):
+            if not root.exists():
+                continue
+            search_roots.extend(sorted(root.glob(f"**/{path.name}")))
+
+    for root in search_roots:
+        candidates = sorted(root.glob("**/*-report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if candidates:
+            return candidates[0]
+
+    raise FileNotFoundError(f"No BenchmarkDotNet report JSON found under {path}")
 
 
 def load_benchmark_means(path: Path):
