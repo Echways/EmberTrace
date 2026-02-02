@@ -13,9 +13,7 @@ def find_results(path: Path) -> Path:
     if path.is_file():
         return path
 
-    search_roots = []
-    search_roots.append(path)
-
+    search_roots = [path]
     for root in (Path.cwd(), Path.cwd() / "benchmarks"):
         if not root.exists():
             continue
@@ -23,17 +21,30 @@ def find_results(path: Path) -> Path:
         search_roots.extend(sorted(root.glob(f"**/{path.name}")))
 
     seen = set()
+    candidates = []
+
     for root in search_roots:
         if root in seen or not root.exists():
             continue
         seen.add(root)
-        candidates = sorted(root.glob("**/*-report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if candidates:
-            return candidates[0]
+        candidates.extend(root.glob("**/*report*.json"))
 
-    fallback_candidates = sorted(Path.cwd().glob("**/*-report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if fallback_candidates:
-        return fallback_candidates[0]
+    if not candidates:
+        candidates = list(Path.cwd().glob("**/*report*.json"))
+
+    if not candidates:
+        candidates = list(Path.cwd().glob("**/*.json"))
+
+    def is_benchmark_report(p: Path) -> bool:
+        try:
+            data = load_json(p)
+        except Exception:
+            return False
+        return isinstance(data, dict) and isinstance(data.get("Benchmarks"), list)
+
+    valid = [p for p in candidates if is_benchmark_report(p)]
+    if valid:
+        return max(valid, key=lambda p: p.stat().st_mtime)
 
     raise FileNotFoundError(f"No BenchmarkDotNet report JSON found under {path}")
 
