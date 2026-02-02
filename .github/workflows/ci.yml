@@ -22,7 +22,7 @@ jobs:
       - name: Restore
         run: |
           dotnet nuget locals all --clear
-          dotnet restore EmberTrace.slnx -p:RestorePackagesWithLockFile=true -p:RestoreLockedMode=false -p:RestoreForceEvaluate=true
+          dotnet restore EmberTrace.slnx -p:RestorePackagesWithLockFile=true -p:RestoreLockedMode=false -p:RestoreForceEvaluate=true -p:UseLocalEmberTrace=true
 
       - name: Install dotnet-format
         run: dotnet tool install -g dotnet-format
@@ -31,19 +31,19 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build --no-restore -c Release -p:UseLocalEmberTrace=true
 
       - name: Test
-        run: dotnet test tests/EmberTrace.Tests/EmberTrace.Tests.csproj --no-build -c Release
+        run: dotnet test tests/EmberTrace.Tests/EmberTrace.Tests.csproj --no-build -c Release -p:UseLocalEmberTrace=true
 
       - name: Benchmarks
-        run: dotnet run --project benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj -c Release -- --filter *ScopeBenchmarks* --exporters json
+        run: dotnet run --project benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj -c Release -p:UseLocalEmberTrace=true -- --filter *ScopeBenchmarks* --exporters json --artifacts BenchmarkDotNet.Artifacts
 
       - name: Perf gate
         run: python3 benchmarks/compare_benchmarks.py benchmarks/baseline.json BenchmarkDotNet.Artifacts
 
       - name: Publish NativeAOT sample
-        run: dotnet publish samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj -c Release -p:PublishAot=true
+        run: dotnet publish samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj -c Release -p:PublishAot=true -p:UseLocalEmberTrace=true
 
       - name: Run Demo3
-        run: dotnet run --project samples/EmberTrace.Demo3/EmberTraceDemo3.csproj -c Release
+        run: dotnet run --project samples/EmberTrace.Demo3/EmberTraceDemo3.csproj -c Release -p:UseLocalEmberTrace=true
