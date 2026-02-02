@@ -50,7 +50,6 @@ public static class ActivityBridge
     {
         private readonly PropertyInfo? _currentProperty;
         private readonly PropertyInfo? _traceIdProperty;
-        private readonly MethodInfo? _traceIdToString;
         private readonly bool _available;
 
         public ActivityAccess()
@@ -61,8 +60,7 @@ public static class ActivityBridge
 
             _currentProperty = type.GetProperty("Current", BindingFlags.Public | BindingFlags.Static);
             _traceIdProperty = type.GetProperty("TraceId", BindingFlags.Public | BindingFlags.Instance);
-            _traceIdToString = _traceIdProperty?.PropertyType.GetMethod("ToString", Type.EmptyTypes);
-            _available = _currentProperty is not null && _traceIdProperty is not null && _traceIdToString is not null;
+            _available = _currentProperty is not null && _traceIdProperty is not null;
         }
 
         [RequiresUnreferencedCode("Uses reflection to access Activity.Current and TraceId.")]
@@ -80,7 +78,7 @@ public static class ActivityBridge
             if (traceIdValue is null)
                 return false;
 
-            traceId = _traceIdToString?.Invoke(traceIdValue, null) as string ?? string.Empty;
+            traceId = traceIdValue.ToString() ?? string.Empty;
             return traceId.Length > 0;
         }
     }
