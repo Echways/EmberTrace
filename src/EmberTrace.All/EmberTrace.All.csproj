@@ -32,6 +32,7 @@
         <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
         <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj" />
         <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />
+        <ProjectReference Include="..\EmberTrace.OpenTelemetry\EmberTrace.OpenTelemetry.csproj" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(UseLocalEmberTrace)'!='true'">
@@ -41,6 +42,7 @@
         <PackageReference Include="EmberTrace.Analysis"     Version="$(Version)" />
         <PackageReference Include="EmberTrace.Export"       Version="$(Version)" />
         <PackageReference Include="EmberTrace.ReportText"   Version="$(Version)" />
+        <PackageReference Include="EmberTrace.OpenTelemetry" Version="$(Version)" />
     </ItemGroup>
 
 

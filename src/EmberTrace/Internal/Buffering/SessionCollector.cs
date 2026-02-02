@@ -11,6 +11,7 @@ internal sealed class SessionCollector
     private readonly List<ThreadWriter> _writers = new();
     private readonly Queue<Chunk> _inactive = new();
     private readonly HashSet<Chunk> _active = new();
+    private readonly Dictionary<int, string> _threadNames = new();
     private readonly object _sync = new();
 
     private readonly ChunkPool _pool;
@@ -113,6 +114,23 @@ internal sealed class SessionCollector
     {
         Interlocked.Increment(ref _droppedEvents);
         MarkOverflow();
+    }
+
+    public void RecordSampledOutEvent()
+    {
+        Interlocked.Increment(ref _sampledOutEvents);
+    }
+
+    public void RegisterThreadName(int threadId, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        lock (_sync)
+        {
+            if (!_threadNames.ContainsKey(threadId))
+                _threadNames.Add(threadId, name);
+        }
     }
 
     public bool TryRentChunk(out Chunk? chunk)
@@ -262,6 +280,15 @@ internal sealed class SessionCollector
         }
     }
 
+    public IReadOnlyDictionary<int, string> ThreadNames
+    {
+        get
+        {
+            lock (_sync)
+                return new Dictionary<int, string>(_threadNames);
+        }
+    }
+
     public void Clear()
     {
         lock (_sync)
@@ -270,6 +297,7 @@ internal sealed class SessionCollector
             _inactive.Clear();
             _active.Clear();
             _writers.Clear();
+            _threadNames.Clear();
             _closed = 0;
             _overflowed = 0;
             _totalEvents = 0;

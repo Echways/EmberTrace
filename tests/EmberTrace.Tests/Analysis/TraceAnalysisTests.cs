@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using EmberTrace;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
@@ -75,6 +76,6 @@ public class TraceAnalysisTests
         var start = events.Length > 0 ? events[0].Timestamp : 0;
         var end = events.Length > 0 ? events[events.Length - 1].Timestamp : start;
 
-        return new TraceSession(new[] { chunk }, start, end, options, 0, 0, 0, wasOverflow: false);
+        return new TraceSession(new[] { chunk }, start, end, options, new Dictionary<int, string>(), 0, 0, 0, wasOverflow: false);
     }
 }

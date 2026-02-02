@@ -38,6 +38,15 @@
         "resolved": "0.1.1",
         "contentHash": "pDbe9Y3j7UqFpxK2b1C5OEmYaEm2KwqTUXduUMqjgSZVwNlBNGtw5A8e63M4aruKBHu/t59wBQSM7EBXw2y8NA=="
       },
+      "EmberTrace.OpenTelemetry": {
+        "type": "Direct",
+        "requested": "[0.1.1, )",
+        "resolved": "0.1.1",
+        "contentHash": "xvVZFWv+A/UTTCMQdgfhPymJXcNSlhlQjgN9HTCw+JEyCU5r+TICJXe4hJpeMl2AcHZrI9Z6SAwnvmRnjnXMUg==",
+        "dependencies": {
+          "EmberTrace": "0.1.1"
+        }
+      },
       "EmberTrace.ReportText": {
         "type": "Direct",
         "requested": "[0.1.1, )",

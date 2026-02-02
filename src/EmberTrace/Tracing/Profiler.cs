@@ -4,6 +4,7 @@ using System.Threading;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
 using EmberTrace.Flow;
+using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Tracing;
@@ -18,6 +19,8 @@ internal static class Profiler
 
     private static SessionCollector? _collector;
     private static ChunkPool? _pool;
+    private static CategoryFilter? _categoryFilter;
+    private static SamplingPolicy _sampling;
 
     [ThreadStatic] private static ThreadWriter? _writer;
     [ThreadStatic] private static int _writerVersion;
@@ -36,6 +39,12 @@ internal static class Profiler
         Interlocked.Increment(ref _sessionVersion);
 
         _options = options ?? new SessionOptions();
+#if DEBUG
+        Tracer.EnableRuntimeMetadata();
+#else
+        if (_options.EnableRuntimeMetadata)
+            Tracer.EnableRuntimeMetadata();
+#endif
         var chunkCapacity = Math.Max(1024, _options.ChunkCapacity);
         _pool = new ChunkPool(chunkCapacity);
         _collector = new SessionCollector(_options, _pool, chunkCapacity);
@@ -45,6 +54,14 @@ internal static class Profiler
         _endTs = 0;
 
         _nextFlowId = 0;
+
+        var meta = TraceMetadata.CreateDefault();
+        if ((_options.EnabledCategoryIds?.Length ?? 0) > 0 || (_options.DisabledCategoryIds?.Length ?? 0) > 0)
+            _categoryFilter = new CategoryFilter(meta, _options.EnabledCategoryIds, _options.DisabledCategoryIds);
+        else
+            _categoryFilter = null;
+
+        _sampling = new SamplingPolicy(_options.SampleEveryNGlobal, _options.SampleEveryNById);
     }
 
     public static TraceSession Stop()
@@ -62,6 +79,7 @@ internal static class Profiler
         var droppedChunks = 0L;
         var sampledOutEvents = 0L;
         var wasOverflow = false;
+        IReadOnlyDictionary<int, string> threadNames = new Dictionary<int, string>();
 
         if (collector is not null)
         {
@@ -76,6 +94,7 @@ internal static class Profiler
             droppedChunks = collector.DroppedChunks;
             sampledOutEvents = collector.SampledOutEvents;
             wasOverflow = collector.WasOverflow;
+            threadNames = collector.ThreadNames;
 
             if (pool is not null && chunks.Count > 0)
             {
@@ -105,6 +124,7 @@ internal static class Profiler
             _startTs,
             _endTs,
             options,
+            threadNames,
             droppedEvents,
             droppedChunks,
             sampledOutEvents,
@@ -196,6 +216,10 @@ internal static class Profiler
         if (collector is null || pool is null || collector.IsClosed)
             return;
 
+        var filter = _categoryFilter;
+        if (filter is not null && !filter.Allows(id))
+            return;
+
         var version = Volatile.Read(ref _sessionVersion);
         if (_writerVersion != version)
         {
@@ -207,7 +231,7 @@ internal static class Profiler
         var w = _writer;
         if (w is null || w.IsClosed)
         {
-            w = new ThreadWriter(collector);
+            w = new ThreadWriter(collector, _sampling);
             collector.RegisterWriter(w);
             _writer = w;
         }

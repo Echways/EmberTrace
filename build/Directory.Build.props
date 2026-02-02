@@ -26,5 +26,6 @@
 
     <PropertyGroup>
         <Version>0.1.1</Version>
+        <UseLocalEmberTrace Condition="'$(UseLocalEmberTrace)' == ''">false</UseLocalEmberTrace>
     </PropertyGroup>
 </Project>

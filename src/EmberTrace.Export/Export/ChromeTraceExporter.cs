@@ -36,7 +36,7 @@ internal static class ChromeTraceExporter
         var tids = CollectThreadIds(session);
         WriteProcessName(json, pid, processName);
         for (int i = 0; i < tids.Count; i++)
-            WriteThreadName(json, pid, tids[i], $"Thread {tids[i]}");
+            WriteThreadName(json, pid, tids[i], ResolveThreadName(session, tids[i]));
 
         if (sortByTimestamp)
         {
@@ -93,7 +93,7 @@ internal static class ChromeTraceExporter
         var tids = CollectThreadIds(session, includeSynthetic: true);
         WriteProcessName(json, pid, processName);
         for (int i = 0; i < tids.Count; i++)
-            WriteThreadName(json, pid, tids[i], $"Thread {tids[i]}");
+            WriteThreadName(json, pid, tids[i], ResolveThreadName(session, tids[i]));
 
         for (int i = 0; i < markers.Count; i++)
         {
@@ -444,6 +444,14 @@ internal static class ChromeTraceExporter
         json.WriteString("name", name);
         json.WriteEndObject();
         json.WriteEndObject();
+    }
+
+    private static string ResolveThreadName(TraceSession session, int tid)
+    {
+        if (session.ThreadNames.TryGetValue(tid, out var name) && !string.IsNullOrWhiteSpace(name))
+            return name;
+
+        return $"Thread {tid}";
     }
 
     private static double ToUs(long ticks, long freq) => ticks * 1_000_000.0 / freq;
