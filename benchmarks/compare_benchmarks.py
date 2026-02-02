@@ -14,19 +14,26 @@ def find_results(path: Path) -> Path:
         return path
 
     search_roots = []
-    if path.exists():
-        search_roots.append(path)
+    search_roots.append(path)
 
-    if not search_roots:
-        for root in (Path.cwd(), Path.cwd() / "benchmarks"):
-            if not root.exists():
-                continue
-            search_roots.extend(sorted(root.glob(f"**/{path.name}")))
+    for root in (Path.cwd(), Path.cwd() / "benchmarks"):
+        if not root.exists():
+            continue
+        search_roots.append(root / path)
+        search_roots.extend(sorted(root.glob(f"**/{path.name}")))
 
+    seen = set()
     for root in search_roots:
+        if root in seen or not root.exists():
+            continue
+        seen.add(root)
         candidates = sorted(root.glob("**/*-report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
         if candidates:
             return candidates[0]
+
+    fallback_candidates = sorted(Path.cwd().glob("**/*-report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if fallback_candidates:
+        return fallback_candidates[0]
 
     raise FileNotFoundError(f"No BenchmarkDotNet report JSON found under {path}")
 
