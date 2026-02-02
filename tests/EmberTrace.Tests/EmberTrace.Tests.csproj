@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj" />
+        <ProjectReference Include="../../src/EmberTrace.Export/EmberTrace.Export.csproj" />
         <ProjectReference Include="../../src/EmberTrace.ReportText/EmberTrace.ReportText.csproj" />
     </ItemGroup>
 

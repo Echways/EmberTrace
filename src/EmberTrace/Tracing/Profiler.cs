@@ -61,7 +61,7 @@ internal static class Profiler
         else
             _categoryFilter = null;
 
-        _sampling = new SamplingPolicy(_options.SampleEveryNGlobal, _options.SampleEveryNById);
+        _sampling = new SamplingPolicy(_options.SampleEveryNGlobal, _options.SampleEveryNById, _options.MaxEventsPerSecond);
     }
 
     public static TraceSession Stop()

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace EmberTrace.ActivityBridge;
@@ -7,6 +8,7 @@ public static class ActivityBridge
 {
     private static readonly ActivityAccess Access = new();
 
+    [RequiresUnreferencedCode("Uses reflection to access Activity.Current and TraceId.")]
     public static bool TryGetCurrentFlowId(out long flowId)
     {
         if (!Access.TryGetCurrentTraceId(out var traceId))
@@ -63,6 +65,7 @@ public static class ActivityBridge
             _available = _currentProperty is not null && _traceIdProperty is not null && _traceIdToString is not null;
         }
 
+        [RequiresUnreferencedCode("Uses reflection to access Activity.Current and TraceId.")]
         public bool TryGetCurrentTraceId(out string traceId)
         {
             traceId = string.Empty;

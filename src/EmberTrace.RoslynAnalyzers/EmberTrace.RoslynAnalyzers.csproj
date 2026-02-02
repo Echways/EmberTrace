@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsRoslynComponent>true</IsRoslynComponent>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <NoWarn>$(NoWarn);NU5128</NoWarn>
+
+        <AssemblyName>EmberTrace.RoslynAnalyzers</AssemblyName>
+        <RootNamespace>EmberTrace.RoslynAnalyzers</RootNamespace>
+        <PackageId>EmberTrace.RoslynAnalyzers</PackageId>
+        <Title>EmberTrace.RoslynAnalyzers</Title>
+        <Description>Roslyn analyzers and code fixes for EmberTrace usage.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>analyzers;roslyn;embertrace;diagnostics;codefix</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.0.0-1.25277.114" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\EmberTrace.RoslynAnalyzers.CodeFixes\EmberTrace.RoslynAnalyzers.CodeFixes.csproj" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+        <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <None Include="$(OutputPath)\$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <None Include="..\EmberTrace.RoslynAnalyzers.CodeFixes\bin\$(Configuration)\$(TargetFramework)\EmberTrace.RoslynAnalyzers.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <None Include="..\EmberTrace.RoslynAnalyzers.CodeFixes\bin\$(Configuration)\$(TargetFramework)\EmberTrace.RoslynAnalyzers.CodeFixes.pdb" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+</Project>

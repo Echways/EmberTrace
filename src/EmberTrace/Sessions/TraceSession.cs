@@ -91,7 +91,8 @@ public sealed class TraceSession
                 _current.Timestamp,
                 _current.Kind,
                 _current.FlowId,
-                _current.Value);
+                _current.Value,
+                _current.Sequence);
 
             public bool MoveNext()
             {
@@ -158,7 +159,8 @@ public sealed class TraceSession
                 _current.Timestamp,
                 _current.Kind,
                 _current.FlowId,
-                _current.Value);
+                _current.Value,
+                _current.Sequence);
 
             public bool MoveNext()
             {
@@ -196,39 +198,24 @@ public sealed class TraceSession
         private readonly struct EventKey : IComparable<EventKey>
         {
             private readonly long _timestamp;
-            private readonly int _phaseRank;
             private readonly int _threadId;
+            private readonly long _sequence;
 
             public EventKey(in TraceEvent ev)
             {
                 _timestamp = ev.Timestamp;
-                _phaseRank = PhaseRank(ev.Kind);
                 _threadId = ev.ThreadId;
+                _sequence = ev.Sequence;
             }
 
             public int CompareTo(EventKey other)
             {
                 var c = _timestamp.CompareTo(other._timestamp);
                 if (c != 0) return c;
-                c = _phaseRank.CompareTo(other._phaseRank);
+                c = _threadId.CompareTo(other._threadId);
                 if (c != 0) return c;
-                return _threadId.CompareTo(other._threadId);
+                return _sequence.CompareTo(other._sequence);
             }
-        }
-
-        private static int PhaseRank(TraceEventKind kind)
-        {
-            return kind switch
-            {
-                TraceEventKind.Begin => 0,
-                TraceEventKind.FlowStart => 1,
-                TraceEventKind.FlowStep => 2,
-                TraceEventKind.FlowEnd => 3,
-                TraceEventKind.Instant => 4,
-                TraceEventKind.Counter => 5,
-                TraceEventKind.End => 6,
-                _ => 7
-            };
         }
     }
 }

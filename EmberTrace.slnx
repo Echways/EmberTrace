@@ -3,6 +3,10 @@
     <Project Path="samples/EmberTrace.Demo/EmberTraceDemo.csproj" />
     <Project Path="samples/EmberTrace.Demo2/EmberTraceDemo2.csproj" />
     <Project Path="samples/EmberTrace.Demo3/EmberTraceDemo3.csproj" />
+    <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj" />
@@ -13,6 +17,8 @@
     <Project Path="src/EmberTrace.ReportText/EmberTrace.ReportText.csproj" />
     <Project Path="src/EmberTrace.All/EmberTrace.All.csproj" />
     <Project Path="src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj" />
+    <Project Path="src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj" />
+    <Project Path="src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EmberTrace.Tests/EmberTrace.Tests.csproj" />

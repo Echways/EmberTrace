@@ -6,4 +6,5 @@ public readonly record struct TraceEventRecord(
     long Timestamp,
     TraceEventKind Kind,
     long FlowId,
-    long Value);
+    long Value,
+    long Sequence = 0);

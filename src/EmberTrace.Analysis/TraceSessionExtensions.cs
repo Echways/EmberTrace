@@ -105,6 +105,8 @@ public static class TraceSessionExtensions
         long unmatchedEnd = 0;
         long mismatchedEnd = 0;
 
+        var onMismatch = session.Options.OnMismatchedEnd;
+
         foreach (var e in session.EnumerateEvents())
         {
             if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
@@ -134,6 +136,8 @@ public static class TraceSessionExtensions
             if (top.Id != e.Id)
             {
                 mismatchedEnd++;
+                if (onMismatch is not null)
+                    onMismatch(new MismatchedEndInfo(e.ThreadId, top.Id, e.Id, e.Timestamp));
                 if (strict)
                     continue;
 
@@ -228,6 +232,8 @@ public static class TraceSessionExtensions
         long unmatchedEnd = 0;
         long mismatchedEnd = 0;
 
+        var onMismatch = session.Options.OnMismatchedEnd;
+
         foreach (var e in session.EnumerateEvents())
         {
             if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
@@ -267,6 +273,8 @@ public static class TraceSessionExtensions
             if (top.Id != e.Id)
             {
                 mismatchedEnd++;
+                if (onMismatch is not null)
+                    onMismatch(new MismatchedEndInfo(e.ThreadId, top.Id, e.Id, e.Timestamp));
                 if (strict)
                     continue;
 

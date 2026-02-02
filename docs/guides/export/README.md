@@ -18,6 +18,8 @@ using var fs = File.Create("out/trace_complete.json");
 TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
+Порядок событий стабилен: timestamp → thread → sequence.
+
 ## WriteChromeBeginEnd
 
 Альтернатива: отдельные Begin/End события (может быть удобнее для некоторых тулов).
@@ -26,6 +28,11 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 using var fs = File.Create("out/trace_beginend.json");
 TraceExport.WriteChromeBeginEnd(session, fs, meta: meta);
 ```
+
+Экспорт включает:
+- Flow (`FlowStart/Step/End`)
+- Instant и Counter
+- имена потоков (если заданы через `Thread.CurrentThread.Name`)
 
 ## MarkedComplete: снять короткое окно
 
@@ -68,5 +75,4 @@ result.SaveFullChromeComplete("out/slice_full.json", meta: Tracer.CreateMetadata
 ## Скриншоты
 
 ![Открытый экспорт: json открыт в Perfetto](../../assets/export-opened.png)
-
 

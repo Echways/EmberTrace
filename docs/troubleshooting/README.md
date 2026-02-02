@@ -40,13 +40,20 @@ await using (Tracer.ScopeAsync(Ids.Io))
 **Решение:**
 - увеличь `SessionOptions.ChunkCapacity`
 - пересмотри частоту/гранулярность instrumentation
-- при необходимости поменяй `OverflowPolicy` (если доступно в твоей сборке)
+- при необходимости поменяй `OverflowPolicy` (`DropNew`, `DropOldest`, `StopSession`)
+- проверь лимиты `MaxTotalEvents`, `MaxTotalChunks`, `MaxEventsPerSecond`
 
 ## Flow «обрывается»
 
 **Причина:** не вызван `FlowEnd(...)` / `handle.End()`.
 
 **Решение:** закрывай flow в `finally` или через явный жизненный цикл.
+
+## Есть только числовые id в dev‑сборке
+
+**Причина:** нет метаданных, generator не подключён.
+
+**Решение:** включи `EnableRuntimeMetadata = true` или добавь `[assembly: TraceId(...)]`.
 
 См. также:
 - [Использование и API](../guides/usage/README.md)

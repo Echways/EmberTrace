@@ -36,5 +36,14 @@ jobs:
       - name: Test
         run: dotnet test tests/EmberTrace.Tests/EmberTrace.Tests.csproj --no-build -c Release
 
+      - name: Benchmarks
+        run: dotnet run --project benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj -c Release -- --filter *ScopeBenchmarks* --exporters json
+
+      - name: Perf gate
+        run: python3 benchmarks/compare_benchmarks.py benchmarks/baseline.json BenchmarkDotNet.Artifacts
+
+      - name: Publish NativeAOT sample
+        run: dotnet publish samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj -c Release -p:PublishAot=true
+
       - name: Run Demo3
         run: dotnet run --project samples/EmberTrace.Demo3/EmberTraceDemo3.csproj -c Release

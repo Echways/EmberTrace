@@ -1,0 +1,8 @@
+{
+  "benchmarks": {
+    "EmberTrace.Benchmarks.ScopeBenchmarks.Scope_BeginEnd_SingleThread": 100000000,
+    "EmberTrace.Benchmarks.ScopeBenchmarks.Scope_BeginEnd_MultiThread": 200000000
+  },
+  "unit": "ns",
+  "threshold": 0.15
+}

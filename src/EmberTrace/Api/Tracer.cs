@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using EmberTrace.Flow;
 using EmberTrace.Metadata;
@@ -53,6 +54,7 @@ public static partial class Tracer
 
     public static void FlowEnd(int id, long flowId) => Profiler.FlowEnd(id, flowId);
 
+    [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
     public static long FlowFromActivityCurrent(int id)
     {
         if (!IsRunning)

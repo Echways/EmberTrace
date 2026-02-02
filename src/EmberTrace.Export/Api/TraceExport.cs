@@ -549,10 +549,10 @@ public static class TraceExport
         WriteSyntheticTopLevel(json, pid, minTs, maxTs, freq, markerId, markerName);
 
         var flows = CollectFlows(events);
-        flows.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        flows.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.Tid, a.Sequence, b.Timestamp, b.Tid, b.Sequence));
 
         var markers = CollectInstantCounters(events);
-        markers.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
 
         var fi = 0;
         var mi = 0;
@@ -578,7 +578,7 @@ public static class TraceExport
         }
 
         var complete = CollectComplete(events);
-        complete.Sort(static (a, b) => a.StartTs.CompareTo(b.StartTs));
+        complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.Tid, a.Sequence, b.StartTs, b.Tid, b.Sequence));
         for (int i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, minTs, freq, pid);
 
@@ -608,7 +608,7 @@ public static class TraceExport
             if (ph is null)
                 continue;
 
-            list.Add(new FlowEv(e.Id, e.ThreadId, e.Timestamp, e.FlowId, ph));
+            list.Add(new FlowEv(e.Id, e.ThreadId, e.Timestamp, e.Sequence, e.FlowId, ph));
         }
 
         return list;
@@ -646,7 +646,7 @@ public static class TraceExport
 
             if (e.Kind == TraceEventKind.Begin)
             {
-                stack.Add(new Frame(e.Id, e.Timestamp));
+                stack.Add(new Frame(e.Id, e.Timestamp, e.Sequence));
                 continue;
             }
 
@@ -682,7 +682,7 @@ public static class TraceExport
             if (dur <= 0)
                 continue;
 
-            list.Add(new CompleteEv(e.Id, e.ThreadId, top.Start, dur, depth, parentId));
+            list.Add(new CompleteEv(e.Id, e.ThreadId, top.Start, dur, depth, parentId, top.Sequence));
         }
 
         return list;
@@ -910,6 +910,15 @@ public static class TraceExport
         return new string(buffer[..n]);
     }
 
+    static int CompareEventOrder(long timestamp, int threadId, long sequence, long otherTimestamp, int otherThreadId, long otherSequence)
+    {
+        var cmp = timestamp.CompareTo(otherTimestamp);
+        if (cmp != 0) return cmp;
+        cmp = threadId.CompareTo(otherThreadId);
+        if (cmp != 0) return cmp;
+        return sequence.CompareTo(otherSequence);
+    }
+
     sealed class OverlayTraceMetadataProvider : ITraceMetadataProvider
     {
         private readonly ITraceMetadataProvider _base;
@@ -939,11 +948,13 @@ public static class TraceExport
     {
         public readonly int Id;
         public readonly long Start;
+        public readonly long Sequence;
 
-        public Frame(int id, long start)
+        public Frame(int id, long start, long sequence)
         {
             Id = id;
             Start = start;
+            Sequence = sequence;
         }
     }
 
@@ -955,8 +966,9 @@ public static class TraceExport
         public readonly long Dur;
         public readonly int Depth;
         public readonly int ParentId;
+        public readonly long Sequence;
 
-        public CompleteEv(int id, int tid, long startTs, long dur, int depth, int parentId)
+        public CompleteEv(int id, int tid, long startTs, long dur, int depth, int parentId, long sequence)
         {
             Id = id;
             Tid = tid;
@@ -964,6 +976,7 @@ public static class TraceExport
             Dur = dur;
             Depth = depth;
             ParentId = parentId;
+            Sequence = sequence;
         }
     }
 
@@ -972,14 +985,16 @@ public static class TraceExport
         public readonly int Id;
         public readonly int Tid;
         public readonly long Timestamp;
+        public readonly long Sequence;
         public readonly long FlowId;
         public readonly string Phase;
 
-        public FlowEv(int id, int tid, long timestamp, long flowId, string phase)
+        public FlowEv(int id, int tid, long timestamp, long sequence, long flowId, string phase)
         {
             Id = id;
             Tid = tid;
             Timestamp = timestamp;
+            Sequence = sequence;
             FlowId = flowId;
             Phase = phase;
         }
