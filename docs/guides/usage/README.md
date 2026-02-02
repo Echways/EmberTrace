@@ -64,6 +64,12 @@ var id = Tracer.Id("MySubsystem.Request");
 using var _ = Tracer.Scope(id);
 ```
 
+Категорию можно хешировать так же:
+
+```csharp
+var ioCategory = Tracer.CategoryId("IO");
+```
+
 3) **Метаданные через `[assembly: TraceId(...)]`** — для красивых имён/категорий в отчёте и экспорте
 (см. docs: generator).
 
@@ -73,12 +79,16 @@ using var _ = Tracer.Scope(id);
 Tracer.Start(new SessionOptions
 {
     ChunkCapacity = 128 * 1024,
-    OverflowPolicy = OverflowPolicy.Drop
+    OverflowPolicy = OverflowPolicy.DropNew
 });
 ```
 
 - `ChunkCapacity` — размер чанка событий в буфере потока
-- `OverflowPolicy` — поведение при переполнении (по умолчанию `Drop`)
+- `OverflowPolicy` — поведение при переполнении (`DropNew`, `DropOldest`, `StopSession`)
+- `MaxTotalEvents` / `MaxTotalChunks` — лимиты на общий объём
+- `MaxEventsPerSecond` — лимит событий в секунду на writer
+- `SampleEveryNGlobal` / `SampleEveryNById` — sampling без глобальных lock
+- `EnabledCategoryIds` / `DisabledCategoryIds` — фильтрация категорий
 
 ## Session API
 
@@ -86,6 +96,7 @@ Tracer.Start(new SessionOptions
 
 - `session.EventCount` — общее число событий
 - `session.EnumerateEvents()` — сырые события (для своих инструментов)
+- `session.EnumerateEventsSorted()` — стабильная сортировка по timestamp → thread → sequence
 - `session.Process()` — агрегаты для отчётов/аналитики
 
 ```csharp
@@ -102,6 +113,9 @@ var meta = Tracer.CreateMetadata();
 
 Если подключён `EmberTrace.Generator`, метаданные из `[assembly: TraceId(...)]` будут
 **автоматически зарегистрированы** при старте модуля (см. [генератор](../../reference/source-generator/README.md)).
+
+Для dev‑сценариев можно включить runtime‑метаданные: `EnableRuntimeMetadata = true`.
+В этом режиме `Tracer.Id("Name")` автоматически регистрирует имя с категорией `Default`.
 
 ## Практические рекомендации
 

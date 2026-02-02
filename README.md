@@ -22,6 +22,8 @@ dotnet add package EmberTrace.All
 - `EmberTrace.Analysis` — обработка сессии (`session.Process()`)
 - `EmberTrace.ReportText` — текстовый отчёт (`TraceText.Write(...)`)
 - `EmberTrace.Export` — Chrome Trace export (`TraceExport.*`)
+- `EmberTrace.OpenTelemetry` — экспорт в OpenTelemetry (`Activity`-спаны)
+- `EmberTrace.RoslynAnalyzers` — анализаторы и code fixes для корректного использования (фиксы работают в IDE и идут в составе пакета)
 
 ## Быстрый старт
 
@@ -92,6 +94,16 @@ dotnet run --project samples/EmberTrace.Demo3 -c Release
 ```bash
 dotnet build -c Release
 dotnet test -c Release
+```
+
+## Бенчмарки и AOT
+
+```bash
+dotnet run --project benchmarks/EmberTrace.Benchmarks -c Release -- --filter *ScopeBenchmarks*
+```
+
+```bash
+dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 ```
 
 ## Скриншоты

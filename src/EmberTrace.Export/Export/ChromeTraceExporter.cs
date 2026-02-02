@@ -78,10 +78,10 @@ internal static class ChromeTraceExporter
 
         var complete = CollectComplete(session, start);
         if (sortByStartTimestamp)
-            complete.Sort(static (a, b) => a.StartTs.CompareTo(b.StartTs));
+            complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.ThreadId, a.Sequence, b.StartTs, b.ThreadId, b.Sequence));
 
         var markers = CollectFlows(session, start);
-        markers.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
 
         using var json = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = false });
 
@@ -150,11 +150,13 @@ internal static class ChromeTraceExporter
     {
         public readonly int Id;
         public readonly long Start;
+        public readonly long Sequence;
 
-        public Frame(int id, long start)
+        public Frame(int id, long start, long sequence)
         {
             Id = id;
             Start = start;
+            Sequence = sequence;
         }
     }
 
@@ -164,13 +166,15 @@ internal static class ChromeTraceExporter
         public readonly int ThreadId;
         public readonly long StartTs;
         public readonly long DurTicks;
+        public readonly long Sequence;
 
-        public CompleteEvent(int id, int threadId, long startTs, long durTicks)
+        public CompleteEvent(int id, int threadId, long startTs, long durTicks, long sequence)
         {
             Id = id;
             ThreadId = threadId;
             StartTs = startTs;
             DurTicks = durTicks;
+            Sequence = sequence;
         }
     }
 
@@ -221,7 +225,7 @@ internal static class ChromeTraceExporter
 
             if (e.Kind == TraceEventKind.Begin)
             {
-                stack.Add(new Frame(e.Id, e.Timestamp));
+                stack.Add(new Frame(e.Id, e.Timestamp, e.Sequence));
                 continue;
             }
 
@@ -253,7 +257,7 @@ internal static class ChromeTraceExporter
             var dur = e.Timestamp - top.Start;
             if (dur < 0) continue;
 
-            list.Add(new CompleteEvent(e.Id, e.ThreadId, top.Start, dur));
+            list.Add(new CompleteEvent(e.Id, e.ThreadId, top.Start, dur, top.Sequence));
         }
 
         return list;
@@ -454,22 +458,16 @@ internal static class ChromeTraceExporter
         return $"Thread {tid}";
     }
 
-    private static double ToUs(long ticks, long freq) => ticks * 1_000_000.0 / freq;
-
-    private static int PhaseRank(TraceEventKind kind)
+    private static int CompareEventOrder(long timestamp, int threadId, long sequence, long otherTimestamp, int otherThreadId, long otherSequence)
     {
-        return kind switch
-        {
-            TraceEventKind.Begin => 0,
-            TraceEventKind.FlowStart => 1,
-            TraceEventKind.FlowStep => 2,
-            TraceEventKind.FlowEnd => 3,
-            TraceEventKind.Instant => 4,
-            TraceEventKind.Counter => 5,
-            TraceEventKind.End => 6,
-            _ => 7
-        };
+        var cmp = timestamp.CompareTo(otherTimestamp);
+        if (cmp != 0) return cmp;
+        cmp = threadId.CompareTo(otherThreadId);
+        if (cmp != 0) return cmp;
+        return sequence.CompareTo(otherSequence);
     }
+
+    private static double ToUs(long ticks, long freq) => ticks * 1_000_000.0 / freq;
 
     private static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
     {

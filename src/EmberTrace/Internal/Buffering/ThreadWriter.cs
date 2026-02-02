@@ -9,14 +9,17 @@ internal readonly struct SamplingPolicy
 {
     public readonly int GlobalEveryN;
     public readonly IReadOnlyDictionary<int, int>? EveryNById;
+    public readonly int MaxEventsPerSecond;
 
-    public SamplingPolicy(int globalEveryN, IReadOnlyDictionary<int, int>? everyNById)
+    public SamplingPolicy(int globalEveryN, IReadOnlyDictionary<int, int>? everyNById, int maxEventsPerSecond)
     {
         GlobalEveryN = globalEveryN;
         EveryNById = everyNById;
+        MaxEventsPerSecond = maxEventsPerSecond;
     }
 
     public bool IsEnabled => GlobalEveryN > 1 || (EveryNById is { Count: > 0 });
+    public bool HasRateLimit => MaxEventsPerSecond > 0;
 }
 
 internal sealed class ThreadWriter
@@ -27,6 +30,9 @@ internal sealed class ThreadWriter
     private int _closed;
     private readonly SamplingPolicy _sampling;
     private long _globalSampleCounter;
+    private long _sequence;
+    private long _rateWindowStart;
+    private int _rateWindowCount;
     private Dictionary<int, long>? _perIdSampleCounters;
 
     public ThreadWriter(SessionCollector collector, SamplingPolicy sampling)
@@ -62,6 +68,10 @@ internal sealed class ThreadWriter
         if (!ShouldSample(id, collector))
             return;
 
+        var now = Timestamp.Now();
+        if (!ShouldAcceptRate(now, collector))
+            return;
+
         if (chunk is null || chunk.IsFull)
         {
             if (chunk is not null)
@@ -69,7 +79,7 @@ internal sealed class ThreadWriter
 
             if (!collector.TryRentChunk(out chunk))
             {
-                collector.RecordDroppedEvent();
+                collector.RecordDroppedEvent(OverflowReason.MaxTotalChunks);
                 return;
             }
 
@@ -79,7 +89,8 @@ internal sealed class ThreadWriter
         if (!collector.TryAcceptEvent())
             return;
 
-        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, Timestamp.Now(), kind, flowId, value);
+        var sequence = ++_sequence;
+        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, now, kind, flowId, value, sequence);
 
         if (chunk is null)
             return;
@@ -119,5 +130,26 @@ internal sealed class ThreadWriter
         }
 
         return true;
+    }
+
+    private bool ShouldAcceptRate(long timestamp, SessionCollector collector)
+    {
+        if (!_sampling.HasRateLimit)
+            return true;
+
+        if (_rateWindowStart == 0)
+            _rateWindowStart = timestamp;
+
+        if (timestamp - _rateWindowStart >= Timestamp.Frequency)
+        {
+            _rateWindowStart = timestamp;
+            _rateWindowCount = 0;
+        }
+
+        _rateWindowCount++;
+        if (_rateWindowCount <= _sampling.MaxEventsPerSecond)
+            return true;
+
+        return collector.HandleRateLimitExceeded();
     }
 }

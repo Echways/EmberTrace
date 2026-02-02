@@ -32,6 +32,15 @@ dotnet add package EmberTrace.Generator
 > `EmberTrace.Generator` — source generator. Он собирает `[assembly: TraceId(...)]` и автоматически
 > регистрирует метаданные (через `ModuleInitializer`).
 
+Опционально:
+
+```bash
+dotnet add package EmberTrace.OpenTelemetry
+dotnet add package EmberTrace.RoslynAnalyzers
+```
+
+> `EmberTrace.RoslynAnalyzers` включает code fixes. Они работают в IDE и не влияют на сборку в CLI.
+
 ## 2) Описать TraceId (метаданные)
 
 Добавь атрибуты на уровне assembly (например, в `TraceIds.cs`):

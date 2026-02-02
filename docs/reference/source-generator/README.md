@@ -11,6 +11,8 @@
 2) Генерирует провайдер метаданных (`ITraceMetadataProvider`)
 3) **Автоматически регистрирует** его через `ModuleInitializer`, так что `Tracer.CreateMetadata()`
    начнёт возвращать имена/категории без ручной инициализации.
+4) Опционально генерирует `TraceIds.g.cs` с константами `const int` для каждого TraceId
+5) Выдаёт диагностики по ошибкам атрибутов
 
 ## Атрибут TraceId
 
@@ -34,6 +36,24 @@ dotnet add package EmberTrace.Abstractions
 dotnet add package EmberTrace.Generator
 ```
 
+### Генерация TraceIds
+
+Добавь в проект:
+
+```xml
+<PropertyGroup>
+  <EmberTraceGenerateTraceIds>true</EmberTraceGenerateTraceIds>
+</PropertyGroup>
+```
+
+Генератор создаст файл `TraceIds.g.cs` с `const int` полями. Имена нормализуются,
+а при коллизиях добавляется суффикс.
+
+### Диагностики
+
+- Ошибка, если один и тот же `id` встречается больше одного раза
+- Warning, если `name` или `category` пустые
+
 ## Если генератор не подключён
 
 `Tracer.CreateMetadata()` вернёт пустой провайдер (без имён). Это нормально — трасса всё равно корректна,
@@ -46,4 +66,3 @@ dotnet add package EmberTrace.Generator
 ## Скриншоты
 
 ![Сгенерированный код: файл из `obj/` с атрибутами и регистрацией (вид в IDE)](../../assets/generator-generated-code.png)
-

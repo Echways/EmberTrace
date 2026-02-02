@@ -18,6 +18,7 @@ internal sealed class SessionCollector
     private readonly OverflowPolicy _policy;
     private readonly long _maxTotalEvents;
     private readonly int _maxTotalChunks;
+    private readonly Action<OverflowInfo>? _onOverflow;
 
     private long _totalEvents;
     private int _totalChunks;
@@ -42,6 +43,7 @@ internal sealed class SessionCollector
         _policy = options.OverflowPolicy;
         _maxTotalEvents = options.MaxTotalEvents < 0 ? 0 : options.MaxTotalEvents;
         _maxTotalChunks = options.MaxTotalChunks < 0 ? 0 : options.MaxTotalChunks;
+        _onOverflow = options.OnOverflow;
 
         if (_policy == OverflowPolicy.DropOldest && _maxTotalChunks == 0 && _maxTotalEvents > 0)
         {
@@ -76,12 +78,12 @@ internal sealed class SessionCollector
             case OverflowPolicy.DropNew:
                 Interlocked.Decrement(ref _totalEvents);
                 Interlocked.Increment(ref _droppedEvents);
-                MarkOverflow();
+                MarkOverflow(OverflowReason.MaxTotalEvents);
                 return false;
             case OverflowPolicy.StopSession:
                 Interlocked.Decrement(ref _totalEvents);
                 Interlocked.Increment(ref _droppedEvents);
-                MarkOverflow();
+                MarkOverflow(OverflowReason.MaxTotalEvents);
                 Close();
                 return false;
             case OverflowPolicy.DropOldest:
@@ -89,14 +91,14 @@ internal sealed class SessionCollector
                 {
                     Interlocked.Decrement(ref _totalEvents);
                     Interlocked.Increment(ref _droppedEvents);
-                    MarkOverflow();
+                    MarkOverflow(OverflowReason.MaxTotalEvents);
                     return false;
                 }
                 return true;
             default:
                 Interlocked.Decrement(ref _totalEvents);
                 Interlocked.Increment(ref _droppedEvents);
-                MarkOverflow();
+                MarkOverflow(OverflowReason.MaxTotalEvents);
                 return false;
         }
     }
@@ -110,10 +112,21 @@ internal sealed class SessionCollector
         }
     }
 
-    public void RecordDroppedEvent()
+    public void RecordDroppedEvent(OverflowReason reason)
     {
         Interlocked.Increment(ref _droppedEvents);
-        MarkOverflow();
+        MarkOverflow(reason);
+    }
+
+    public bool HandleRateLimitExceeded()
+    {
+        Interlocked.Increment(ref _droppedEvents);
+        MarkOverflow(OverflowReason.RateLimit);
+
+        if (_policy == OverflowPolicy.StopSession)
+            Close();
+
+        return false;
     }
 
     public void RecordSampledOutEvent()
@@ -150,13 +163,13 @@ internal sealed class SessionCollector
                     return true;
                 }
 
-                MarkOverflow();
+                MarkOverflow(OverflowReason.MaxTotalChunks);
                 return false;
             }
 
             if (_policy == OverflowPolicy.StopSession)
             {
-                MarkOverflow();
+                MarkOverflow(OverflowReason.MaxTotalChunks);
                 Close();
             }
 
@@ -194,7 +207,7 @@ internal sealed class SessionCollector
                     break;
 
                 droppedAny = true;
-                AccountDroppedChunk(dropped, decrementTotalChunks: true);
+                AccountDroppedChunk(dropped, decrementTotalChunks: true, OverflowReason.MaxTotalEvents);
             }
         }
 
@@ -210,7 +223,7 @@ internal sealed class SessionCollector
         }
 
         if (dropped is not null)
-            AccountDroppedChunk(dropped, decrementTotalChunks: false, reuse: true);
+            AccountDroppedChunk(dropped, decrementTotalChunks: false, OverflowReason.MaxTotalChunks, reuse: true);
 
         return dropped is not null;
     }
@@ -234,7 +247,7 @@ internal sealed class SessionCollector
         return false;
     }
 
-    private void AccountDroppedChunk(Chunk chunk, bool decrementTotalChunks, bool reuse = false)
+    private void AccountDroppedChunk(Chunk chunk, bool decrementTotalChunks, OverflowReason reason, bool reuse = false)
     {
         var count = chunk.Count;
         if (count > 0)
@@ -252,15 +265,25 @@ internal sealed class SessionCollector
 
         if (reuse)
         {
-            MarkOverflow();
+            MarkOverflow(reason);
             return;
         }
 
         _pool.Return(chunk);
-        MarkOverflow();
+        MarkOverflow(reason);
     }
 
-    private void MarkOverflow() => Interlocked.Exchange(ref _overflowed, 1);
+    private void MarkOverflow(OverflowReason reason)
+    {
+        if (Interlocked.Exchange(ref _overflowed, 1) != 0)
+            return;
+
+        var handler = _onOverflow;
+        if (handler is null)
+            return;
+
+        handler(new OverflowInfo(reason, _policy));
+    }
 
     public IReadOnlyList<Chunk> Chunks
     {

@@ -23,6 +23,16 @@ flow.End();
 
 `FlowHandle` удобен, когда ты хочешь держать один объект-цепочку и добавлять шаги по мере выполнения.
 
+## API: FlowScope (scope‑стиль)
+
+```csharp
+using var flow = Tracer.Flow(Ids.JobFlow);
+flow.Step();
+```
+
+`FlowScope` автоматически завершает flow в `Dispose()`. Можно получить `FlowHandle` через `ToHandle()`,
+если нужно передать цепочку между потоками.
+
 ## API: явный `flowId` (когда нужно передавать id)
 
 ```csharp
@@ -33,6 +43,14 @@ Tracer.FlowStart(Ids.JobFlow, flowId);
 Tracer.FlowStep(Ids.JobFlow, flowId);
 // ...
 Tracer.FlowEnd(Ids.JobFlow, flowId);
+```
+
+## Activity bridge
+
+Если используется `Activity.Current`, можно связать flow с текущим trace id:
+
+```csharp
+Tracer.FlowFromActivityCurrent(Ids.JobFlow);
 ```
 
 ## Практические правила
