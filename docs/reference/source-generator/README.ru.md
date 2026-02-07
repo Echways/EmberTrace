@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Генератор и TraceId (метаданные)
 
 `EmberTrace` работает с `int id`. Чтобы в экспорте/отчётах были **имена** и **категории**,
@@ -60,8 +62,8 @@ dotnet add package EmberTrace.Generator
 но отчёты/экспорт будут менее читаемыми.
 
 См. также:
-- [Быстрый старт](../../guides/getting-started/README.md)
-- [Использование и API](../../guides/usage/README.md)
+- [Быстрый старт](../../guides/getting-started/README.ru.md)
+- [Использование и API](../../guides/usage/README.ru.md)
 
 ## Скриншоты
 

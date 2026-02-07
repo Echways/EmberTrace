@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Быстрый старт
 
 Цель: зафиксировать первую трассу, получить текстовый отчёт и открыть её в Chrome Trace.
@@ -116,8 +118,8 @@ dotnet run --project samples/EmberTrace.Demo3 -c Release
 ```
 
 Дальше:
-- [Использование и API](../usage/README.md)
-- [Flow и async](../../concepts/flows/README.md)
+- [Использование и API](../usage/README.ru.md)
+- [Flow и async](../../concepts/flows/README.ru.md)
 
 ## Скриншоты
 

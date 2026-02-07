@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Использование и API
 
 Эта страница — практический справочник по runtime API (`EmberTrace`) и типовым паттернам.
@@ -112,7 +114,7 @@ var meta = Tracer.CreateMetadata();
 ```
 
 Если подключён `EmberTrace.Generator`, метаданные из `[assembly: TraceId(...)]` будут
-**автоматически зарегистрированы** при старте модуля (см. [генератор](../../reference/source-generator/README.md)).
+**автоматически зарегистрированы** при старте модуля (см. [генератор](../../reference/source-generator/README.ru.md)).
 
 Для dev‑сценариев можно включить runtime‑метаданные: `EnableRuntimeMetadata = true`.
 В этом режиме `Tracer.Id("Name")` автоматически регистрирует имя с категорией `Default`.
@@ -124,9 +126,9 @@ var meta = Tracer.CreateMetadata();
 - Для `async` всегда используй `ScopeAsync`, иначе компилятор/рантайм ограничат сценарий.
 
 См. также:
-- [Flow и async](../../concepts/flows/README.md)
-- [Экспорт](../export/README.md)
-- [Анализ и отчёты](../analysis/README.md)
+- [Flow и async](../../concepts/flows/README.ru.md)
+- [Экспорт](../export/README.ru.md)
+- [Анализ и отчёты](../analysis/README.ru.md)
 
 ## Скриншоты
 

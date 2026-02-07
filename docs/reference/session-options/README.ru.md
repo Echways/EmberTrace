@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # SessionOptions
 
 `SessionOptions` задают поведение записи и защиту от переполнения.

@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Flow и async
 
 **Flow** — это связь между кусками работы, которые происходят не в одном стеке вызовов:
@@ -60,8 +62,8 @@ Tracer.FlowFromActivityCurrent(Ids.JobFlow);
 - Хороший кейс: связать «приняли запрос» → «поставили в очередь» → «обработали» → «ответили».
 
 См. также:
-- [Экспорт](../../guides/export/README.md)
-- [Использование и API](../../guides/usage/README.md)
+- [Экспорт](../../guides/export/README.ru.md)
+- [Использование и API](../../guides/usage/README.ru.md)
 
 ## Скриншоты
 

@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # OpenTelemetry export
 
 Пакет `EmberTrace.OpenTelemetry` позволяет конвертировать сессию EmberTrace в `Activity`‑спаны.

@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Roslyn analyzers
 
 Пакет `EmberTrace.RoslynAnalyzers` помогает ловить типовые ошибки использования API.

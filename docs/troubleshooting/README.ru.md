@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Устранение неполадок
 
 Ниже — типовые симптомы, причины и короткие фиксы.
@@ -56,8 +58,8 @@ await using (Tracer.ScopeAsync(Ids.Io))
 **Решение:** включи `EnableRuntimeMetadata = true` или добавь `[assembly: TraceId(...)]`.
 
 См. также:
-- [Использование и API](../guides/usage/README.md)
-- [Flow и async](../concepts/flows/README.md)
+- [Использование и API](../guides/usage/README.ru.md)
+- [Flow и async](../concepts/flows/README.ru.md)
 
 ## Скриншоты
 

@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # EmberTrace
 
 **EmberTrace** — быстрый *in-process* tracer/profiler для .NET с минимальной нагрузкой на горячем пути:
@@ -78,14 +80,14 @@ dotnet run --project samples/EmberTrace.Demo3 -c Release
 
 ## Документация
 
-- [Индекс](docs/index.md)
-- [Быстрый старт](docs/guides/getting-started/README.md)
-- [Использование и API](docs/guides/usage/README.md)
-- [Flow и async](docs/concepts/flows/README.md)
-- [Экспорт](docs/guides/export/README.md)
-- [Анализ и отчёты](docs/guides/analysis/README.md)
-- [Генератор и метаданные](docs/reference/source-generator/README.md)
-- [Устранение неполадок](docs/troubleshooting/README.md)
+- [Индекс](docs/index.ru.md)
+- [Быстрый старт](docs/guides/getting-started/README.ru.md)
+- [Использование и API](docs/guides/usage/README.ru.md)
+- [Flow и async](docs/concepts/flows/README.ru.md)
+- [Экспорт](docs/guides/export/README.ru.md)
+- [Анализ и отчёты](docs/guides/analysis/README.ru.md)
+- [Генератор и метаданные](docs/reference/source-generator/README.ru.md)
+- [Устранение неполадок](docs/troubleshooting/README.ru.md)
 
 ## Сборка и тесты
 
@@ -114,5 +116,5 @@ dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 
 ## Полезные ссылки
 
-- Документация: [docs/index.md](docs/index.md)
+- Документация: [docs/index.md](docs/index.ru.md)
 - Примеры: [samples/](samples/)

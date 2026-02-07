@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Анализ и отчёты
 
 После `Tracer.Stop()` можно «тяжело» обработать трассу: посчитать агрегаты и вывести отчёт.
@@ -59,8 +61,8 @@ Console.WriteLine(text);
 - `minPercent` — минимальный процент для вывода
 
 См. также:
-- [Экспорт](../export/README.md)
-- [Использование и API](../usage/README.md)
+- [Экспорт](../export/README.ru.md)
+- [Использование и API](../usage/README.ru.md)
 
 ## Скриншоты
 

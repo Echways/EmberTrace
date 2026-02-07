@@ -1,3 +1,5 @@
+English version: [./STRUCTURE.md](./STRUCTURE.md)
+
 # Docs layout
 
 ## Текущая структура

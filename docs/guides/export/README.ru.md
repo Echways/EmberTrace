@@ -1,3 +1,5 @@
+English version: [./README.md](./README.md)
+
 # Экспорт
 
 EmberTrace экспортирует сессию в JSON-формат Chrome Trace, который понимают:
@@ -69,8 +71,8 @@ result.SaveFullChromeComplete("out/slice_full.json", meta: Tracer.CreateMetadata
 ```
 
 См. также:
-- [Анализ и отчёты](../analysis/README.md)
-- [Flow и async](../../concepts/flows/README.md)
+- [Анализ и отчёты](../analysis/README.ru.md)
+- [Flow и async](../../concepts/flows/README.ru.md)
 
 ## Скриншоты
 

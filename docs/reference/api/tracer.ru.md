@@ -1,3 +1,5 @@
+English version: [./tracer.md](./tracer.md)
+
 # Tracer
 
 `Tracer` — публичная точка входа для записи трассы (scopes, flows) и управления сессией.
