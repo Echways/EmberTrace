@@ -1,13 +1,15 @@
-# Flow и async
+Русская версия: [./README.ru.md](./README.ru.md)
 
-**Flow** — это связь между кусками работы, которые происходят не в одном стеке вызовов:
-- разные потоки
+# Flow and async
+
+**Flow** is a link between pieces of work that do not happen in the same call stack:
+- different threads
 - `Task.Run`
-- продолжения после `await`
+- continuations after `await`
 
-В Chrome Trace/Perfetto Flow обычно отображается как «стрелка» или связанная цепочка событий.
+In Chrome Trace/Perfetto, a flow is usually displayed as an "arrow" or a connected event chain.
 
-## API: FlowHandle (удобно)
+## API: FlowHandle (convenient)
 
 ```csharp
 var flow = Tracer.FlowStartNewHandle(Ids.JobFlow);
@@ -21,19 +23,19 @@ flow.Step();
 flow.End();
 ```
 
-`FlowHandle` удобен, когда ты хочешь держать один объект-цепочку и добавлять шаги по мере выполнения.
+`FlowHandle` is convenient when you want to keep one chain object and add steps as execution progresses.
 
-## API: FlowScope (scope‑стиль)
+## API: FlowScope (scope style)
 
 ```csharp
 using var flow = Tracer.Flow(Ids.JobFlow);
 flow.Step();
 ```
 
-`FlowScope` автоматически завершает flow в `Dispose()`. Можно получить `FlowHandle` через `ToHandle()`,
-если нужно передать цепочку между потоками.
+`FlowScope` automatically completes the flow in `Dispose()`. You can get a `FlowHandle` via `ToHandle()`
+if you need to pass the chain between threads.
 
-## API: явный `flowId` (когда нужно передавать id)
+## API: explicit `flowId` (when you need to pass the id)
 
 ```csharp
 var flowId = Tracer.NewFlowId();
@@ -47,22 +49,22 @@ Tracer.FlowEnd(Ids.JobFlow, flowId);
 
 ## Activity bridge
 
-Если используется `Activity.Current`, можно связать flow с текущим trace id:
+If `Activity.Current` is used, you can link a flow to the current trace id:
 
 ```csharp
 Tracer.FlowFromActivityCurrent(Ids.JobFlow);
 ```
 
-## Практические правила
+## Practical rules
 
-- Всегда закрывай flow (`End`), иначе цепочка будет «оборвана» в визуализации.
-- Flow — это **связь**, а не длительность. Длительность даёт `Scope`.
-- Хороший кейс: связать «приняли запрос» → «поставили в очередь» → «обработали» → «ответили».
+- Always close a flow (`End`), otherwise the chain will look "broken" in visualization.
+- Flow is a **link**, not a duration. Duration is represented by `Scope`.
+- A good use case: link "request accepted" -> "queued" -> "processed" -> "responded".
 
-См. также:
-- [Экспорт](../../guides/export/README.md)
-- [Использование и API](../../guides/usage/README.md)
+See also:
+- [Export](../../guides/export/README.md)
+- [Usage and API](../../guides/usage/README.md)
 
-## Скриншоты
+## Screenshots
 
 ![Диаграмма Flow: создание/пропагация FlowId между async/threads](../../assets/flows-propagation.png)

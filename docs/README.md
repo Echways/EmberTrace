@@ -1,3 +1,5 @@
-# Документация EmberTrace
+Русская версия: [./README.ru.md](./README.ru.md)
 
-> Основная точка входа: [/docs/index.md](index.md)
+# EmberTrace Documentation
+
+> Main entry point: [/docs/index.md](index.md)

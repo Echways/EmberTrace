@@ -1,13 +1,15 @@
+Русская версия: [./tracer.ru.md](./tracer.ru.md)
+
 # Tracer
 
-`Tracer` — публичная точка входа для записи трассы (scopes, flows) и управления сессией.
+`Tracer` is the public entry point for trace recording (scopes, flows) and session control.
 
 > Namespace: `EmberTrace`  
 > Source: `src/EmberTrace/Api/Tracer.cs`
 
 ---
 
-## Быстрый пример
+## Quick example
 
 ```csharp
 using EmberTrace;
@@ -30,30 +32,30 @@ var session = Tracer.Stop();
 
 ---
 
-## Управление сессией
+## Session control
 
 ### `bool Tracer.IsRunning`
-`true`, если профайлер активен и события пишутся.
+`true` if the profiler is active and events are being written.
 
 ### `void Tracer.Start(SessionOptions? options = null)`
-Запускает запись событий.
+Starts event recording.
 
-- `options = null` → используются значения по умолчанию (см. `SessionOptions`).
+- `options = null` -> default values are used (see `SessionOptions`).
 
 ### `TraceSession Tracer.Stop()`
-Останавливает запись и возвращает `TraceSession` с собранными событиями.
+Stops recording and returns `TraceSession` with collected events.
 
 ---
 
 ## Scopes
 
 ### `Scope Tracer.Scope(int id)`
-Открывает scope в текущем потоке и возвращает `Scope` (stack-only `ref struct`).
+Opens a scope on the current thread and returns `Scope` (stack-only `ref struct`).
 
-- Используй **только** в синхронном коде (scope нельзя «пронести» через `await`).
-- Тип `Scope` вызывает `Profiler.End(id)` в `Dispose()`.
+- Use **only** in synchronous code (a scope cannot be carried across `await`).
+- `Scope` calls `Profiler.End(id)` in `Dispose()`.
 
-Пример:
+Example:
 
 ```csharp
 using (Tracer.Scope(Tracer.Id("load")))
@@ -63,95 +65,95 @@ using (Tracer.Scope(Tracer.Id("load")))
 ```
 
 ### `AsyncScope Tracer.ScopeAsync(int id)`
-Async-friendly scope, реализующий `IAsyncDisposable`.
+Async-friendly scope implementing `IAsyncDisposable`.
 
-- Создание делает `Profiler.Scope(id)` только если `Tracer.IsRunning == true`.
-- `DisposeAsync()` завершает scope через `Profiler.End(id)`.
+- Construction calls `Profiler.Scope(id)` only if `Tracer.IsRunning == true`.
+- `DisposeAsync()` closes the scope via `Profiler.End(id)`.
 
-Пример:
+Example:
 
 ```csharp
 await using var _ = Tracer.ScopeAsync(Tracer.Id("io"));
 await DoIoAsync();
 ```
 
-> Зачем два API: `Scope` — `ref struct` (быстрее/без аллокаций), но несовместим с `await`.
-> Для async-кода используй `ScopeAsync`.
+> Why two APIs: `Scope` is a `ref struct` (faster/allocation-free), but incompatible with `await`.
+> Use `ScopeAsync` for async code.
 
 ---
 
 ## Flows
 
-Flows — связанный набор событий (start/step/end), который можно «переносить» через async/threads.
+Flows are a linked set of events (start/step/end) that can be propagated across async/threads.
 
 ### `long Tracer.NewFlowId()`
-Генерирует новый `flowId` (уникальный в рамках процесса).
+Generates a new `flowId` (unique within the process).
 
 ### `long Tracer.FlowStartNew(int id)`
-Создаёт новый `flowId`, пишет `FlowStart` и возвращает `flowId`.
+Creates a new `flowId`, writes `FlowStart`, and returns `flowId`.
 
 ### `FlowScope Tracer.Flow(int id)`
-Удобный scope‑вариант: создаёт flow и завершает его в `Dispose()`.
+Convenient scope variant: creates a flow and ends it in `Dispose()`.
 
 ### `void Tracer.FlowStart(int id, long flowId)`
-Пишет `FlowStart` для указанного `flowId`.
+Writes `FlowStart` for the specified `flowId`.
 
 ### `void Tracer.FlowStep(int id, long flowId)`
-Пишет `FlowStep` для указанного `flowId`.
+Writes `FlowStep` for the specified `flowId`.
 
 ### `void Tracer.FlowEnd(int id, long flowId)`
-Пишет `FlowEnd` для указанного `flowId`.
+Writes `FlowEnd` for the specified `flowId`.
 
 ### `long Tracer.FlowFromActivityCurrent(int id)`
-Если есть `Activity.Current`, создаёт flow, используя её trace id.
+If `Activity.Current` exists, creates a flow using its trace id.
 
 ### `FlowHandle Tracer.FlowStartNewHandle(int id)`
-Удобная обёртка над flow:
+Convenient wrapper over flow:
 
-- создаёт flow и возвращает `FlowHandle` с методами `Step()` / `End()`
-- `End()` у `FlowHandle` идемпотентен (повторные вызовы безопасны)
+- creates a flow and returns `FlowHandle` with `Step()` / `End()` methods
+- `FlowHandle.End()` is idempotent (repeated calls are safe)
 
 ### `void Tracer.FlowStep(FlowHandle handle)`
-Вызывает `handle.Step()`.
+Calls `handle.Step()`.
 
 ### `void Tracer.FlowEnd(FlowHandle handle)`
-Вызывает `handle.End()`.
+Calls `handle.End()`.
 
 ---
 
 ## Metadata
 
 ### `ITraceMetadataProvider Tracer.CreateMetadata()`
-Создаёт дефолтный провайдер метаданных (имена, категории и т.п.) для последующей интерпретации трассы.
+Creates the default metadata provider (names, categories, etc.) for trace interpretation.
 
-Если включён `SessionOptions.EnableRuntimeMetadata`, то `Tracer.Id("Name")` автоматически
-регистрирует имя с категорией `Default`.
+If `SessionOptions.EnableRuntimeMetadata` is enabled, then `Tracer.Id("Name")` automatically
+registers a name with category `Default`.
 
 ---
 
 ## ID Helpers
 
 ### `int Tracer.Id(string name)`
-Стабильный `int`-идентификатор по строке.
+Stable string-based `int` identifier.
 
-- Детерминированный: одинаковая строка → одинаковый `id`.
-- Возможны коллизии (как у любого 32-bit хэша), поэтому для «критичных» ID лучше опираться на generator/TraceId.
+- Deterministic: same string -> same `id`.
+- Collisions are possible (as with any 32-bit hash), so for critical IDs prefer generator/TraceId.
 
 ### `int Tracer.CategoryId(string category)`
-Стабильный `int`‑идентификатор для категорий (используется в фильтрах).
+Stable `int` identifier for categories (used in filters).
 
 ---
 
 ## Instant / Counter
 
 ### `void Tracer.Instant(int id)`
-Пишет одно моментное событие.
+Writes an instant event.
 
 ### `void Tracer.Counter(int id, long value)`
-Пишет значение счётчика.
+Writes a counter value.
 
 ---
 
-## Скриншоты
+## Screenshots
 
 ![Tracer API in Perfetto](../../assets/api-tracer-perfetto.png)

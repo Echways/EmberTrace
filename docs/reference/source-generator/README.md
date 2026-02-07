@@ -1,20 +1,22 @@
-# Генератор и TraceId (метаданные)
+Русская версия: [./README.ru.md](./README.ru.md)
 
-`EmberTrace` работает с `int id`. Чтобы в экспорте/отчётах были **имена** и **категории**,
-используются assembly-атрибуты и source generator.
+# Generator and TraceId (metadata)
 
-## Что делает генератор
+`EmberTrace` works with `int id`. To get readable **names** and **categories** in exports/reports,
+use assembly attributes and the source generator.
+
+## What the generator does
 
 `EmberTrace.Generator`:
 
-1) Сканирует проект на `[assembly: TraceId(id, name, category)]`
-2) Генерирует провайдер метаданных (`ITraceMetadataProvider`)
-3) **Автоматически регистрирует** его через `ModuleInitializer`, так что `Tracer.CreateMetadata()`
-   начнёт возвращать имена/категории без ручной инициализации.
-4) Опционально генерирует `TraceIds.g.cs` с константами `const int` для каждого TraceId
-5) Выдаёт диагностики по ошибкам атрибутов
+1) Scans the project for `[assembly: TraceId(id, name, category)]`
+2) Generates a metadata provider (`ITraceMetadataProvider`)
+3) **Automatically registers** it via `ModuleInitializer`, so `Tracer.CreateMetadata()`
+   starts returning names/categories without manual initialization.
+4) Optionally generates `TraceIds.g.cs` with `const int` values for each TraceId
+5) Emits diagnostics for attribute errors
 
-## Атрибут TraceId
+## TraceId attribute
 
 ```csharp
 using EmberTrace.Abstractions.Attributes;
@@ -23,22 +25,22 @@ using EmberTrace.Abstractions.Attributes;
 [assembly: TraceId(2100, "IoWait", "IO")]
 ```
 
-Сигнатура:
+Signature:
 
-- `id` (`int`) — идентификатор события
-- `name` (`string`) — человекочитаемое имя
-- `category` (`string?`) — опционально (для группировки)
+- `id` (`int`) - event identifier
+- `name` (`string`) - human-readable name
+- `category` (`string?`) - optional (for grouping)
 
-## Подключение
+## Setup
 
 ```bash
 dotnet add package EmberTrace.Abstractions
 dotnet add package EmberTrace.Generator
 ```
 
-### Генерация TraceIds
+### TraceIds generation
 
-Добавь в проект:
+Add to the project:
 
 ```xml
 <PropertyGroup>
@@ -46,23 +48,23 @@ dotnet add package EmberTrace.Generator
 </PropertyGroup>
 ```
 
-Генератор создаст файл `TraceIds.g.cs` с `const int` полями. Имена нормализуются,
-а при коллизиях добавляется суффикс.
+The generator creates `TraceIds.g.cs` with `const int` fields. Names are normalized,
+and collisions get a suffix.
 
-### Диагностики
+### Diagnostics
 
-- Ошибка, если один и тот же `id` встречается больше одного раза
-- Warning, если `name` или `category` пустые
+- Error when the same `id` is declared more than once
+- Warning when `name` or `category` are empty
 
-## Если генератор не подключён
+## If generator is not connected
 
-`Tracer.CreateMetadata()` вернёт пустой провайдер (без имён). Это нормально — трасса всё равно корректна,
-но отчёты/экспорт будут менее читаемыми.
+`Tracer.CreateMetadata()` returns an empty provider (without names). This is fine - the trace remains valid,
+but reports/export are less readable.
 
-См. также:
-- [Быстрый старт](../../guides/getting-started/README.md)
-- [Использование и API](../../guides/usage/README.md)
+See also:
+- [Quick Start](../../guides/getting-started/README.md)
+- [Usage and API](../../guides/usage/README.md)
 
-## Скриншоты
+## Screenshots
 
 ![Сгенерированный код: файл из `obj/` с атрибутами и регистрацией (вид в IDE)](../../assets/generator-generated-code.png)

@@ -1,14 +1,16 @@
+Русская версия: [./README.ru.md](./README.ru.md)
+
 # OpenTelemetry export
 
-Пакет `EmberTrace.OpenTelemetry` позволяет конвертировать сессию EmberTrace в `Activity`‑спаны.
+Package `EmberTrace.OpenTelemetry` lets you convert an EmberTrace session into `Activity` spans.
 
-## Установка
+## Installation
 
 ```bash
 dotnet add package EmberTrace.OpenTelemetry
 ```
 
-## Пример
+## Example
 
 ```csharp
 using EmberTrace.OpenTelemetry;
@@ -22,14 +24,14 @@ foreach (var span in spans)
 }
 ```
 
-## Опции
+## Options
 
 `OpenTelemetryExportOptions`:
-- `IncludeFlowsAsLinks` — добавить Flow как links
-- `IncludeThreadIdTag` — добавить `thread.id`
-- `BaseUtc` — базовое UTC‑время для конвертации timestamp
+- `IncludeFlowsAsLinks` - include Flow as links
+- `IncludeThreadIdTag` - include `thread.id`
+- `BaseUtc` - base UTC time for timestamp conversion
 
-## Примечания
+## Notes
 
-- Экспорт не требует OpenTelemetry SDK; возвращаются обычные `Activity`.
-- Flow превращается в `ActivityLink`, чтобы сохранить связи между потоками.
+- Export does not require OpenTelemetry SDK; plain `Activity` objects are returned.
+- Flow is converted to `ActivityLink` to preserve cross-thread relationships.

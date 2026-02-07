@@ -1,42 +1,44 @@
-# Анализ и отчёты
+Русская версия: [./README.ru.md](./README.ru.md)
 
-После `Tracer.Stop()` можно «тяжело» обработать трассу: посчитать агрегаты и вывести отчёт.
+# Analysis and reports
 
-## Обработка
+After `Tracer.Stop()`, you can perform heavy trace processing: compute aggregates and print a report.
+
+## Processing
 
 ```csharp
 var session = Tracer.Stop();
 var processed = session.Process();
 ```
 
-`Process()` строит агрегаты по id и call-tree (по потокам), которые удобно:
-- печатать в отчёте
-- сравнивать между прогонами
-- использовать в своих тулзах
-В `ProcessedTrace` также сохраняются счётчики dropped/sampled и ошибки стека.
+`Process()` builds aggregates by id and call tree (by threads), which are convenient to:
+- print in a report
+- compare across runs
+- use in your own tools
+`ProcessedTrace` also stores dropped/sampled counters and stack errors.
 
-Дополнительные режимы:
+Additional modes:
 
 ```csharp
 var processed = session.Process(strict: true, groupByThread: false);
 ```
 
-- `strict` — не пытается «ремонтировать» стек при mismatched end
-- `groupByThread` — если `false`, строится общий call tree
+- `strict` - does not attempt stack repair for mismatched end
+- `groupByThread` - when `false`, builds a global call tree
 
-Для лёгкой диагностики:
+For lightweight diagnostics:
 
 ```csharp
 var stats = session.Analyze(strict: true);
 ```
 
-Также доступен анализ flow‑цепочек:
+Flow chain analysis is also available:
 
 ```csharp
 var flows = session.AnalyzeFlows(top: 10);
 ```
 
-## Текстовый отчёт
+## Text report
 
 ```csharp
 var meta = Tracer.CreateMetadata();
@@ -52,20 +54,20 @@ var text = TraceText.Write(
 Console.WriteLine(text);
 ```
 
-Параметры:
-- `topHotspots` — сколько строк «горячих точек» показать
-- `maxDepth` — глубина дерева вызовов
-- `categoryFilter` — фильтр по категории
-- `minPercent` — минимальный процент для вывода
+Parameters:
+- `topHotspots` - number of hotspot lines to show
+- `maxDepth` - call tree depth
+- `categoryFilter` - category filter
+- `minPercent` - minimum percentage to display
 
-См. также:
-- [Экспорт](../export/README.md)
-- [Использование и API](../usage/README.md)
+See also:
+- [Export](../export/README.md)
+- [Usage and API](../usage/README.md)
 
-## Скриншоты
+## Screenshots
 
 ![Срез анализа: агрегирование/сортировка/фильтры](../../assets/analysis-slice.png)
 
-## Ссылки
+## Links
 
 - [**Analysis slice**](../../assets/analysis-slice.txt)

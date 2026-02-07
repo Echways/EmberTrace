@@ -1,30 +1,32 @@
-# Документация EmberTrace
+Русская версия: [./index.ru.md](./index.ru.md)
 
-## Быстрый старт
+# EmberTrace Documentation
 
-- [Быстрый старт](guides/getting-started/README.md)
-- [Использование и API](guides/usage/README.md)
+## Quick Start
 
-## Концепции
+- [Quick Start](guides/getting-started/README.md)
+- [Usage and API](guides/usage/README.md)
 
-- [Flow и async](concepts/flows/README.md)
+## Concepts
 
-## Экспорт и анализ
+- [Flow and async](concepts/flows/README.md)
 
-- [Экспорт в Chrome Trace](guides/export/README.md)
-- [Анализ и текстовые отчёты](guides/analysis/README.md)
+## Export and Analysis
 
-## Интеграции
+- [Export to Chrome Trace](guides/export/README.md)
+- [Analysis and text reports](guides/analysis/README.md)
+
+## Integrations
 
 - [OpenTelemetry export](reference/opentelemetry/README.md)
 - [Roslyn analyzers](reference/roslyn-analyzers/README.md)
 
-## Справочник
+## Reference
 
-- [Справочник API (Tracer.*)](reference/api/index.md)
-- [Генератор и TraceId (метаданные)](reference/source-generator/README.md)
+- [API reference (Tracer.*)](reference/api/index.md)
+- [Generator and TraceId (metadata)](reference/source-generator/README.md)
 - [SessionOptions](reference/session-options/README.md)
 
-## Устранение неполадок
+## Troubleshooting
 
-- [Диагностика и частые проблемы](troubleshooting/README.md)
+- [Diagnostics and common issues](troubleshooting/README.md)

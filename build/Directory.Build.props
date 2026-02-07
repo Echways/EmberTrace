@@ -25,7 +25,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <Version>0.2.0</Version>
+        <Version>0.2.1</Version>
         <UseLocalEmberTrace Condition="'$(UseLocalEmberTrace)' == ''">false</UseLocalEmberTrace>
     </PropertyGroup>
 </Project>

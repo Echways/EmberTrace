@@ -1,6 +1,8 @@
+Русская версия: [./STRUCTURE.ru.md](./STRUCTURE.ru.md)
+
 # Docs layout
 
-## Текущая структура
+## Current structure
 
 ```
 docs/
@@ -28,17 +30,16 @@ docs/
     README.md
 ```
 
-## Правила именования
+## Naming rules
 
-- **guides/** — пошаговые сценарии («сделай X»)
-- **concepts/** — ментальная модель и invariants («как оно работает внутри»)
-- **reference/** — точная справка/контракты (API, конфиги, генераторы, форматы)
-- **troubleshooting/** — симптомы → причины → фиксы
-- **assets/** — изображения/диаграммы, которые референсятся из docs
+- **guides/** - step-by-step scenarios ("do X")
+- **concepts/** - mental model and invariants ("how it works inside")
+- **reference/** - precise docs/contracts (API, configs, generators, formats)
+- **troubleshooting/** - symptoms -> causes -> fixes
+- **assets/** - images/diagrams referenced from docs
 
+## What you can do next (if you want it even "stricter")
 
-## Что можно сделать дальше (если захочешь ещё “строже”)
-
-- Перейти с `README.md` внутри разделов на `index.md` (как в Docusaurus/MkDocs),
-  и оставить `README.md` только как redirect.
-- Добавить страницы для остальных публичных типов (например `TraceSession`, `SessionOptions`, exporters/reporters), если захочешь 100% coverage.
+- Switch from `README.md` inside sections to `index.md` (as in Docusaurus/MkDocs),
+  and keep `README.md` only as redirect.
+- Add pages for remaining public types (for example `TraceSession`, `SessionOptions`, exporters/reporters) if you want 100% coverage.

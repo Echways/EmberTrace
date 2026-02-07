@@ -1,21 +1,23 @@
-# Устранение неполадок
+Русская версия: [./README.ru.md](./README.ru.md)
 
-Ниже — типовые симптомы, причины и короткие фиксы.
+# Troubleshooting
 
-## В сессии нет событий
+Below are common symptoms, causes, and short fixes.
 
-**Симптом:** `EventCount == 0`, отчёт пустой.
+## No events in the session
 
-**Проверь:**
-- `Tracer.Start()` вызван **до** первых `Scope/Flow`
-- `Tracer.Stop()` реально был вызван (и сессия не «упала» по исключению раньше)
-- id не равен `0` (избегай `id == 0` — это частый источник путаницы)
+**Symptom:** `EventCount == 0`, report is empty.
 
-## Ошибка/предупреждение про `await` и `Scope`
+**Check:**
+- `Tracer.Start()` is called **before** the first `Scope/Flow`
+- `Tracer.Stop()` was actually called (and the session did not terminate earlier due to an exception)
+- id is not `0` (avoid `id == 0` - this is a frequent source of confusion)
 
-**Причина:** `Scope` — `ref struct`, его нельзя переносить через `await`.
+## Error/warning about `await` and `Scope`
 
-**Решение:** используй `ScopeAsync`.
+**Cause:** `Scope` is a `ref struct`; it cannot be carried through `await`.
+
+**Fix:** use `ScopeAsync`.
 
 ```csharp
 await using (Tracer.ScopeAsync(Ids.Io))
@@ -24,41 +26,41 @@ await using (Tracer.ScopeAsync(Ids.Io))
 }
 ```
 
-## В отчёте нет имён (только числа)
+## No names in the report (only numbers)
 
-**Причина:** нет метаданных.
+**Cause:** metadata is missing.
 
-**Решение:**
-- добавь `[assembly: TraceId(...)]`
-- подключи `EmberTrace.Abstractions` + `EmberTrace.Generator`
-- пересобери проект (source generator генерирует и регистрирует провайдер при компиляции)
+**Fix:**
+- add `[assembly: TraceId(...)]`
+- connect `EmberTrace.Abstractions` + `EmberTrace.Generator`
+- rebuild the project (the source generator creates and registers the provider at compile time)
 
-## Переполнение буфера / «пропали события»
+## Buffer overflow / "missing events"
 
-**Причина:** буферы потока переполнены, сработала политика overflow.
+**Cause:** thread buffers overflowed and the overflow policy triggered.
 
-**Решение:**
-- увеличь `SessionOptions.ChunkCapacity`
-- пересмотри частоту/гранулярность instrumentation
-- при необходимости поменяй `OverflowPolicy` (`DropNew`, `DropOldest`, `StopSession`)
-- проверь лимиты `MaxTotalEvents`, `MaxTotalChunks`, `MaxEventsPerSecond`
+**Fix:**
+- increase `SessionOptions.ChunkCapacity`
+- review instrumentation rate/granularity
+- change `OverflowPolicy` if needed (`DropNew`, `DropOldest`, `StopSession`)
+- check limits `MaxTotalEvents`, `MaxTotalChunks`, `MaxEventsPerSecond`
 
-## Flow «обрывается»
+## Flow is "broken"
 
-**Причина:** не вызван `FlowEnd(...)` / `handle.End()`.
+**Cause:** `FlowEnd(...)` / `handle.End()` was not called.
 
-**Решение:** закрывай flow в `finally` или через явный жизненный цикл.
+**Fix:** close flow in `finally` or via explicit lifecycle.
 
-## Есть только числовые id в dev‑сборке
+## Only numeric IDs in a dev build
 
-**Причина:** нет метаданных, generator не подключён.
+**Cause:** metadata is missing; generator is not connected.
 
-**Решение:** включи `EnableRuntimeMetadata = true` или добавь `[assembly: TraceId(...)]`.
+**Fix:** enable `EnableRuntimeMetadata = true` or add `[assembly: TraceId(...)]`.
 
-См. также:
-- [Использование и API](../guides/usage/README.md)
-- [Flow и async](../concepts/flows/README.md)
+See also:
+- [Usage and API](../guides/usage/README.md)
+- [Flow and async](../concepts/flows/README.md)
 
-## Скриншоты
+## Screenshots
 
 ![Нет имён в отчёте: отсутствуют метаданные TraceId](../assets/troubleshooting-common.png)

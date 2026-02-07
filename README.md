@@ -1,33 +1,35 @@
+Русская версия: [./README.ru.md](./README.ru.md)
+
 # EmberTrace
 
-**EmberTrace** — быстрый *in-process* tracer/profiler для .NET с минимальной нагрузкой на горячем пути:
-- **Begin/End без аллокаций** и без глобальных lock (thread-local буферы)
-- **Flows** для связей между потоками и `async/await`
-- **Offline-анализ** после остановки сессии (агрегации + отчёты)
-- **Экспорт в Chrome Trace** (для `chrome://tracing` / Perfetto)
+**EmberTrace** is a fast in-process tracer/profiler for .NET with minimal overhead on the hot path:
+- **Allocation-free Begin/End** and no global locks (thread-local buffers)
+- **Flows** for links between threads and `async/await`
+- **Offline analysis** after stopping a session (aggregations + reports)
+- **Export to Chrome Trace** (for `chrome://tracing` / Perfetto)
 
-## Установка
+## Installation
 
-Самый простой вариант — метапакет:
+The easiest option is the metapackage:
 
 ```bash
 dotnet add package EmberTrace.All
 ```
 
-Если подключаешь выборочно:
+If you install packages selectively:
 
-- `EmberTrace` — runtime API (`Tracer.*`)
-- `EmberTrace.Abstractions` — атрибуты (`[assembly: TraceId(...)]`)
-- `EmberTrace.Generator` — source generator (автоматически регистрирует метаданные)
-- `EmberTrace.Analysis` — обработка сессии (`session.Process()`)
-- `EmberTrace.ReportText` — текстовый отчёт (`TraceText.Write(...)`)
-- `EmberTrace.Export` — Chrome Trace export (`TraceExport.*`)
-- `EmberTrace.OpenTelemetry` — экспорт в OpenTelemetry (`Activity`-спаны)
-- `EmberTrace.RoslynAnalyzers` — анализаторы и code fixes для корректного использования (фиксы работают в IDE и идут в составе пакета)
+- `EmberTrace` - runtime API (`Tracer.*`)
+- `EmberTrace.Abstractions` - attributes (`[assembly: TraceId(...)]`)
+- `EmberTrace.Generator` - source generator (automatically registers metadata)
+- `EmberTrace.Analysis` - session processing (`session.Process()`)
+- `EmberTrace.ReportText` - text report (`TraceText.Write(...)`)
+- `EmberTrace.Export` - Chrome Trace export (`TraceExport.*`)
+- `EmberTrace.OpenTelemetry` - export to OpenTelemetry (`Activity` spans)
+- `EmberTrace.RoslynAnalyzers` - analyzers and code fixes for correct usage (fixes run in IDE and are included in the package)
 
-## Быстрый старт
+## Quick Start
 
-1) Опиши id и метаданные (в любом файле проекта, *на уровне assembly*):
+1) Define IDs and metadata (in any project file, at the assembly level):
 
 ```csharp
 using EmberTrace.Abstractions.Attributes;
@@ -36,7 +38,7 @@ using EmberTrace.Abstractions.Attributes;
 [assembly: TraceId(2000, "Worker", "Workers")]
 ```
 
-2) Оберни нужные участки в scopes:
+2) Wrap the required sections in scopes:
 
 ```csharp
 using EmberTrace;
@@ -51,11 +53,11 @@ using (Tracer.Scope(1000))
 var session = Tracer.Stop();
 ```
 
-3) Сними отчёт и/или экспорт:
+3) Generate a report and/or export:
 
 ```csharp
 var processed = session.Process();
-var meta = Tracer.CreateMetadata(); // если подключён generator — метаданные будут зарегистрированы автоматически
+var meta = Tracer.CreateMetadata(); // if generator is used — metadata will be registered automatically
 
 Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 8));
 
@@ -63,40 +65,40 @@ using var fs = File.Create("out/trace.json");
 TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
-4) Открой `out/trace.json`:
+4) Open `out/trace.json`:
 - `chrome://tracing` (Chrome)
-- Perfetto (веб-UI) — удобно для больших трасс
+- Perfetto (web UI) - convenient for large traces
 
-## Пример из репозитория
+## Repository Example
 
-Самый полный пример — `samples/EmberTrace.Demo3` (scopes + flows + async + экспорт + текстовый отчёт):
+The most complete example is `samples/EmberTrace.Demo3` (scopes + flows + async + export + text report):
 
 ```bash
 dotnet run --project samples/EmberTrace.Demo3 -c Release
-# файлы появятся в samples/EmberTrace.Demo3/out
+# files will be in samples/EmberTrace.Demo3/out
 ```
 
-## Документация
+## Documentation
 
-- [Индекс](docs/index.md)
-- [Быстрый старт](docs/guides/getting-started/README.md)
-- [Использование и API](docs/guides/usage/README.md)
-- [Flow и async](docs/concepts/flows/README.md)
-- [Экспорт](docs/guides/export/README.md)
-- [Анализ и отчёты](docs/guides/analysis/README.md)
-- [Генератор и метаданные](docs/reference/source-generator/README.md)
-- [Устранение неполадок](docs/troubleshooting/README.md)
+- [Index](docs/index.md)
+- [Quick Start](docs/guides/getting-started/README.md)
+- [Usage and API](docs/guides/usage/README.md)
+- [Flow and async](docs/concepts/flows/README.md)
+- [Export](docs/guides/export/README.md)
+- [Analysis and reports](docs/guides/analysis/README.md)
+- [Generator and metadata](docs/reference/source-generator/README.md)
+- [Troubleshooting](docs/troubleshooting/README.md)
 
-## Сборка и тесты
+## Build and Tests
 
-Требуется SDK, указанный в `global.json`.
+Requires the SDK specified in `global.json`.
 
 ```bash
 dotnet build -c Release
 dotnet test -c Release
 ```
 
-## Бенчмарки и AOT
+## Benchmarks and AOT
 
 ```bash
 dotnet run --project benchmarks/EmberTrace.Benchmarks -c Release -- --filter *ScopeBenchmarks*
@@ -106,13 +108,13 @@ dotnet run --project benchmarks/EmberTrace.Benchmarks -c Release -- --filter *Sc
 dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 ```
 
-## Скриншоты
+## Screenshots
 
-**Пример простой трассы в Perfetto**
+**Example of a simple trace in Perfetto**
 
 ![Perfetto timeline](docs/assets/getting-started-first-trace.png)
 
-## Полезные ссылки
+## Useful Links
 
-- Документация: [docs/index.md](docs/index.md)
-- Примеры: [samples/](samples/)
+- Documentation: [docs/index.md](docs/index.md)
+- Examples: [samples/](samples/)

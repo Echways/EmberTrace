@@ -1,3 +1,5 @@
-# Концепции
+Русская версия: [./index.ru.md](./index.ru.md)
 
-- [Flow и async](flows/README.md)
+# Concepts
+
+- [Flow and async](flows/README.md)

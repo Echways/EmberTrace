@@ -1,12 +1,14 @@
-# Экспорт
+Русская версия: [./README.ru.md](./README.ru.md)
 
-EmberTrace экспортирует сессию в JSON-формат Chrome Trace, который понимают:
+# Export
+
+EmberTrace exports a session to the Chrome Trace JSON format understood by:
 - `chrome://tracing`
-- Perfetto (веб-UI)
+- Perfetto (web UI)
 
 ## WriteChromeComplete
 
-Рекомендуемый формат: «complete events» (длительности упакованы в один объект).
+Recommended format: complete events (durations packed into one object).
 
 ```csharp
 var session = Tracer.Stop();
@@ -18,25 +20,25 @@ using var fs = File.Create("out/trace_complete.json");
 TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
-Порядок событий стабилен: timestamp → thread → sequence.
+Event ordering is stable: timestamp -> thread -> sequence.
 
 ## WriteChromeBeginEnd
 
-Альтернатива: отдельные Begin/End события (может быть удобнее для некоторых тулов).
+Alternative: separate Begin/End events (can be more convenient for some tools).
 
 ```csharp
 using var fs = File.Create("out/trace_beginend.json");
 TraceExport.WriteChromeBeginEnd(session, fs, meta: meta);
 ```
 
-Экспорт включает:
+Export includes:
 - Flow (`FlowStart/Step/End`)
-- Instant и Counter
-- имена потоков (если заданы через `Thread.CurrentThread.Name`)
+- Instant and Counter
+- thread names (if set via `Thread.CurrentThread.Name`)
 
-## MarkedComplete: снять короткое окно
+## MarkedComplete: capture a short window
 
-Полезно, когда не хочешь вручную управлять `Start/Stop` вокруг небольшого участка.
+Useful when you do not want to manage `Start/Stop` manually around a small section.
 
 ```csharp
 TraceExport.MarkedComplete(
@@ -49,9 +51,9 @@ TraceExport.MarkedComplete(
     });
 ```
 
-## SliceAndResume: окно внутри уже идущей сессии
+## SliceAndResume: window inside an already running session
 
-Если сессия уже запущена, можно «срезать» окно и продолжить запись:
+If a session is already running, you can slice a window and continue recording:
 
 ```csharp
 var result = TraceExport.MarkedCompleteEx(
@@ -68,11 +70,10 @@ var result = TraceExport.MarkedCompleteEx(
 result.SaveFullChromeComplete("out/slice_full.json", meta: Tracer.CreateMetadata());
 ```
 
-См. также:
-- [Анализ и отчёты](../analysis/README.md)
-- [Flow и async](../../concepts/flows/README.md)
+See also:
+- [Analysis and reports](../analysis/README.md)
+- [Flow and async](../../concepts/flows/README.md)
 
-## Скриншоты
+## Screenshots
 
 ![Открытый экспорт: json открыт в Perfetto](../../assets/export-opened.png)
-

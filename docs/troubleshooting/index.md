@@ -1,3 +1,5 @@
-# Устранение неполадок
+Русская версия: [./index.ru.md](./index.ru.md)
 
-- [Диагностика и частые проблемы](README.md)
+# Troubleshooting
+
+- [Diagnostics and common issues](README.md)

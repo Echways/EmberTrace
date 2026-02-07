@@ -1,6 +1,8 @@
-# Гайды
+Русская версия: [./index.ru.md](./index.ru.md)
 
-- [Быстрый старт](getting-started/README.md)
-- [Использование и API](usage/README.md)
-- [Экспорт](export/README.md)
-- [Анализ и отчёты](analysis/README.md)
+# Guides
+
+- [Quick Start](getting-started/README.md)
+- [Usage and API](usage/README.md)
+- [Export](export/README.md)
+- [Analysis and reports](analysis/README.md)

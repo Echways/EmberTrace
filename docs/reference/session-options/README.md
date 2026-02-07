@@ -1,35 +1,37 @@
+Русская версия: [./README.ru.md](./README.ru.md)
+
 # SessionOptions
 
-`SessionOptions` задают поведение записи и защиту от переполнения.
+`SessionOptions` define recording behavior and overflow protection.
 
-## Основные
+## Core
 
-- `ChunkCapacity` — размер чанка событий (по умолчанию `16_384`)
-- `OverflowPolicy` — политика при переполнении:
-  - `DropNew` — отбрасывать новые события
-  - `DropOldest` — перезаписывать самые старые чанки
-  - `StopSession` — остановить сессию
-- `MaxTotalEvents` — лимит событий в сессии (0 = без лимита)
-- `MaxTotalChunks` — лимит чанков (0 = без лимита)
+- `ChunkCapacity` - event chunk size (default `16_384`)
+- `OverflowPolicy` - overflow policy:
+  - `DropNew` - drop new events
+  - `DropOldest` - overwrite oldest chunks
+  - `StopSession` - stop the session
+- `MaxTotalEvents` - event limit per session (0 = unlimited)
+- `MaxTotalChunks` - chunk limit (0 = unlimited)
 
-## Фильтрация и sampling
+## Filtering and sampling
 
-- `EnabledCategoryIds` — список разрешённых категорий (whitelist)
-- `DisabledCategoryIds` — список запрещённых категорий (blacklist)
-- `SampleEveryNGlobal` — пропускать N‑1 событий из N глобально (0/1 = выкл)
-- `SampleEveryNById` — словарь `{ id -> everyN }` для точечного sampling
-- `MaxEventsPerSecond` — лимит событий в секунду на writer (0 = без лимита)
+- `EnabledCategoryIds` - list of allowed categories (whitelist)
+- `DisabledCategoryIds` - list of blocked categories (blacklist)
+- `SampleEveryNGlobal` - keep 1 event out of N globally (0/1 = off)
+- `SampleEveryNById` - dictionary `{ id -> everyN }` for targeted sampling
+- `MaxEventsPerSecond` - events-per-second cap per writer (0 = unlimited)
 
-## Метаданные
+## Metadata
 
-- `EnableRuntimeMetadata` — регистрировать runtime‑метаданные (см. `Tracer.Id`)
+- `EnableRuntimeMetadata` - register runtime metadata (see `Tracer.Id`)
 
 ## Callbacks
 
-- `OnOverflow` — вызывается один раз при первом overflow
-- `OnMismatchedEnd` — вызывается при обнаружении mismatched end в `Analyze/Process`
+- `OnOverflow` - called once on first overflow
+- `OnMismatchedEnd` - called when mismatched end is detected in `Analyze/Process`
 
-## Пример
+## Example
 
 ```csharp
 Tracer.Start(new SessionOptions

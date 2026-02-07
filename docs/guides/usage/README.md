@@ -1,10 +1,12 @@
-# Использование и API
+Русская версия: [./README.ru.md](./README.ru.md)
 
-Эта страница — практический справочник по runtime API (`EmberTrace`) и типовым паттернам.
+# Usage and API
 
-## Жизненный цикл
+This page is a practical guide to the runtime API (`EmberTrace`) and common usage patterns.
 
-Одна сессия = один интервал между `Start()` и `Stop()`.
+## Lifecycle
+
+One session = one interval between `Start()` and `Stop()`.
 
 ```csharp
 Tracer.Start();
@@ -17,15 +19,15 @@ using (Tracer.Scope(Ids.App))
 var session = Tracer.Stop();
 ```
 
-Примечания:
-- вложенные `Scope` допускаются (получится call-tree)
-- события собираются в **thread-local** буферы; тяжёлая обработка — после `Stop()`
+Notes:
+- nested `Scope` is allowed (you get a call tree)
+- events are collected into **thread-local** buffers; heavy processing happens after `Stop()`
 
 ## Scopes
 
 ### Sync: `Tracer.Scope(int id)`
 
-`Scope` — `ref struct` (минимальный overhead). Его **нельзя** держать через `await`.
+`Scope` is a `ref struct` (minimal overhead). You **cannot** keep it across `await`.
 
 ```csharp
 using (Tracer.Scope(Ids.Cpu))
@@ -43,11 +45,11 @@ await using (Tracer.ScopeAsync(Ids.Io))
 }
 ```
 
-## Идентификаторы (TraceId)
+## Identifiers (TraceId)
 
-EmberTrace работает с `int id`. Есть три удобных стратегии:
+EmberTrace works with `int id`. There are three convenient strategies:
 
-1) **Константы в коде** (самый явный вариант)
+1) **Constants in code** (most explicit option)
 
 ```csharp
 static class Ids
@@ -57,23 +59,23 @@ static class Ids
 }
 ```
 
-2) **Стабильный id из строки** (когда не хочешь держать таблицу констант)
+2) **Stable id from a string** (when you do not want to keep a constants table)
 
 ```csharp
 var id = Tracer.Id("MySubsystem.Request");
 using var _ = Tracer.Scope(id);
 ```
 
-Категорию можно хешировать так же:
+You can hash categories the same way:
 
 ```csharp
 var ioCategory = Tracer.CategoryId("IO");
 ```
 
-3) **Метаданные через `[assembly: TraceId(...)]`** — для красивых имён/категорий в отчёте и экспорте
-(см. docs: generator).
+3) **Metadata via `[assembly: TraceId(...)]`** - for readable names/categories in reports and export
+(see docs: generator).
 
-## Настройки сессии
+## Session settings
 
 ```csharp
 Tracer.Start(new SessionOptions
@@ -83,51 +85,51 @@ Tracer.Start(new SessionOptions
 });
 ```
 
-- `ChunkCapacity` — размер чанка событий в буфере потока
-- `OverflowPolicy` — поведение при переполнении (`DropNew`, `DropOldest`, `StopSession`)
-- `MaxTotalEvents` / `MaxTotalChunks` — лимиты на общий объём
-- `MaxEventsPerSecond` — лимит событий в секунду на writer
-- `SampleEveryNGlobal` / `SampleEveryNById` — sampling без глобальных lock
-- `EnabledCategoryIds` / `DisabledCategoryIds` — фильтрация категорий
+- `ChunkCapacity` - size of the event chunk in a thread buffer
+- `OverflowPolicy` - overflow behavior (`DropNew`, `DropOldest`, `StopSession`)
+- `MaxTotalEvents` / `MaxTotalChunks` - limits for total volume
+- `MaxEventsPerSecond` - events-per-second limit per writer
+- `SampleEveryNGlobal` / `SampleEveryNById` - sampling without global locks
+- `EnabledCategoryIds` / `DisabledCategoryIds` - category filtering
 
 ## Session API
 
-После остановки сессии:
+After stopping a session:
 
-- `session.EventCount` — общее число событий
-- `session.EnumerateEvents()` — сырые события (для своих инструментов)
-- `session.EnumerateEventsSorted()` — стабильная сортировка по timestamp → thread → sequence
-- `session.Process()` — агрегаты для отчётов/аналитики
+- `session.EventCount` - total number of events
+- `session.EnumerateEvents()` - raw events (for custom tooling)
+- `session.EnumerateEventsSorted()` - stable sort by timestamp -> thread -> sequence
+- `session.Process()` - aggregates for reports/analytics
 
 ```csharp
 var processed = session.Process();
 ```
 
-## Метаданные
+## Metadata
 
-Метаданные нужны, чтобы id превращались в человекочитаемые имена/категории.
+Metadata is required to turn ids into readable names/categories.
 
 ```csharp
 var meta = Tracer.CreateMetadata();
 ```
 
-Если подключён `EmberTrace.Generator`, метаданные из `[assembly: TraceId(...)]` будут
-**автоматически зарегистрированы** при старте модуля (см. [генератор](../../reference/source-generator/README.md)).
+If `EmberTrace.Generator` is connected, metadata from `[assembly: TraceId(...)]` will be
+**registered automatically** at module startup (see [generator](../../reference/source-generator/README.md)).
 
-Для dev‑сценариев можно включить runtime‑метаданные: `EnableRuntimeMetadata = true`.
-В этом режиме `Tracer.Id("Name")` автоматически регистрирует имя с категорией `Default`.
+For dev scenarios, you can enable runtime metadata: `EnableRuntimeMetadata = true`.
+In this mode, `Tracer.Id("Name")` automatically registers a name with category `Default`.
 
-## Практические рекомендации
+## Practical recommendations
 
-- Инструментируй **крупные** участки горячего пути и внешние ожидания (IO/lock/await), а не каждую строку.
-- Стабилизируй id: либо диапазоны констант, либо `Tracer.Id("...")` с фиксированными строками.
-- Для `async` всегда используй `ScopeAsync`, иначе компилятор/рантайм ограничат сценарий.
+- Instrument **large** parts of the hot path and external waits (IO/lock/await), not every line.
+- Keep IDs stable: either constant ranges or `Tracer.Id("...")` with fixed strings.
+- For `async`, always use `ScopeAsync`; otherwise compiler/runtime constraints will block the scenario.
 
-См. также:
-- [Flow и async](../../concepts/flows/README.md)
-- [Экспорт](../export/README.md)
-- [Анализ и отчёты](../analysis/README.md)
+See also:
+- [Flow and async](../../concepts/flows/README.md)
+- [Export](../export/README.md)
+- [Analysis and reports](../analysis/README.md)
 
-## Скриншоты
+## Screenshots
 
 ![Пример кода: скриншот блока instrumentation (Scope + metadata)](../../assets/usage-instrumentation.png)

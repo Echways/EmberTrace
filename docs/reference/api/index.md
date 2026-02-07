@@ -1,5 +1,7 @@
-# Справочник API
+Русская версия: [./index.ru.md](./index.ru.md)
 
-Точные контракты публичного API.
+# API Reference
+
+Precise contracts of the public API.
 
 - [Tracer](tracer.md)

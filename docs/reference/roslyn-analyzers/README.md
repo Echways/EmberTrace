@@ -1,21 +1,23 @@
+Русская версия: [./README.ru.md](./README.ru.md)
+
 # Roslyn analyzers
 
-Пакет `EmberTrace.RoslynAnalyzers` помогает ловить типовые ошибки использования API.
+Package `EmberTrace.RoslynAnalyzers` helps catch common API usage mistakes.
 
-## Установка
+## Installation
 
 ```bash
 dotnet add package EmberTrace.RoslynAnalyzers
 ```
 
-Пакет включает code fixes отдельной сборкой. В CLI-сборках они не используются и не влияют на компиляцию.
+The package includes code fixes in a separate assembly. They are not used in CLI builds and do not affect compilation.
 
-## Диагностики
+## Diagnostics
 
-- **ETA001** — `Scope` создан, но не обёрнут в `using`
-- **ETA002** — `AsyncScope` создан без `await using`
-- **ETA003** — `FlowHandle` создан, но `End/TryEnd` не вызывается
+- **ETA001** - `Scope` is created but not wrapped in `using`
+- **ETA002** - `AsyncScope` is created without `await using`
+- **ETA003** - `FlowHandle` is created but `End/TryEnd` is not called
 
 ## Code fix
 
-Для `ETA001` и `ETA002` доступны фиксы, которые автоматически оборачивают вызов в `using/await using`.
+For `ETA001` and `ETA002`, fixes are available that automatically wrap a call in `using/await using`.
