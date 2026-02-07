@@ -1,6 +1,41 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0": {}
+    "net10.0": {
+      "embertrace": {
+        "type": "Project"
+      },
+      "embertrace.abstractions": {
+        "type": "Project"
+      },
+      "embertrace.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.2.1, )"
+        }
+      },
+      "embertrace.export": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.2.1, )"
+        }
+      },
+      "embertrace.generator": {
+        "type": "Project"
+      },
+      "embertrace.opentelemetry": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.2.1, )"
+        }
+      },
+      "embertrace.reporttext": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.2.1, )",
+          "EmberTrace.Analysis": "[0.2.1, )"
+        }
+      }
+    }
   }
 }
