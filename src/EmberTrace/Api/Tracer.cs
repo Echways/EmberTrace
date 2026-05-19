@@ -30,6 +30,7 @@ public static partial class Tracer
     }
 
     private static int _idCollisionMode = (int)TracerIdCollisionMode.Warn;
+
     public static bool IsRunning => Default.IsRunning;
 
     public static void Start(SessionOptions? options = null) => Default.Start(options);
