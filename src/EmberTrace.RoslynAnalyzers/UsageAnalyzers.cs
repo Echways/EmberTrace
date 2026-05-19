@@ -50,27 +50,34 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(startContext =>
         {
             var tracerType = startContext.Compilation.GetTypeByMetadataName("EmberTrace.Tracer");
+            var tracingSessionType = startContext.Compilation.GetTypeByMetadataName("EmberTrace.TracingSession");
             var flowHandleType = startContext.Compilation.GetTypeByMetadataName("EmberTrace.Flow.FlowHandle");
-            if (tracerType is null || flowHandleType is null)
+            if (flowHandleType is null)
+                return;
+
+            var tracingTypes = ImmutableArray.CreateRange(
+                new[] { tracerType, tracingSessionType }.OfType<INamedTypeSymbol>());
+
+            if (tracingTypes.IsEmpty)
                 return;
 
             startContext.RegisterSyntaxNodeAction(
-                ctx => AnalyzeInvocation(ctx, tracerType),
+                ctx => AnalyzeInvocation(ctx, tracingTypes),
                 SyntaxKind.InvocationExpression);
 
             startContext.RegisterOperationBlockStartAction(
-                ctx => AnalyzeFlowHandleBlock(ctx, tracerType, flowHandleType));
+                ctx => AnalyzeFlowHandleBlock(ctx, tracingTypes, flowHandleType));
         });
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, INamedTypeSymbol tracerType)
+    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, ImmutableArray<INamedTypeSymbol> tracingTypes)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         var symbol = context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken).Symbol as IMethodSymbol;
         if (symbol is null)
             return;
 
-        if (!SymbolEqualityComparer.Default.Equals(symbol.ContainingType, tracerType))
+        if (!tracingTypes.Any(t => SymbolEqualityComparer.Default.Equals(symbol.ContainingType, t)))
             return;
 
         if (symbol.Name == "Scope")
@@ -89,7 +96,7 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
 
     private static void AnalyzeFlowHandleBlock(
         OperationBlockStartAnalysisContext context,
-        INamedTypeSymbol tracerType,
+        ImmutableArray<INamedTypeSymbol> tracingTypes,
         INamedTypeSymbol flowHandleType)
     {
         var created = new Dictionary<ILocalSymbol, SyntaxNode>(SymbolEqualityComparer.Default);
@@ -101,7 +108,7 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
             if (!SymbolEqualityComparer.Default.Equals(decl.Symbol.Type, flowHandleType))
                 return;
 
-            if (decl.Initializer?.Value is IInvocationOperation inv && IsFlowStartNewHandle(inv, tracerType))
+            if (decl.Initializer?.Value is IInvocationOperation inv && IsFlowStartNewHandle(inv, tracingTypes))
                 created[decl.Symbol] = decl.Syntax;
         }, OperationKind.VariableDeclarator);
 
@@ -114,7 +121,7 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
             if (!SymbolEqualityComparer.Default.Equals(localRef.Local.Type, flowHandleType))
                 return;
 
-            if (assignment.Value is IInvocationOperation inv && IsFlowStartNewHandle(inv, tracerType))
+            if (assignment.Value is IInvocationOperation inv && IsFlowStartNewHandle(inv, tracingTypes))
                 created[localRef.Local] = assignment.Syntax;
         }, OperationKind.SimpleAssignment);
 
@@ -144,11 +151,11 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         });
     }
 
-    private static bool IsFlowStartNewHandle(IInvocationOperation invocation, INamedTypeSymbol tracerType)
+    private static bool IsFlowStartNewHandle(IInvocationOperation invocation, ImmutableArray<INamedTypeSymbol> tracingTypes)
     {
         var method = invocation.TargetMethod;
         return method.Name == "FlowStartNewHandle" &&
-               SymbolEqualityComparer.Default.Equals(method.ContainingType, tracerType);
+               tracingTypes.Any(t => SymbolEqualityComparer.Default.Equals(method.ContainingType, t));
     }
 
     private static UsingInfo GetUsingInfo(SyntaxNode node)

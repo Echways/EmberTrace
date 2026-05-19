@@ -278,6 +278,130 @@ public class UsageAnalyzersTests
     }
 
     [TestMethod]
+    public async Task ETA001_TracingSession_ScopeWithoutUsing_ReportsWarning()
+    {
+        const string code = """
+            using EmberTrace;
+            class C
+            {
+                void M()
+                {
+                    var ts = new TracingSession();
+                    var scope = ts.Scope(1);
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId, count: 1);
+    }
+
+    [TestMethod]
+    public async Task ETA001_TracingSession_ScopeWithUsingDeclaration_NoDiagnostic()
+    {
+        const string code = """
+            using EmberTrace;
+            class C
+            {
+                void M()
+                {
+                    var ts = new TracingSession();
+                    using var scope = ts.Scope(1);
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertNoDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId);
+    }
+
+    [TestMethod]
+    public async Task ETA002_TracingSession_ScopeAsyncWithoutAwaitUsing_ReportsWarning()
+    {
+        const string code = """
+            using EmberTrace;
+            using System.Threading.Tasks;
+            class C
+            {
+                async Task M()
+                {
+                    var ts = new TracingSession();
+                    var scope = ts.ScopeAsync(1);
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId, count: 1);
+    }
+
+    [TestMethod]
+    public async Task ETA002_TracingSession_ScopeAsyncWithAwaitUsing_NoDiagnostic()
+    {
+        const string code = """
+            using EmberTrace;
+            using System.Threading.Tasks;
+            class C
+            {
+                async Task M()
+                {
+                    var ts = new TracingSession();
+                    await using var scope = ts.ScopeAsync(1);
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertNoDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId);
+    }
+
+    [TestMethod]
+    public async Task ETA003_TracingSession_FlowHandleWithoutEnd_ReportsWarning()
+    {
+        const string code = """
+            using EmberTrace;
+            class C
+            {
+                void M()
+                {
+                    var ts = new TracingSession();
+                    var handle = ts.FlowStartNewHandle(1);
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId, count: 1);
+    }
+
+    [TestMethod]
+    public async Task ETA003_TracingSession_FlowHandleWithEnd_NoDiagnostic()
+    {
+        const string code = """
+            using EmberTrace;
+            using EmberTrace.Flow;
+            class C
+            {
+                void M()
+                {
+                    var ts = new TracingSession();
+                    FlowHandle handle = ts.FlowStartNewHandle(1);
+                    handle.End();
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertNoDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId);
+    }
+
+    [TestMethod]
     public async Task NoFalsePositives_EmptyClass_NoDiagnostics()
     {
         const string code = """
