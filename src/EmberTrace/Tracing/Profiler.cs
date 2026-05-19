@@ -79,6 +79,8 @@ internal sealed class Profiler
         foreach (var t in writers)
             t.CloseAndDetach();
 
+        Interlocked.MemoryBarrier();
+
         var chunks = collector.Chunks;
         sessionChunks = chunks;
         droppedEvents = collector.DroppedEvents;

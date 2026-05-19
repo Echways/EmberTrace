@@ -18,7 +18,7 @@ internal sealed class Chunk
             return false;
 
         Events[i] = e;
-        Count = i + 1;
+        Volatile.Write(ref Count, i + 1);
         return true;
     }
 
