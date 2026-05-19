@@ -4,9 +4,9 @@
     ".NETStandard,Version=v2.0": {
       "EmberTrace.Abstractions": {
         "type": "Direct",
-        "requested": "[0.2.1, )",
-        "resolved": "0.2.1",
-        "contentHash": "L3iGLNR9TfSzN6eTawR8vhPClgMUeNGkXxZe2yjziVJBwsRyEbOYZZJLcxRp8ET5ooZ9bpf/QLelZscFM7DQaQ=="
+        "requested": "[0.2.2, )",
+        "resolved": "0.2.2",
+        "contentHash": "ZMRKXLrGk7EO+FoGhtQTM5YAvVW0mgpCENp2iXOFSlSDRBWIjgVY4WfwSUny3rS0It/18QmoT78nlSkxVzSP/Q=="
       },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "Direct",
