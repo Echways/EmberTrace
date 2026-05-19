@@ -13,7 +13,7 @@ public class EventKindTests
         var ts = Run(s => s.Instant(1));
         var events = Events(ts);
 
-        Assert.AreEqual(1, events.Length);
+        Assert.HasCount(1, events);
         Assert.AreEqual(TraceEventKind.Instant, events[0].Kind);
         Assert.AreEqual(1, events[0].Id);
     }
@@ -50,12 +50,12 @@ public class EventKindTests
         });
         var events = Events(ts);
 
-        Assert.AreEqual(3, events.Length);
+        Assert.HasCount(3, events);
         CollectionAssert.AreEquivalent(new[] { 10, 20, 30 }, events.Select(e => e.Id).ToArray());
         Assert.IsTrue(events.All(e => e.Kind == TraceEventKind.Instant));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(0L)]
     [DataRow(1L)]
     [DataRow(100L)]
@@ -91,7 +91,7 @@ public class EventKindTests
         });
         var events = Events(ts).Where(e => e.Id == 99).ToArray();
 
-        Assert.AreEqual(3, events.Length);
+        Assert.HasCount(3, events);
         CollectionAssert.AreEqual(new long[] { 10, 20, 30 }, events.Select(e => e.Value).ToArray());
     }
 
@@ -115,9 +115,9 @@ public class EventKindTests
         });
         var events = Events(ts);
 
-        Assert.AreEqual(2, events.Length);
+        Assert.HasCount(2, events);
         Assert.AreEqual(TraceEventKind.Begin, events[0].Kind);
-        Assert.AreEqual(TraceEventKind.End,   events[1].Kind);
+        Assert.AreEqual(TraceEventKind.End, events[1].Kind);
         Assert.AreEqual(3, events[0].Id);
         Assert.AreEqual(3, events[1].Id);
     }
@@ -194,7 +194,7 @@ public class EventKindTests
         });
         var events = Events(ts);
 
-        Assert.AreEqual(3, events.Length);
+        Assert.HasCount(3, events);
         var firstFlowId = events[0].FlowId;
         Assert.IsTrue(events.All(e => e.FlowId == firstFlowId),
             "All flow events for the same flow should carry the same FlowId");

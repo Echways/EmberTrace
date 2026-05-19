@@ -32,7 +32,7 @@ public class OpenTelemetryExportTests
         var session = BuildSession();
         var spans = OpenTelemetryExport.CreateSpans(session);
 
-        Assert.AreEqual(0, spans.Count);
+        Assert.IsEmpty(spans);
     }
 
     [TestMethod]
@@ -40,12 +40,12 @@ public class OpenTelemetryExportTests
     {
         long freq = Timestamp.Frequency;
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,    TraceEventKind.Instant, 0, 0),
+            new TraceEvent(1, 1, 0, TraceEventKind.Instant, 0, 0),
             new TraceEvent(2, 1, freq, TraceEventKind.Counter, 0, 99));
 
         var spans = OpenTelemetryExport.CreateSpans(session, options: Opts());
 
-        Assert.AreEqual(0, spans.Count);
+        Assert.IsEmpty(spans);
     }
 
     [TestMethod]
@@ -55,12 +55,12 @@ public class OpenTelemetryExportTests
         var meta = Meta(1, "TestOp");
 
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, meta, Opts());
 
-        Assert.AreEqual(1, spans.Count);
+        Assert.HasCount(1, spans);
         Assert.AreEqual("TestOp", spans[0].DisplayName);
     }
 
@@ -71,8 +71,8 @@ public class OpenTelemetryExportTests
         const int id = 12345;
 
         var session = BuildSession(
-            new TraceEvent(id, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(id, 1, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(id, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(id, 1, freq, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, options: Opts());
 
@@ -86,8 +86,8 @@ public class OpenTelemetryExportTests
         var session = BuildSession(
             startTs: 0,
             endTs: freq * 2,
-            new TraceEvent(1, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
         var opts = new OpenTelemetryExportOptions { BaseUtc = FixedBase };
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Op"), opts);
@@ -97,10 +97,10 @@ public class OpenTelemetryExportTests
             "Span start at timestamp=startTs should equal BaseUtc");
 
         var expectedEnd = FixedBase.UtcDateTime + TimeSpan.FromSeconds(1);
-        Assert.IsTrue(span.Duration.TotalSeconds > 0, "Span should have a positive duration");
+        Assert.IsGreaterThan(0, span.Duration.TotalSeconds, "Span should have a positive duration");
         var actualEnd = span.StartTimeUtc + span.Duration;
         var diffMs = Math.Abs((actualEnd - expectedEnd).TotalMilliseconds);
-        Assert.IsTrue(diffMs < 1.0, $"Span end time should be within 1 ms of expected, diff={diffMs:F3} ms");
+        Assert.IsLessThan(1.0, diffMs, $"Span end time should be within 1 ms of expected, diff={diffMs:F3} ms");
     }
 
     [TestMethod]
@@ -112,8 +112,8 @@ public class OpenTelemetryExportTests
         var session = BuildSession(
             startTs: 0,
             endTs: freq,
-            new TraceEvent(1, 1, 0,        TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq / 2, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq / 2, TraceEventKind.End, 0, 0));
 
         var opts = new OpenTelemetryExportOptions { BaseUtc = customBase };
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Op"), opts);
@@ -127,8 +127,8 @@ public class OpenTelemetryExportTests
         long freq = Timestamp.Frequency;
         long t0 = 0;
         long t1 = freq / 10;
-        long t2 = freq * 3/10;
-        long t3 = freq * 4/10;
+        long t2 = freq * 3 / 10;
+        long t3 = freq * 4 / 10;
 
         var meta = new DictionaryTraceMetadataProvider();
         meta.Add(1, "outer");
@@ -137,12 +137,12 @@ public class OpenTelemetryExportTests
         var session = BuildSession(
             new TraceEvent(1, 1, t0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(2, 1, t1, TraceEventKind.Begin, 0, 0),
-            new TraceEvent(2, 1, t2, TraceEventKind.End,   0, 0),
-            new TraceEvent(1, 1, t3, TraceEventKind.End,   0, 0));
+            new TraceEvent(2, 1, t2, TraceEventKind.End, 0, 0),
+            new TraceEvent(1, 1, t3, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, meta, Opts());
 
-        Assert.AreEqual(2, spans.Count);
+        Assert.HasCount(2, spans);
 
         var inner = spans.Single(s => s.DisplayName == "inner");
         var outer = spans.Single(s => s.DisplayName == "outer");
@@ -160,14 +160,14 @@ public class OpenTelemetryExportTests
         meta.Add(2, "B");
 
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq, TraceEventKind.End,   0, 0),
-            new TraceEvent(2, 2, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(2, 2, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0),
+            new TraceEvent(2, 2, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(2, 2, freq, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, meta, Opts());
 
-        Assert.AreEqual(2, spans.Count);
+        Assert.HasCount(2, spans);
         foreach (var span in spans)
             Assert.AreEqual(default(ActivitySpanId), span.ParentSpanId,
                 $"Root span '{span.DisplayName}' should have no parent");
@@ -187,13 +187,13 @@ public class OpenTelemetryExportTests
         var opts = new OpenTelemetryExportOptions { BaseUtc = FixedBase };
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Leak"), opts);
 
-        Assert.AreEqual(1, spans.Count, "Unclosed span should still be emitted");
+        Assert.HasCount(1, spans, "Unclosed span should still be emitted");
         Assert.AreEqual("Leak", spans[0].DisplayName);
 
         var expectedEnd = FixedBase.UtcDateTime + TimeSpan.FromSeconds(endTs / (double)freq);
         var actualEnd = spans[0].StartTimeUtc + spans[0].Duration;
         var diffMs = Math.Abs((actualEnd - expectedEnd).TotalMilliseconds);
-        Assert.IsTrue(diffMs < 1.0, $"Unclosed span end time should be within 1 ms of session end, diff={diffMs:F3} ms");
+        Assert.IsLessThan(1.0, diffMs, $"Unclosed span end time should be within 1 ms of session end, diff={diffMs:F3} ms");
     }
 
     [TestMethod]
@@ -203,14 +203,14 @@ public class OpenTelemetryExportTests
         const long flowId = 42L;
 
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,        TraceEventKind.Begin,     0,      0),
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(2, 1, freq / 2, TraceEventKind.FlowStart, flowId, 0),
-            new TraceEvent(1, 1, freq,     TraceEventKind.End,       0,      0));
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
         var opts = new OpenTelemetryExportOptions { IncludeFlowsAsLinks = true };
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Span"), opts);
 
-        Assert.AreEqual(1, spans.Count);
+        Assert.HasCount(1, spans);
         Assert.AreEqual(1, spans[0].Links.Count(),
             "FlowStart inside scope should add one ActivityLink");
     }
@@ -222,9 +222,9 @@ public class OpenTelemetryExportTests
         const long flowId = 42L;
 
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,        TraceEventKind.Begin,     0,      0),
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(2, 1, freq / 2, TraceEventKind.FlowStart, flowId, 0),
-            new TraceEvent(1, 1, freq,     TraceEventKind.End,       0,      0));
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
         var opts = new OpenTelemetryExportOptions { IncludeFlowsAsLinks = false };
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Span"), opts);
@@ -240,8 +240,8 @@ public class OpenTelemetryExportTests
         const int threadId = 7;
 
         var session = BuildSession(
-            new TraceEvent(1, threadId, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, threadId, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, threadId, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, threadId, freq, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Op"),
             new OpenTelemetryExportOptions { IncludeThreadIdTag = true });
@@ -257,8 +257,8 @@ public class OpenTelemetryExportTests
         long freq = Timestamp.Frequency;
 
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "Op"),
             new OpenTelemetryExportOptions { IncludeThreadIdTag = false });
@@ -275,8 +275,8 @@ public class OpenTelemetryExportTests
         meta.Add(1, "Fetch", "Network");
 
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
         var spans = OpenTelemetryExport.CreateSpans(session, meta, Opts());
 
@@ -299,15 +299,15 @@ public class OpenTelemetryExportTests
     {
         long freq = Timestamp.Frequency;
         var session = BuildSession(
-            new TraceEvent(1, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(1, 1, freq, TraceEventKind.End,   0, 0),
-            new TraceEvent(2, 1, 0,    TraceEventKind.Begin, 0, 0),
-            new TraceEvent(2, 1, freq, TraceEventKind.End,   0, 0));
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0),
+            new TraceEvent(2, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(2, 1, freq, TraceEventKind.End, 0, 0));
 
         var received = new List<Activity>();
         OpenTelemetryExport.Export(session, a => received.Add(a), Meta(1, "A", 2, "B"), Opts());
 
-        Assert.AreEqual(2, received.Count);
+        Assert.HasCount(2, received);
     }
 
     private static TraceSession BuildSession(params TraceEvent[] events) =>

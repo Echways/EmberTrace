@@ -9,14 +9,14 @@ namespace EmberTrace.Tests.Tracing;
 [TestClass]
 public class CategoryFilterTests
 {
-    private static readonly int CatNetwork   = Tracer.CategoryId("Network");
+    private static readonly int CatNetwork = Tracer.CategoryId("Network");
     private static readonly int CatRendering = Tracer.CategoryId("Rendering");
-    private static readonly int CatAudio     = Tracer.CategoryId("Audio");
+    private static readonly int CatAudio = Tracer.CategoryId("Audio");
 
     private static DictionaryTraceMetadataProvider BuildMeta()
     {
         var meta = new DictionaryTraceMetadataProvider();
-        meta.Add(1, "Fetch",     "Network");
+        meta.Add(1, "Fetch", "Network");
         meta.Add(2, "DrawFrame", "Rendering");
         meta.Add(3, "PlaySound", "Audio");
         meta.Add(4, "ComputeAI");
@@ -46,7 +46,7 @@ public class CategoryFilterTests
     {
         var filter = new CategoryFilter(BuildMeta(), enabled: [CatNetwork], disabled: null);
 
-        Assert.IsTrue(filter.Allows(1),  "id=1 has category Network → allowed");
+        Assert.IsTrue(filter.Allows(1), "id=1 has category Network → allowed");
         Assert.IsFalse(filter.Allows(2), "id=2 has category Rendering → not in enabled list");
         Assert.IsFalse(filter.Allows(3), "id=3 has category Audio → not in enabled list");
     }
@@ -56,9 +56,9 @@ public class CategoryFilterTests
     {
         var filter = new CategoryFilter(BuildMeta(), enabled: [CatNetwork, CatAudio], disabled: null);
 
-        Assert.IsTrue(filter.Allows(1),  "Network → allowed");
+        Assert.IsTrue(filter.Allows(1), "Network → allowed");
         Assert.IsFalse(filter.Allows(2), "Rendering → not allowed");
-        Assert.IsTrue(filter.Allows(3),  "Audio → allowed");
+        Assert.IsTrue(filter.Allows(3), "Audio → allowed");
     }
 
     [TestMethod]
@@ -82,9 +82,9 @@ public class CategoryFilterTests
     {
         var filter = new CategoryFilter(BuildMeta(), enabled: null, disabled: [CatRendering]);
 
-        Assert.IsTrue(filter.Allows(1),  "Network → not disabled");
+        Assert.IsTrue(filter.Allows(1), "Network → not disabled");
         Assert.IsFalse(filter.Allows(2), "Rendering → disabled");
-        Assert.IsTrue(filter.Allows(3),  "Audio → not disabled");
+        Assert.IsTrue(filter.Allows(3), "Audio → not disabled");
     }
 
     [TestMethod]
@@ -128,10 +128,10 @@ public class CategoryFilterTests
         Assert.IsTrue(filter.Allows(1), "Enabled set should take precedence");
     }
 
-    [DataTestMethod]
-    [DataRow("Network",   true)]
+    [TestMethod]
+    [DataRow("Network", true)]
     [DataRow("Rendering", false)]
-    [DataRow("Audio",     false)]
+    [DataRow("Audio", false)]
     public void Integration_EnabledCategoryIds_FiltersAtSessionLevel(string category, bool expected)
     {
         Tracer.EnableRuntimeMetadata();

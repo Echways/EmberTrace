@@ -253,7 +253,7 @@ public class UsageAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(code);
 
         var eta003 = diagnostics.Where(d => d.Id == UsageAnalyzers.FlowHandleNotEndedId).ToArray();
-        Assert.AreEqual(1, eta003.Length, "Only the un-ended handle should be reported");
+        Assert.HasCount(1, eta003, "Only the un-ended handle should be reported");
     }
 
     [TestMethod]
@@ -285,7 +285,7 @@ public class UsageAnalyzersTests
             """;
 
         var diagnostics = await GetDiagnosticsAsync(code);
-        Assert.AreEqual(0, diagnostics.Length);
+        Assert.IsEmpty(diagnostics);
     }
 
     [TestMethod]
@@ -311,7 +311,7 @@ public class UsageAnalyzersTests
             """;
 
         var diagnostics = await GetDiagnosticsAsync(code);
-        Assert.AreEqual(0, diagnostics.Length);
+        Assert.IsEmpty(diagnostics);
     }
 
     private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(string code)
@@ -361,7 +361,7 @@ public class UsageAnalyzersTests
         ImmutableArray<Diagnostic> diagnostics, string id, int count)
     {
         var matched = diagnostics.Where(d => d.Id == id).ToArray();
-        Assert.AreEqual(count, matched.Length,
+        Assert.HasCount(count, matched,
             $"Expected {count} diagnostic(s) with id '{id}', " +
             $"but got {matched.Length}. All diagnostics: [{string.Join(", ", diagnostics.Select(d => d.Id))}]");
     }
@@ -369,7 +369,7 @@ public class UsageAnalyzersTests
     private static void AssertNoDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
     {
         var matched = diagnostics.Where(d => d.Id == id).ToArray();
-        Assert.AreEqual(0, matched.Length,
+        Assert.IsEmpty(matched,
             $"Expected no diagnostics with id '{id}', but got {matched.Length}: " +
             string.Join("; ", matched.Select(d => d.GetMessage())));
     }

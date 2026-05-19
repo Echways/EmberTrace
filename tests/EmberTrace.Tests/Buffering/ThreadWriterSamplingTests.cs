@@ -8,10 +8,10 @@ namespace EmberTrace.Tests.Buffering;
 [TestClass]
 public class ThreadWriterSamplingTests
 {
-    [DataTestMethod]
-    [DataRow(1, 9, 9,  0)]
-    [DataRow(2, 8, 4,  4)]
-    [DataRow(3, 9, 3,  6)]
+    [TestMethod]
+    [DataRow(1, 9, 9, 0)]
+    [DataRow(2, 8, 4, 4)]
+    [DataRow(3, 9, 3, 6)]
     [DataRow(5, 10, 2, 8)]
     public void GlobalEveryN_CorrectPassThroughRatio(
         int everyN, int totalEvents, int expectedPassed, int expectedSampledOut)
@@ -91,7 +91,7 @@ public class ThreadWriterSamplingTests
         Assert.AreEqual(3L, session.EventCount);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(1)]
     [DataRow(5)]
     [DataRow(10)]
@@ -110,7 +110,7 @@ public class ThreadWriterSamplingTests
         Assert.AreEqual(0L, session.DroppedEvents);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(3)]
     [DataRow(7)]
     public void MaxEventsPerSecond_ExcessEvents_AreDropped(int rateLimit)

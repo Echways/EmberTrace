@@ -58,7 +58,7 @@ public class OverflowPolicyTests
         for (int i = 0; i < 10; i++)
             collector.TryAcceptEvent();
 
-        Assert.AreEqual(1, received.Count, "OnOverflow must fire exactly once regardless of how many events overflow");
+        Assert.HasCount(1, received, "OnOverflow must fire exactly once regardless of how many events overflow");
         Assert.AreEqual(OverflowReason.MaxTotalEvents, received[0].Reason);
         Assert.AreEqual(OverflowPolicy.DropNew, received[0].Policy);
     }
@@ -205,7 +205,7 @@ public class OverflowPolicyTests
         Assert.IsFalse(collector.IsClosed);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(OverflowPolicy.DropNew)]
     [DataRow(OverflowPolicy.DropOldest)]
     public void HandleRateLimitExceeded_NonStopPolicies_KeepSessionOpen(OverflowPolicy policy)
