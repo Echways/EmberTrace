@@ -19,7 +19,7 @@ internal sealed class Profiler
 
     [ThreadStatic] private static Profiler? _writerOwner;
     [ThreadStatic] private static int _writerVersion;
-
+    [ThreadStatic] private static ThreadWriter? _writer;
 
     [ThreadStatic] private static Profiler? _activeOnThread;
 
@@ -126,9 +126,6 @@ internal sealed class Profiler
         return new Scope(id, active: true);
     }
 
-    // Static dispatch for Scope (ref struct) which cannot hold a Profiler reference.
-    // _activeOnThread is set on every Write(), so it always points to the correct instance
-    // for the current thread at Dispose() time.
     internal static void End(int id) => _activeOnThread?.EndImpl(id);
 
     internal void EndScope(int id) => EndImpl(id);
