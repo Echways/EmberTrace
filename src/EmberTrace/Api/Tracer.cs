@@ -29,11 +29,7 @@ public static partial class Tracer
 #endif
     }
 
-#if DEBUG
     private static int _idCollisionMode = (int)TracerIdCollisionMode.Warn;
-#else
-    private static int _idCollisionMode = (int)TracerIdCollisionMode.Ignore;
-#endif
     public static bool IsRunning => Default.IsRunning;
 
     public static void Start(SessionOptions? options = null) => Default.Start(options);

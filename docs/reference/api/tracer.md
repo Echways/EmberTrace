@@ -134,10 +134,23 @@ registers a name with category `Default`.
 ## ID Helpers
 
 ### `int Tracer.Id(string name)`
-Stable string-based `int` identifier.
+Stable string-based `int` identifier computed as a 31-bit FNV-1a hash.
 
-- Deterministic: same string -> same `id`.
-- Collisions are possible (as with any 32-bit hash), so for critical IDs prefer generator/TraceId.
+- Deterministic: same string → same `id`.
+- **Collision risk**: the hash space holds ~2.1 billion values. By the birthday paradox, the probability of the first collision reaches 50% around **46 000 unique names** — a realistic threshold in a large monorepo.
+- Collision behaviour is controlled by `Tracer.IdCollisionMode` (see below).
+- For projects with many unique trace names, prefer the source generator or `[TraceId]` attribute — they guarantee collision-free identifiers at compile time.
+
+### `TracerIdCollisionMode Tracer.IdCollisionMode`
+Controls what happens when two distinct names hash to the same value.
+
+| Value | Behaviour | Default |
+|-------|-----------|---------|
+| `Warn` | Emits `Trace.TraceWarning` | **Yes** (all configurations) |
+| `Throw` | Throws `InvalidOperationException` | — |
+| `Ignore` | Silently keeps the first mapping; correctness not guaranteed | — |
+
+> **Recommendation for CI**: set `Tracer.IdCollisionMode = TracerIdCollisionMode.Throw` early in your test entry point. This surfaces collisions immediately rather than letting them corrupt traces silently.
 
 ### `int Tracer.CategoryId(string category)`
 Stable `int` identifier for categories (used in filters).
