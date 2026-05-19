@@ -51,7 +51,7 @@ await RunScenarios(args, scenarios);
 
 static async Task RunScenarios(string[] args, List<Scenario> scenarios)
 {
-    Console.WriteLine("== EmberTrace.Demo3 ==");
+    Console.WriteLine("== EmberTrace.DocScreenshots ==");
 
     if (args.Any(a => string.Equals(a, "--list", StringComparison.OrdinalIgnoreCase)))
     {
@@ -459,8 +459,8 @@ static string ResolveOutDir()
 {
     var cwd = Directory.GetCurrentDirectory();
     if (File.Exists(Path.Combine(cwd, "EmberTrace.slnx")))
-        return Path.Combine(cwd, "samples", "EmberTrace.Demo3", "out");
-    if (File.Exists(Path.Combine(cwd, "EmberTraceDemo3.csproj")))
+        return Path.Combine(cwd, "samples", "EmberTrace.DocScreenshots", "out");
+    if (File.Exists(Path.Combine(cwd, "EmberTrace.DocScreenshots.csproj")))
         return Path.Combine(cwd, "out");
     return Path.Combine(cwd, "out");
 }
@@ -468,16 +468,16 @@ static string ResolveOutDir()
 static string ResolveProjectDir()
 {
     var baseDir = AppContext.BaseDirectory;
-    var probe = FindUpwards(baseDir, "EmberTraceDemo3.csproj");
+    var probe = FindUpwards(baseDir, "EmberTrace.DocScreenshots.csproj");
     if (!string.IsNullOrWhiteSpace(probe))
         return Path.GetDirectoryName(probe) ?? string.Empty;
 
     var cwd = Directory.GetCurrentDirectory();
-    probe = FindUpwards(cwd, "EmberTraceDemo3.csproj");
+    probe = FindUpwards(cwd, "EmberTrace.DocScreenshots.csproj");
     if (!string.IsNullOrWhiteSpace(probe))
         return Path.GetDirectoryName(probe) ?? string.Empty;
 
-    var repoPath = Path.Combine(cwd, "samples", "EmberTrace.Demo3", "EmberTraceDemo3.csproj");
+    var repoPath = Path.Combine(cwd, "samples", "EmberTrace.DocScreenshots", "EmberTrace.DocScreenshots.csproj");
     if (File.Exists(repoPath))
         return Path.GetDirectoryName(repoPath) ?? string.Empty;
 

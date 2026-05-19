@@ -113,8 +113,8 @@ Open in:
 The repository contains a ready-to-run scenario with scopes + flows + async + export + report:
 
 ```bash
-dotnet run --project samples/EmberTrace.Demo3 -c Release
-# выходные файлы: samples/EmberTrace.Demo3/out
+dotnet run --project samples/EmberTrace.DocScreenshots -c Release
+# выходные файлы: samples/EmberTrace.DocScreenshots/out
 ```
 
 Next:

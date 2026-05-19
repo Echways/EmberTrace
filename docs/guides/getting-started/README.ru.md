@@ -113,8 +113,8 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 В репозитории есть готовый сценарий со scopes + flows + async + экспорт + отчёт:
 
 ```bash
-dotnet run --project samples/EmberTrace.Demo3 -c Release
-# выходные файлы: samples/EmberTrace.Demo3/out
+dotnet run --project samples/EmberTrace.DocScreenshots -c Release
+# выходные файлы: samples/EmberTrace.DocScreenshots/out
 ```
 
 Дальше:

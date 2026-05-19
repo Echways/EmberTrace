@@ -1,8 +1,8 @@
 <Solution>
   <Folder Name="/samples/">
-    <Project Path="samples/EmberTrace.Demo/EmberTraceDemo.csproj" />
-    <Project Path="samples/EmberTrace.Demo2/EmberTraceDemo2.csproj" />
-    <Project Path="samples/EmberTrace.Demo3/EmberTraceDemo3.csproj" />
+    <Project Path="samples/EmberTrace.BasicTracing/EmberTrace.BasicTracing.csproj" />
+    <Project Path="samples/EmberTrace.ParallelWorkers/EmberTrace.ParallelWorkers.csproj" />
+    <Project Path="samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj" />
     <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">

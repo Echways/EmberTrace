@@ -48,5 +48,5 @@ jobs:
       - name: Publish NativeAOT sample
         run: dotnet publish samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj -c Release -p:PublishAot=true -p:UseLocalEmberTrace=true
 
-      - name: Run Demo3
-        run: dotnet run --project samples/EmberTrace.Demo3/EmberTraceDemo3.csproj -c Release -p:UseLocalEmberTrace=true
+      - name: Run DocScreenshots
+        run: dotnet run --project samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj -c Release -p:UseLocalEmberTrace=true

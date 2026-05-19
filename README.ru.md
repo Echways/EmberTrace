@@ -71,11 +71,11 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 
 ## Пример из репозитория
 
-Самый полный пример — `samples/EmberTrace.Demo3` (scopes + flows + async + экспорт + текстовый отчёт):
+Самый полный пример — `samples/EmberTrace.DocScreenshots` (scopes + flows + async + экспорт + текстовый отчёт):
 
 ```bash
-dotnet run --project samples/EmberTrace.Demo3 -c Release
-# файлы появятся в samples/EmberTrace.Demo3/out
+dotnet run --project samples/EmberTrace.DocScreenshots -c Release
+# файлы появятся в samples/EmberTrace.DocScreenshots/out
 ```
 
 ## Документация
