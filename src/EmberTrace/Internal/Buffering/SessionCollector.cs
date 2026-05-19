@@ -197,7 +197,7 @@ internal sealed class SessionCollector
         if (_policy != OverflowPolicy.DropOldest)
             return false;
 
-        var droppedAny = false;
+        List<Chunk>? toReturn = null;
 
         lock (_sync)
         {
@@ -206,12 +206,30 @@ internal sealed class SessionCollector
                 if (!TryDropOldestChunkLocked(out var dropped) || dropped is null)
                     break;
 
-                droppedAny = true;
-                AccountDroppedChunk(dropped, decrementTotalChunks: true, OverflowReason.MaxTotalEvents);
+                var count = dropped.Count;
+                if (count > 0)
+                {
+                    Interlocked.Add(ref _totalEvents, -count);
+                    Interlocked.Add(ref _droppedEvents, count);
+                }
+                Interlocked.Increment(ref _droppedChunks);
+                Interlocked.Decrement(ref _totalChunks);
+                dropped.Reset();
+
+                toReturn ??= new List<Chunk>();
+                toReturn.Add(dropped);
             }
         }
 
-        return droppedAny && Interlocked.Read(ref _totalEvents) <= _maxTotalEvents;
+        if (toReturn is not null)
+        {
+            foreach (var chunk in toReturn)
+                _pool.Return(chunk);
+
+            MarkOverflow(OverflowReason.MaxTotalEvents);
+        }
+
+        return toReturn is not null && Interlocked.Read(ref _totalEvents) <= _maxTotalEvents;
     }
 
     private bool TryDropOldestChunk(out Chunk? dropped)
@@ -223,7 +241,17 @@ internal sealed class SessionCollector
         }
 
         if (dropped is not null)
-            AccountDroppedChunk(dropped, decrementTotalChunks: false, OverflowReason.MaxTotalChunks, reuse: true);
+        {
+            var count = dropped.Count;
+            if (count > 0)
+            {
+                Interlocked.Add(ref _totalEvents, -count);
+                Interlocked.Add(ref _droppedEvents, count);
+            }
+            Interlocked.Increment(ref _droppedChunks);
+            dropped.Reset();
+            MarkOverflow(OverflowReason.MaxTotalChunks);
+        }
 
         return dropped is not null;
     }
@@ -245,32 +273,6 @@ internal sealed class SessionCollector
 
         dropped = null;
         return false;
-    }
-
-    private void AccountDroppedChunk(Chunk chunk, bool decrementTotalChunks, OverflowReason reason, bool reuse = false)
-    {
-        var count = chunk.Count;
-        if (count > 0)
-        {
-            Interlocked.Add(ref _totalEvents, -count);
-            Interlocked.Add(ref _droppedEvents, count);
-        }
-
-        Interlocked.Increment(ref _droppedChunks);
-
-        if (decrementTotalChunks)
-            Interlocked.Decrement(ref _totalChunks);
-
-        chunk.Reset();
-
-        if (reuse)
-        {
-            MarkOverflow(reason);
-            return;
-        }
-
-        _pool.Return(chunk);
-        MarkOverflow(reason);
     }
 
     private void MarkOverflow(OverflowReason reason)
@@ -321,13 +323,13 @@ internal sealed class SessionCollector
             _active.Clear();
             _writers.Clear();
             _threadNames.Clear();
-            _closed = 0;
-            _overflowed = 0;
-            _totalEvents = 0;
-            _totalChunks = 0;
-            _droppedEvents = 0;
-            _droppedChunks = 0;
-            _sampledOutEvents = 0;
+            Volatile.Write(ref _closed, 0);
+            Volatile.Write(ref _overflowed, 0);
+            Volatile.Write(ref _totalEvents, 0L);
+            Volatile.Write(ref _totalChunks, 0);
+            Volatile.Write(ref _droppedEvents, 0L);
+            Volatile.Write(ref _droppedChunks, 0L);
+            Volatile.Write(ref _sampledOutEvents, 0L);
         }
     }
 }
