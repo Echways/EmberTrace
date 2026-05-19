@@ -4,7 +4,7 @@ using EmberTrace.Tracing;
 
 namespace EmberTrace.Flow;
 
-public struct FlowScope : IDisposable
+public sealed class FlowScope : IDisposable
 {
     private readonly int _id;
     private readonly long _flowId;
