@@ -4,6 +4,8 @@
         <TargetFramework>net10.0</TargetFramework>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
         <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
@@ -16,14 +18,23 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.ApplicationInsights" Version="2.23.0" />
+        <!--
+            Microsoft.CodeAnalysis.CSharp is pulled in transitively from EmberTrace.RoslynAnalyzers.
+            We reference it explicitly to access the compilation API in tests.
+        -->
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
     </ItemGroup>
 
     <ItemGroup>
+        <!--
+            Reference EmberTrace so test code snippets can mention Tracer, FlowHandle, etc.
+            Reference the analyzer project as a plain assembly (not as an Analyzer item) so we
+            can instantiate UsageAnalyzers directly and run it over a compilation we construct.
+        -->
         <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj" />
-        <ProjectReference Include="../../src/EmberTrace.Export/EmberTrace.Export.csproj" />
-        <ProjectReference Include="../../src/EmberTrace.ReportText/EmberTrace.ReportText.csproj" />
-        <ProjectReference Include="../../src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj" />
+        <ProjectReference Include="../../src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj"
+                          ReferenceOutputAssembly="true"
+                          OutputItemType="Content" />
     </ItemGroup>
 
 </Project>

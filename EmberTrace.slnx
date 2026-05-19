@@ -22,5 +22,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EmberTrace.Tests/EmberTrace.Tests.csproj" />
+    <Project Path="tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj" />
   </Folder>
 </Solution>
