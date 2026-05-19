@@ -32,6 +32,24 @@ public sealed class TracingSession : IDisposable
 
     public void FlowEnd(int id, long flowId) => _profiler.FlowEnd(id, flowId);
 
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
+    public long FlowFromActivityCurrent(int id)
+    {
+        if (!IsRunning)
+            return 0;
+
+        if (!EmberTrace.ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
+            return 0;
+
+        if (flowId == 0)
+            return 0;
+
+        _profiler.FlowStart(id, flowId);
+        _profiler.FlowStep(id, flowId);
+        _profiler.FlowEnd(id, flowId);
+        return flowId;
+    }
+
     public void Instant(int id) => _profiler.Instant(id);
 
     public void Counter(int id, long value) => _profiler.Counter(id, value);
