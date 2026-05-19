@@ -6,11 +6,13 @@ internal readonly struct FlowPair
 {
     public readonly int Id;
     public readonly long FlowId;
+    private readonly Profiler _profiler;
 
-    public FlowPair(int id, long flowId)
+    public FlowPair(int id, long flowId, Profiler profiler)
     {
         Id = id;
         FlowId = flowId;
+        _profiler = profiler;
     }
 
     public bool IsValid => FlowId != 0;
@@ -18,12 +20,12 @@ internal readonly struct FlowPair
     public void Step()
     {
         if (!IsValid) return;
-        Profiler.FlowStep(Id, FlowId);
+        _profiler.FlowStep(Id, FlowId);
     }
 
     public void End()
     {
         if (!IsValid) return;
-        Profiler.FlowEnd(Id, FlowId);
+        _profiler.FlowEnd(Id, FlowId);
     }
 }

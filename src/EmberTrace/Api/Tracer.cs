@@ -13,6 +13,8 @@ namespace EmberTrace;
 
 public static partial class Tracer
 {
+    internal static readonly Profiler Default = new();
+
     private static readonly ConcurrentDictionary<int, string> IdToName = new();
     private static readonly ConcurrentDictionary<string, int> NameToId = new(StringComparer.Ordinal);
     private static RuntimeMetadataProvider? _runtimeMetadata;
@@ -32,27 +34,27 @@ public static partial class Tracer
 #else
     private static int _idCollisionMode = (int)TracerIdCollisionMode.Ignore;
 #endif
-    public static bool IsRunning => Profiler.IsRunning;
+    public static bool IsRunning => Default.IsRunning;
 
-    public static void Start(SessionOptions? options = null) => Profiler.Start(options);
+    public static void Start(SessionOptions? options = null) => Default.Start(options);
 
-    public static TraceSession Stop() => Profiler.Stop();
+    public static TraceSession Stop() => Default.Stop();
 
-    public static Scope Scope(int id) => Profiler.Scope(id);
+    public static Scope Scope(int id) => Default.Scope(id);
 
-    public static AsyncScope ScopeAsync(int id) => new AsyncScope(id);
+    public static AsyncScope ScopeAsync(int id) => new AsyncScope(id, Default);
 
-    public static long NewFlowId() => Profiler.NewFlowId();
+    public static long NewFlowId() => Default.NewFlowId();
 
-    public static long FlowStartNew(int id) => Profiler.FlowStartNew(id);
+    public static long FlowStartNew(int id) => Default.FlowStartNew(id);
 
-    public static FlowScope Flow(int id) => Profiler.Flow(id);
+    public static FlowScope Flow(int id) => Default.Flow(id);
 
-    public static void FlowStart(int id, long flowId) => Profiler.FlowStart(id, flowId);
+    public static void FlowStart(int id, long flowId) => Default.FlowStart(id, flowId);
 
-    public static void FlowStep(int id, long flowId) => Profiler.FlowStep(id, flowId);
+    public static void FlowStep(int id, long flowId) => Default.FlowStep(id, flowId);
 
-    public static void FlowEnd(int id, long flowId) => Profiler.FlowEnd(id, flowId);
+    public static void FlowEnd(int id, long flowId) => Default.FlowEnd(id, flowId);
 
     [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
     public static long FlowFromActivityCurrent(int id)
@@ -66,17 +68,17 @@ public static partial class Tracer
         if (flowId == 0)
             return 0;
 
-        Profiler.FlowStart(id, flowId);
-        Profiler.FlowStep(id, flowId);
-        Profiler.FlowEnd(id, flowId);
+        Default.FlowStart(id, flowId);
+        Default.FlowStep(id, flowId);
+        Default.FlowEnd(id, flowId);
         return flowId;
     }
 
-    public static void Instant(int id) => Profiler.Instant(id);
+    public static void Instant(int id) => Default.Instant(id);
 
-    public static void Counter(int id, long value) => Profiler.Counter(id, value);
+    public static void Counter(int id, long value) => Default.Counter(id, value);
 
-    public static FlowHandle FlowStartNewHandle(int id) => Profiler.FlowStartNewHandle(id);
+    public static FlowHandle FlowStartNewHandle(int id) => Default.FlowStartNewHandle(id);
 
     public static void FlowEnd(FlowHandle handle) => handle.End();
 
@@ -211,19 +213,21 @@ public readonly struct AsyncScope : IAsyncDisposable
 {
     private readonly int _id;
     private readonly bool _active;
+    private readonly Profiler _profiler;
 
-    public AsyncScope(int id)
+    internal AsyncScope(int id, Profiler profiler)
     {
         _id = id;
-        _active = Tracer.IsRunning;
+        _profiler = profiler;
+        _active = profiler.IsRunning;
         if (_active)
-            Profiler.Scope(id);
+            profiler.Scope(id);
     }
 
     public ValueTask DisposeAsync()
     {
         if (_active)
-            Profiler.End(_id);
+            _profiler.EndScope(_id);
 
         return ValueTask.CompletedTask;
     }

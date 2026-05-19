@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
+using EmberTrace;
 using EmberTrace.Sessions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -16,7 +17,8 @@ public class TracerConcurrencyTests
         const int iterations = 1000;
         const int id = 1234;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 256 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 256 });
 
         try
         {
@@ -25,7 +27,7 @@ public class TracerConcurrencyTests
                 {
                     for (int i = 0; i < iterations; i++)
                     {
-                        using var _ = Tracer.Scope(id);
+                        using var _ = ts.Scope(id);
                     }
                 }));
 
@@ -33,7 +35,7 @@ public class TracerConcurrencyTests
         }
         finally
         {
-            var session = Tracer.Stop();
+            var session = ts.Stop();
             var expected = threads * iterations * 2;
             Assert.AreEqual(expected, session.EventCount);
         }
@@ -45,13 +47,14 @@ public class TracerConcurrencyTests
         const int tasks = 6;
         const int perTask = 2000;
 
+        var ts = new TracingSession();
         var ids = new ConcurrentBag<long>();
 
         var runners = Enumerable.Range(0, tasks)
             .Select(_ => Task.Run(() =>
             {
                 for (int i = 0; i < perTask; i++)
-                    ids.Add(Tracer.NewFlowId());
+                    ids.Add(ts.NewFlowId());
             }));
 
         await Task.WhenAll(runners);

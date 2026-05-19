@@ -10,20 +10,22 @@ using EmberTrace.Sessions;
 
 namespace EmberTrace.Tracing;
 
-internal static class Profiler
+internal sealed class Profiler
 {
-    private static int _enabled;
-    private static ProfilingState? _state;
-    private static long _nextFlowId;
+    private int _enabled;
+    private ProfilingState? _state;
+    private long _nextFlowId;
+    private int _sessionVersion;
 
-    [ThreadStatic] private static ThreadWriter? _writer;
+    [ThreadStatic] private static Profiler? _writerOwner;
     [ThreadStatic] private static int _writerVersion;
+    [ThreadStatic] private static ThreadWriter? _writer;
 
-    private static int _sessionVersion;
+    [ThreadStatic] private static Profiler? _activeOnThread;
 
-    public static bool IsRunning => Volatile.Read(ref _enabled) == 1;
+    public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
-    public static void Start(SessionOptions? options = null)
+    public void Start(SessionOptions? options = null)
     {
         if (Interlocked.Exchange(ref _enabled, 1) == 1)
             throw new InvalidOperationException("Profiler session already running.");
@@ -40,7 +42,6 @@ internal static class Profiler
         var chunkCapacity = Math.Max(1024, opts.ChunkCapacity);
         var pool = new ChunkPool(chunkCapacity);
         var collector = new SessionCollector(opts, pool, chunkCapacity);
-        _writer = null;
         _nextFlowId = 0;
 
         var meta = TraceMetadata.CreateDefault();
@@ -53,14 +54,13 @@ internal static class Profiler
         _state = new ProfilingState(opts, pool, collector, categoryFilter, sampling, Timestamp.Now());
     }
 
-    public static TraceSession Stop()
+    public TraceSession Stop()
     {
         if (Interlocked.Exchange(ref _enabled, 0) == 0)
             throw new InvalidOperationException("Profiler session is not running.");
 
         var state = _state;
         _state = null;
-        _writer = null;
 
         if (state is null)
             return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false);
@@ -119,85 +119,90 @@ internal static class Profiler
             wasOverflow);
     }
 
-    public static Scope Scope(int id)
+    public Scope Scope(int id)
     {
         if (!IsRunning) return new Scope(id, active: false);
         Write(id, TraceEventKind.Begin, 0, 0);
         return new Scope(id, active: true);
     }
 
-    internal static void End(int id)
+    internal static void End(int id) => _activeOnThread?.EndImpl(id);
+
+    internal void EndScope(int id) => EndImpl(id);
+
+    private void EndImpl(int id)
     {
         if (!IsRunning) return;
         Write(id, TraceEventKind.End, 0, 0);
     }
 
-    public static long NewFlowId()
+    public long NewFlowId()
     {
         var x = Interlocked.Increment(ref _nextFlowId);
         return x == 0 ? Interlocked.Increment(ref _nextFlowId) : x;
     }
 
-    public static void FlowStart(int id, long flowId)
+    public void FlowStart(int id, long flowId)
     {
         if (!IsRunning) return;
         if (flowId == 0) return;
         Write(id, TraceEventKind.FlowStart, flowId, 0);
     }
 
-    public static void FlowStep(int id, long flowId)
+    public void FlowStep(int id, long flowId)
     {
         if (!IsRunning) return;
         if (flowId == 0) return;
         Write(id, TraceEventKind.FlowStep, flowId, 0);
     }
 
-    public static void FlowEnd(int id, long flowId)
+    public void FlowEnd(int id, long flowId)
     {
         if (!IsRunning) return;
         if (flowId == 0) return;
         Write(id, TraceEventKind.FlowEnd, flowId, 0);
     }
 
-    public static long FlowStartNew(int id)
+    public long FlowStartNew(int id)
     {
         var flowId = NewFlowId();
         FlowStart(id, flowId);
         return flowId;
     }
 
-    public static void Instant(int id)
+    public void Instant(int id)
     {
         if (!IsRunning) return;
         Write(id, TraceEventKind.Instant, 0, 0);
     }
 
-    public static void Counter(int id, long value)
+    public void Counter(int id, long value)
     {
         if (!IsRunning) return;
         Write(id, TraceEventKind.Counter, 0, value);
     }
 
-    public static FlowScope Flow(int id)
+    public FlowScope Flow(int id)
     {
         if (!IsRunning)
-            return new FlowScope(id, 0, active: false);
+            return new FlowScope(id, 0, active: false, this);
 
         var flowId = NewFlowId();
         FlowStart(id, flowId);
-        return new FlowScope(id, flowId, active: true);
+        return new FlowScope(id, flowId, active: true, this);
     }
-    public static FlowHandle FlowStartNewHandle(int id)
+
+    public FlowHandle FlowStartNewHandle(int id)
     {
         if (!IsRunning)
-            return new FlowHandle(id, 0);
+            return new FlowHandle(id, 0, this);
 
         var flowId = NewFlowId();
         FlowStart(id, flowId);
-        return new FlowHandle(id, flowId);
+        return new FlowHandle(id, flowId, this);
     }
 
-    private static void Write(int id, TraceEventKind kind, long flowId, long value)
+    private void Write(int id, TraceEventKind kind, long flowId, long value)
     {
         var state = _state;
         if (state is null || state.Collector.IsClosed)
@@ -208,10 +213,11 @@ internal static class Profiler
             return;
 
         var version = Volatile.Read(ref _sessionVersion);
-        if (_writerVersion != version)
+        if (_writerOwner != this || _writerVersion != version)
         {
             _writer?.CloseAndDetach();
             _writer = null;
+            _writerOwner = this;
             _writerVersion = version;
         }
 
@@ -224,9 +230,7 @@ internal static class Profiler
             _writer = w;
         }
 
+        _activeOnThread = this;
         w.Write(id, kind, flowId, value);
     }
-
-    public static void EndScope(int id) => End(id);
-
 }
