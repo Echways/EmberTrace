@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
 using EmberTrace.Flow;
@@ -12,22 +13,13 @@ namespace EmberTrace.Tracing;
 internal static class Profiler
 {
     private static int _enabled;
-    private static SessionOptions? _options;
-
-    private static long _startTs;
-    private static long _endTs;
-
-    private static SessionCollector? _collector;
-    private static ChunkPool? _pool;
-    private static CategoryFilter? _categoryFilter;
-    private static SamplingPolicy _sampling;
+    private static ProfilingState? _state;
+    private static long _nextFlowId;
 
     [ThreadStatic] private static ThreadWriter? _writer;
     [ThreadStatic] private static int _writerVersion;
 
     private static int _sessionVersion;
-
-    private static long _nextFlowId;
 
     public static bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
@@ -38,30 +30,27 @@ internal static class Profiler
 
         Interlocked.Increment(ref _sessionVersion);
 
-        _options = options ?? new SessionOptions();
+        var opts = options ?? new SessionOptions();
 #if DEBUG
         Tracer.EnableRuntimeMetadata();
 #else
-        if (_options.EnableRuntimeMetadata)
+        if (opts.EnableRuntimeMetadata)
             Tracer.EnableRuntimeMetadata();
 #endif
-        var chunkCapacity = Math.Max(1024, _options.ChunkCapacity);
-        _pool = new ChunkPool(chunkCapacity);
-        _collector = new SessionCollector(_options, _pool, chunkCapacity);
+        var chunkCapacity = Math.Max(1024, opts.ChunkCapacity);
+        var pool = new ChunkPool(chunkCapacity);
+        var collector = new SessionCollector(opts, pool, chunkCapacity);
         _writer = null;
-
-        _startTs = Timestamp.Now();
-        _endTs = 0;
-
         _nextFlowId = 0;
 
         var meta = TraceMetadata.CreateDefault();
-        if ((_options.EnabledCategoryIds?.Length ?? 0) > 0 || (_options.DisabledCategoryIds?.Length ?? 0) > 0)
-            _categoryFilter = new CategoryFilter(meta, _options.EnabledCategoryIds, _options.DisabledCategoryIds);
-        else
-            _categoryFilter = null;
+        CategoryFilter? categoryFilter = null;
+        if ((opts.EnabledCategoryIds?.Length ?? 0) > 0 || (opts.DisabledCategoryIds?.Length ?? 0) > 0)
+            categoryFilter = new CategoryFilter(meta, opts.EnabledCategoryIds, opts.DisabledCategoryIds);
 
-        _sampling = new SamplingPolicy(_options.SampleEveryNGlobal, _options.SampleEveryNById, _options.MaxEventsPerSecond);
+        var sampling = new SamplingPolicy(opts.SampleEveryNGlobal, opts.SampleEveryNById, opts.MaxEventsPerSecond);
+
+        _state = new ProfilingState(opts, pool, collector, categoryFilter, sampling, Timestamp.Now());
     }
 
     public static TraceSession Stop()
@@ -69,11 +58,17 @@ internal static class Profiler
         if (Interlocked.Exchange(ref _enabled, 0) == 0)
             throw new InvalidOperationException("Profiler session is not running.");
 
-        _endTs = Timestamp.Now();
+        var state = _state;
+        _state = null;
+        _writer = null;
 
-        var collector = _collector;
-        var pool = _pool;
-        var options = _options ?? new SessionOptions();
+        if (state is null)
+            return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false);
+
+        state.EndTs = Timestamp.Now();
+
+        var collector = state.Collector;
+        var pool = state.Pool;
         IReadOnlyList<Chunk> sessionChunks = Array.Empty<Chunk>();
         var droppedEvents = 0L;
         var droppedChunks = 0L;
@@ -81,49 +76,42 @@ internal static class Profiler
         var wasOverflow = false;
         IReadOnlyDictionary<int, string> threadNames = new Dictionary<int, string>();
 
-        if (collector is not null)
+        collector.Close();
+        var writers = collector.Writers;
+        foreach (var t in writers)
+            t.CloseAndDetach();
+
+        var chunks = collector.Chunks;
+        sessionChunks = chunks;
+        droppedEvents = collector.DroppedEvents;
+        droppedChunks = collector.DroppedChunks;
+        sampledOutEvents = collector.SampledOutEvents;
+        wasOverflow = collector.WasOverflow;
+        threadNames = collector.ThreadNames;
+
+        if (chunks.Count > 0)
         {
-            collector.Close();
-            var writers = collector.Writers;
-            foreach (var t in writers)
-                t.CloseAndDetach();
-
-            var chunks = collector.Chunks;
-            sessionChunks = chunks;
-            droppedEvents = collector.DroppedEvents;
-            droppedChunks = collector.DroppedChunks;
-            sampledOutEvents = collector.SampledOutEvents;
-            wasOverflow = collector.WasOverflow;
-            threadNames = collector.ThreadNames;
-
-            if (pool is not null && chunks.Count > 0)
+            var snapshot = new Chunk[chunks.Count];
+            for (int i = 0; i < chunks.Count; i++)
             {
-                var snapshot = new Chunk[chunks.Count];
-                for (int i = 0; i < chunks.Count; i++)
-                {
-                    var source = chunks[i];
-                    var copy = new Chunk(source.Count);
-                    if (source.Count > 0)
-                        Array.Copy(source.Events, copy.Events, source.Count);
-                    copy.Count = source.Count;
-                    snapshot[i] = copy;
+                var source = chunks[i];
+                var copy = new Chunk(source.Count);
+                if (source.Count > 0)
+                    Array.Copy(source.Events, copy.Events, source.Count);
+                copy.Count = source.Count;
+                snapshot[i] = copy;
 
-                    pool.Return(source);
-                }
-
-                sessionChunks = snapshot;
+                pool.Return(source);
             }
-        }
 
-        _collector = null;
-        _pool = null;
-        _writer = null;
+            sessionChunks = snapshot;
+        }
 
         return new TraceSession(
             sessionChunks,
-            _startTs,
-            _endTs,
-            options,
+            state.StartTs,
+            state.EndTs,
+            state.Options,
             threadNames,
             droppedEvents,
             droppedChunks,
@@ -211,12 +199,11 @@ internal static class Profiler
 
     private static void Write(int id, TraceEventKind kind, long flowId, long value)
     {
-        var collector = _collector;
-        var pool = _pool;
-        if (collector is null || pool is null || collector.IsClosed)
+        var state = _state;
+        if (state is null || state.Collector.IsClosed)
             return;
 
-        var filter = _categoryFilter;
+        var filter = state.CategoryFilter;
         if (filter is not null && !filter.Allows(id))
             return;
 
@@ -228,10 +215,11 @@ internal static class Profiler
             _writerVersion = version;
         }
 
+        var collector = state.Collector;
         var w = _writer;
         if (w is null || w.IsClosed)
         {
-            w = new ThreadWriter(collector, _sampling);
+            w = new ThreadWriter(collector, state.Sampling);
             collector.RegisterWriter(w);
             _writer = w;
         }

@@ -1,0 +1,23 @@
+using System.Collections.Generic;
+
+namespace EmberTrace.Internal.Metadata
+{
+    internal sealed class GeneratedTraceMetadataProvider : global::EmberTrace.Metadata.ITraceMetadataProvider
+    {
+        private static readonly Dictionary<int, global::EmberTrace.Metadata.TraceMeta> Map = new()
+        {
+{{entries}}
+        };
+
+        public bool TryGet(int id, out global::EmberTrace.Metadata.TraceMeta meta) => Map.TryGetValue(id, out meta);
+    }
+
+    internal static class EmberTraceMetadataModuleInitializer
+    {
+        [System.Runtime.CompilerServices.ModuleInitializer]
+        internal static void Init()
+        {
+            global::EmberTrace.Metadata.TraceMetadata.Register(new GeneratedTraceMetadataProvider());
+        }
+    }
+}
