@@ -6,7 +6,7 @@ using EmberTrace.Tracing;
 
 namespace EmberTrace;
 
-public sealed class TracingSession
+public sealed class TracingSession : IDisposable
 {
     private readonly Profiler _profiler = new();
 
@@ -43,4 +43,10 @@ public sealed class TracingSession
     public void FlowStep(FlowHandle handle) => handle.Step();
 
     public ITraceMetadataProvider CreateMetadata() => TraceMetadata.CreateDefault();
+
+    public void Dispose()
+    {
+        if (_profiler.IsRunning)
+            _profiler.Stop();
+    }
 }
