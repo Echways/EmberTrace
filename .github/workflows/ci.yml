@@ -33,8 +33,11 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -c Release -p:UseLocalEmberTrace=true
 
-      - name: Test
+      - name: Test-Main
         run: dotnet test tests/EmberTrace.Tests/EmberTrace.Tests.csproj --no-build -c Release -p:UseLocalEmberTrace=true
+
+      - name: Test-Roslyn
+        run: dotnet test tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj --no-build -c Release -p:UseLocalEmberTrace=true
 
       - name: Benchmarks
         run: dotnet run --project benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj -c Release -p:UseLocalEmberTrace=true -- --filter *ScopeBenchmarks* --exporters json --artifacts BenchmarkDotNet.Artifacts
