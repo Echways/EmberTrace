@@ -21,8 +21,6 @@ internal sealed class Profiler
     [ThreadStatic] private static int _writerVersion;
     [ThreadStatic] private static ThreadWriter? _writer;
 
-    [ThreadStatic] private static Profiler? _activeOnThread;
-
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
     public void Start(SessionOptions? options = null)
@@ -121,12 +119,10 @@ internal sealed class Profiler
 
     public Scope Scope(int id)
     {
-        if (!IsRunning) return new Scope(id, active: false);
+        if (!IsRunning) return new Scope(id, null, active: false);
         Write(id, TraceEventKind.Begin, 0, 0);
-        return new Scope(id, active: true);
+        return new Scope(id, this, active: true);
     }
-
-    internal static void End(int id) => _activeOnThread?.EndImpl(id);
 
     internal void EndScope(int id) => EndImpl(id);
 
@@ -230,7 +226,6 @@ internal sealed class Profiler
             _writer = w;
         }
 
-        _activeOnThread = this;
         w.Write(id, kind, flowId, value);
     }
 }
