@@ -15,16 +15,17 @@ public class ReportTextTests
         const int ioId = 9001;
         const int cpuId = 9002;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 64 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 64 });
         TraceSession session;
         try
         {
-            using (Tracer.Scope(ioId)) { }
-            using (Tracer.Scope(cpuId)) { }
+            using (ts.Scope(ioId)) { }
+            using (ts.Scope(cpuId)) { }
         }
         finally
         {
-            session = Tracer.Stop();
+            session = ts.Stop();
         }
 
         var trace = session.Process();

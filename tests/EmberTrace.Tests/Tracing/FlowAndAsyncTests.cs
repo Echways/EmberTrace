@@ -16,19 +16,20 @@ public class FlowAndAsyncTests
         const int traceId = 5001;
         const int steps = 3;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 128 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 128 });
 
         TraceSession session;
         try
         {
-            var handle = Tracer.FlowStartNewHandle(traceId);
+            var handle = ts.FlowStartNewHandle(traceId);
             for (int i = 0; i < steps; i++)
                 handle.Step();
             handle.End();
         }
         finally
         {
-            session = Tracer.Stop();
+            session = ts.Stop();
         }
 
         var events = new List<TraceEventRecord>();
@@ -53,7 +54,8 @@ public class FlowAndAsyncTests
         const int tasks = 5;
         const int iterations = 100;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 256 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 256 });
 
         try
         {
@@ -62,7 +64,7 @@ public class FlowAndAsyncTests
                 {
                     for (int i = 0; i < iterations; i++)
                     {
-                        await using (Tracer.ScopeAsync(id))
+                        await using (ts.ScopeAsync(id))
                             await Task.Yield();
                     }
                 }));
@@ -71,7 +73,7 @@ public class FlowAndAsyncTests
         }
         finally
         {
-            var session = Tracer.Stop();
+            var session = ts.Stop();
             Assert.AreEqual(tasks * iterations * 2, session.EventCount);
         }
     }

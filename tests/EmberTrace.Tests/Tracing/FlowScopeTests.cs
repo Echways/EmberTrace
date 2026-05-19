@@ -15,17 +15,18 @@ public class FlowScopeTests
     {
         const int id = 7101;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 128 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 128 });
 
         TraceSession session;
         try
         {
-            using var flow = Tracer.Flow(id);
+            using var flow = ts.Flow(id);
             flow.Step();
         }
         finally
         {
-            session = Tracer.Stop();
+            session = ts.Stop();
         }
 
         var events = new List<TraceEventRecord>();
@@ -44,18 +45,19 @@ public class FlowScopeTests
     {
         const int id = 7102;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 128 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 128 });
 
         TraceSession session;
         try
         {
-            using var flow = Tracer.Flow(id);
+            using var flow = ts.Flow(id);
             await Task.Yield();
             flow.Step();
         }
         finally
         {
-            session = Tracer.Stop();
+            session = ts.Stop();
         }
 
         var flowEvents = new List<TraceEventRecord>();
@@ -76,12 +78,13 @@ public class FlowScopeTests
     {
         const int id = 7103;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 128 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 128 });
 
         TraceSession session;
         try
         {
-            using var flow = Tracer.Flow(id);
+            using var flow = ts.Flow(id);
             var handle = flow.ToHandle();
             handle.Step();
             handle.End();
@@ -89,7 +92,7 @@ public class FlowScopeTests
         }
         finally
         {
-            session = Tracer.Stop();
+            session = ts.Stop();
         }
 
         var flowEvents = new List<TraceEventRecord>();

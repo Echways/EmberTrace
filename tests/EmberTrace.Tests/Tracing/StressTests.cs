@@ -19,7 +19,8 @@ public class StressTests
         const int iterations = 3000;
         const int flowEvery = 50;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 256 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 256 });
 
         try
         {
@@ -29,14 +30,14 @@ public class StressTests
                     for (int i = 0; i < iterations; i++)
                     {
                         var scopeId = scopeIdBase + (taskIndex % 3);
-                        using (Tracer.Scope(scopeId))
+                        using (ts.Scope(scopeId))
                         {
                             if (i % flowEvery == 0)
                             {
-                                var id = Tracer.NewFlowId();
-                                Tracer.FlowStart(flowId, id);
-                                Tracer.FlowStep(flowId, id);
-                                Tracer.FlowEnd(flowId, id);
+                                var id = ts.NewFlowId();
+                                ts.FlowStart(flowId, id);
+                                ts.FlowStep(flowId, id);
+                                ts.FlowEnd(flowId, id);
                             }
                         }
                     }
@@ -46,7 +47,7 @@ public class StressTests
         }
         finally
         {
-            var session = Tracer.Stop();
+            var session = ts.Stop();
 
             var flowPerTask = (iterations + flowEvery - 1) / flowEvery;
             var expectedScopeEvents = tasks * iterations * 2;
@@ -63,7 +64,8 @@ public class StressTests
         const int tasks = 6;
         const int iterations = 400;
 
-        Tracer.Start(new SessionOptions { ChunkCapacity = 256 });
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { ChunkCapacity = 256 });
 
         try
         {
@@ -72,7 +74,7 @@ public class StressTests
                 {
                     for (int i = 0; i < iterations; i++)
                     {
-                        await using (Tracer.ScopeAsync(id))
+                        await using (ts.ScopeAsync(id))
                             await Task.Delay(1);
                     }
                 }));
@@ -81,7 +83,7 @@ public class StressTests
         }
         finally
         {
-            var session = Tracer.Stop();
+            var session = ts.Stop();
             Assert.AreEqual(tasks * iterations * 2, session.EventCount);
         }
     }
