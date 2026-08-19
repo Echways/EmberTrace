@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using EmberTrace;
 using EmberTrace.Sessions;
@@ -40,6 +42,104 @@ public class TracerConcurrencyTests
             var expected = threads * iterations * 2;
             Assert.AreEqual(expected, session.EventCount);
         }
+    }
+
+    [TestMethod]
+    public void Stop_WhileWritersAreHot_QuiescesAndKeepsEventsIntact()
+    {
+        for (int round = 0; round < 20; round++)
+        {
+            var ts = new TracingSession();
+            ts.Start(new SessionOptions { ChunkCapacity = 512 });
+
+            using var stop = new CancellationTokenSource();
+            var writers = Enumerable.Range(0, 8)
+                .Select(_ => Task.Factory.StartNew(() =>
+                {
+                    int id = 0;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        id = (id + 1) & 0x3F;
+                        ts.Counter(id, id * 31L);
+                    }
+                }, TaskCreationOptions.LongRunning))
+                .ToArray();
+
+            Thread.Sleep(5);
+            var session = ts.Stop();
+            stop.Cancel();
+            Assert.IsTrue(Task.WaitAll(writers, TimeSpan.FromSeconds(10)));
+
+            foreach (var e in session.EnumerateEventsSorted())
+            {
+                Assert.AreEqual(e.Id * 31L, e.Value, "event fields came from different writes");
+                Assert.AreEqual(TraceEventKind.Counter, e.Kind);
+                Assert.IsGreaterThan(0, e.Sequence);
+            }
+
+            Assert.IsGreaterThan(0, session.EventCount);
+        }
+    }
+
+    [TestMethod]
+    public void Stop_WaitsForAWriterThatIsStillInsideWrite()
+    {
+        using var insideWrite = new ManualResetEventSlim();
+        using var releaseWrite = new ManualResetEventSlim();
+
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions
+        {
+            ChunkCapacity = 512,
+            MaxTotalEvents = 1,
+            OverflowPolicy = OverflowPolicy.DropNew,
+            OnOverflow = _ =>
+            {
+                insideWrite.Set();
+                releaseWrite.Wait();
+            }
+        });
+
+        var writer = Task.Run(() =>
+        {
+            ts.Instant(1);
+            ts.Instant(2);
+        });
+
+        Assert.IsTrue(insideWrite.Wait(TimeSpan.FromSeconds(10)));
+
+        var stop = Task.Run(ts.Stop);
+        Assert.IsFalse(stop.Wait(TimeSpan.FromMilliseconds(200)), "Stop() must not snapshot while a writer is in flight");
+
+        releaseWrite.Set();
+
+        Assert.IsTrue(stop.Wait(TimeSpan.FromSeconds(10)));
+        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)));
+        Assert.AreEqual(1, stop.Result.EventCount);
+    }
+
+    [TestMethod]
+    public void Stop_FromOverflowHandler_DoesNotDeadlock()
+    {
+        var ts = new TracingSession();
+        TraceSession? stopped = null;
+
+        ts.Start(new SessionOptions
+        {
+            ChunkCapacity = 512,
+            MaxTotalEvents = 1,
+            OverflowPolicy = OverflowPolicy.DropNew,
+            OnOverflow = _ => stopped = ts.Stop()
+        });
+
+        var writer = Task.Run(() =>
+        {
+            for (int i = 0; i < 16; i++)
+                ts.Instant(7);
+        });
+
+        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)), "Stop() called from the overflow handler must not deadlock");
+        Assert.IsNotNull(stopped);
     }
 
     [TestMethod]

@@ -15,9 +15,8 @@ public class ProfilingStateWriterTests
     private static ProfilingState CreateState()
     {
         var options = new SessionOptions { ChunkCapacity = 1024 };
-        var pool = new ChunkPool(options.ChunkCapacity);
-        var collector = new SessionCollector(options, pool, options.ChunkCapacity);
-        return new ProfilingState(options, pool, collector, null, default, 0);
+        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
+        return new ProfilingState(options, collector, null, default, 0);
     }
 
     [TestMethod]

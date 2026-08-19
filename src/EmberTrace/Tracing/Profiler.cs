@@ -35,8 +35,7 @@ internal sealed class Profiler
             Tracer.EnableRuntimeMetadata();
 #endif
         var chunkCapacity = Math.Max(1024, opts.ChunkCapacity);
-        var pool = new ChunkPool(chunkCapacity);
-        var collector = new SessionCollector(opts, pool, chunkCapacity);
+        var collector = new SessionCollector(opts, new ChunkPool(chunkCapacity), chunkCapacity);
         _nextFlowId = 0;
 
         var meta = TraceMetadata.CreateDefault();
@@ -46,7 +45,7 @@ internal sealed class Profiler
 
         var sampling = new SamplingPolicy(opts.SampleEveryNGlobal, opts.SampleEveryNById, opts.MaxEventsPerSecond);
 
-        _state = new ProfilingState(opts, pool, collector, categoryFilter, sampling, Timestamp.Now());
+        _state = new ProfilingState(opts, collector, categoryFilter, sampling, Timestamp.Now());
     }
 
     public TraceSession Stop()
@@ -63,56 +62,33 @@ internal sealed class Profiler
         state.EndTs = Timestamp.Now();
 
         var collector = state.Collector;
-        var pool = state.Pool;
-        IReadOnlyList<Chunk> sessionChunks = Array.Empty<Chunk>();
-        var droppedEvents = 0L;
-        var droppedChunks = 0L;
-        var sampledOutEvents = 0L;
-        var wasOverflow = false;
-        IReadOnlyDictionary<int, string> threadNames = new Dictionary<int, string>();
-
         collector.Close();
-        foreach (var writer in state.Writers)
-            writer.CloseAndDetach();
 
-        Interlocked.MemoryBarrier();
+        foreach (var writer in state.Writers)
+            writer.DrainAndDetach();
 
         var chunks = collector.Chunks;
-        sessionChunks = chunks;
-        droppedEvents = collector.DroppedEvents;
-        droppedChunks = collector.DroppedChunks;
-        sampledOutEvents = collector.SampledOutEvents;
-        wasOverflow = collector.WasOverflow;
-        threadNames = collector.ThreadNames;
-
-        if (chunks.Count > 0)
+        var snapshot = new Chunk[chunks.Count];
+        for (int i = 0; i < chunks.Count; i++)
         {
-            var snapshot = new Chunk[chunks.Count];
-            for (int i = 0; i < chunks.Count; i++)
-            {
-                var source = chunks[i];
-                var copy = new Chunk(source.Count);
-                if (source.Count > 0)
-                    Array.Copy(source.Events, copy.Events, source.Count);
-                copy.Count = source.Count;
-                snapshot[i] = copy;
-
-                pool.Return(source);
-            }
-
-            sessionChunks = snapshot;
+            var source = chunks[i];
+            var copy = new Chunk(source.Count);
+            if (source.Count > 0)
+                Array.Copy(source.Events, copy.Events, source.Count);
+            copy.Count = source.Count;
+            snapshot[i] = copy;
         }
 
         return new TraceSession(
-            sessionChunks,
+            snapshot,
             state.StartTs,
             state.EndTs,
             state.Options,
-            threadNames,
-            droppedEvents,
-            droppedChunks,
-            sampledOutEvents,
-            wasOverflow);
+            collector.ThreadNames,
+            collector.DroppedEvents,
+            collector.DroppedChunks,
+            collector.SampledOutEvents,
+            collector.WasOverflow);
     }
 
     public Scope Scope(int id)

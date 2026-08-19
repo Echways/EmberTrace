@@ -1,10 +1,10 @@
-using System.Threading;
+using System.Collections.Concurrent;
 
 namespace EmberTrace.Internal.Buffering;
 
 internal sealed class ChunkPool
 {
-    private Chunk? _head;
+    private readonly ConcurrentQueue<Chunk> _free = new();
     private readonly int _capacity;
 
     public ChunkPool(int capacity)
@@ -14,31 +14,16 @@ internal sealed class ChunkPool
 
     public Chunk Rent()
     {
-        while (true)
-        {
-            var h = Volatile.Read(ref _head);
-            if (h is null)
-                return new Chunk(_capacity);
+        if (!_free.TryDequeue(out var chunk))
+            return new Chunk(_capacity);
 
-            var n = h.Next;
-            if (Interlocked.CompareExchange(ref _head, n, h) == h)
-            {
-                h.Next = null;
-                h.Reset();
-                return h;
-            }
-        }
+        chunk.Reset();
+        return chunk;
     }
 
     public void Return(Chunk chunk)
     {
         chunk.Reset();
-        while (true)
-        {
-            var h = Volatile.Read(ref _head);
-            chunk.Next = h;
-            if (Interlocked.CompareExchange(ref _head, chunk, h) == h)
-                return;
-        }
+        _free.Enqueue(chunk);
     }
 }

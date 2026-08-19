@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using EmberTrace.Internal.Buffering;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -26,6 +28,32 @@ public class ChunkPoolTests
         var originals = new HashSet<Chunk>(chunks);
         var reused = rented.Count(c => originals.Contains(c));
         Assert.AreEqual(chunks.Length, reused);
+    }
+
+    [TestMethod]
+    public void RentAndReturn_UnderConcurrency_NeverHandsOneChunkToTwoThreads()
+    {
+        var pool = new ChunkPool(4);
+        for (int i = 0; i < 32; i++)
+            pool.Return(new Chunk(4));
+
+        var collisions = 0;
+
+        Parallel.For(0, Environment.ProcessorCount * 2, _ =>
+        {
+            var marker = Environment.CurrentManagedThreadId;
+            for (int i = 0; i < 100_000; i++)
+            {
+                var chunk = pool.Rent();
+                chunk.Count = marker;
+                Thread.SpinWait(10);
+                if (Volatile.Read(ref chunk.Count) != marker)
+                    Interlocked.Increment(ref collisions);
+                pool.Return(chunk);
+            }
+        });
+
+        Assert.AreEqual(0, collisions, "a pooled chunk was handed to two threads at once");
     }
 
     [TestMethod]
