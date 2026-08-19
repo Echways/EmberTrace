@@ -26,8 +26,9 @@ internal sealed class ThreadWriter
 {
     private SessionCollector? _collector;
 
+    private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
     private Chunk? _chunk;
-    private int _closed;
+    private int _writesInFlight;
     private readonly SamplingPolicy _sampling;
     private long _globalSampleCounter;
     private long _sequence;
@@ -46,13 +47,15 @@ internal sealed class ThreadWriter
             collector.RegisterThreadName(Environment.CurrentManagedThreadId, threadName);
     }
 
-    public bool IsClosed => Volatile.Read(ref _closed) == 1;
-
-    public void Close() => Interlocked.Exchange(ref _closed, 1);
-
-    public void CloseAndDetach()
+    public void DrainAndDetach()
     {
-        Interlocked.Exchange(ref _closed, 1);
+        if (_ownerThreadId != Environment.CurrentManagedThreadId)
+        {
+            var spin = new SpinWait();
+            while (Volatile.Read(ref _writesInFlight) != 0)
+                spin.SpinOnce();
+        }
+
         _collector = null;
         _chunk = null;
     }
@@ -60,11 +63,25 @@ internal sealed class ThreadWriter
     public void Write(int id, TraceEventKind kind, long flowId, long value)
     {
         var collector = _collector;
-        var chunk = _chunk;
-
-        if (IsClosed || collector is null || collector.IsClosed)
+        if (collector is null)
             return;
 
+        var depth = Interlocked.Increment(ref _writesInFlight);
+        try
+        {
+            if (collector.IsClosed)
+                return;
+
+            WriteCore(id, kind, flowId, value, collector);
+        }
+        finally
+        {
+            Volatile.Write(ref _writesInFlight, depth - 1);
+        }
+    }
+
+    private void WriteCore(int id, TraceEventKind kind, long flowId, long value, SessionCollector collector)
+    {
         if (!ShouldSample(id, collector))
             return;
 
@@ -72,12 +89,13 @@ internal sealed class ThreadWriter
         if (!ShouldAcceptRate(now, collector))
             return;
 
+        var chunk = _chunk;
         if (chunk is null || chunk.IsFull)
         {
             if (chunk is not null)
                 collector.MarkChunkInactive(chunk);
 
-            if (!collector.TryRentChunk(out chunk))
+            if (!collector.TryRentChunk(out chunk) || chunk is null)
             {
                 collector.RecordDroppedEvent(OverflowReason.MaxTotalChunks);
                 return;
@@ -89,13 +107,7 @@ internal sealed class ThreadWriter
         if (!collector.TryAcceptEvent())
             return;
 
-        var sequence = ++_sequence;
-        var e = new TraceEvent(id, Environment.CurrentManagedThreadId, now, kind, flowId, value, sequence);
-
-        if (chunk is null)
-            return;
-
-        chunk.TryWrite(e);
+        chunk.TryWrite(new TraceEvent(id, Environment.CurrentManagedThreadId, now, kind, flowId, value, ++_sequence));
     }
 
     private bool ShouldSample(int id, SessionCollector collector)

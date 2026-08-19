@@ -4,7 +4,6 @@ internal sealed class Chunk
 {
     public readonly TraceEvent[] Events;
     public int Count;
-    public Chunk? Next;
 
     public Chunk(int capacity)
     {
@@ -27,6 +26,5 @@ internal sealed class Chunk
     public void Reset()
     {
         Count = 0;
-        Next = null;
     }
 }
