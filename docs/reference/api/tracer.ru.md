@@ -67,8 +67,11 @@ using (Tracer.Scope(Tracer.Id("load")))
 ### `AsyncScope Tracer.ScopeAsync(int id)`
 Async-friendly scope, реализующий `IAsyncDisposable`.
 
-- Создание делает `Profiler.Scope(id)` только если `Tracer.IsRunning == true`.
-- `DisposeAsync()` завершает scope через `Profiler.End(id)`.
+- Создание пишет `Begin` только если `Tracer.IsRunning == true`.
+- Каждый экземпляр получает уникальный async scope id. Его несут и `Begin`, и `End`, поэтому scope сопоставляется по идентичности, а не по потоку: продолжение может возобновиться на любом потоке, длительность останется корректной.
+- Этот id течёт через `ExecutionContext`, поэтому вложенные scope — включая синхронный `Scope` на других потоках — записываются как его дети.
+- `DisposeAsync()` пишет `End` и восстанавливает объемлющий async scope.
+- Chrome trace экспорт пишет async scope парой `ph: "b"/"e"` с `id`, то есть каждый из них получает свою async-дорожку.
 
 Пример:
 

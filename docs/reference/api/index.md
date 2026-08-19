@@ -5,3 +5,4 @@
 Precise contracts of the public API.
 
 - [Tracer](tracer.md)
+- [ScopeReader](scope-reader.md)

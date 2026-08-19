@@ -67,8 +67,11 @@ using (Tracer.Scope(Tracer.Id("load")))
 ### `AsyncScope Tracer.ScopeAsync(int id)`
 Async-friendly scope implementing `IAsyncDisposable`.
 
-- Construction calls `Profiler.Scope(id)` only if `Tracer.IsRunning == true`.
-- `DisposeAsync()` closes the scope via `Profiler.End(id)`.
+- Construction writes `Begin` only if `Tracer.IsRunning == true`.
+- Every instance gets a unique async scope id. Both `Begin` and `End` carry it, so the scope is matched by identity, not by thread: the continuation may resume on any thread and the duration stays correct.
+- The id flows through `ExecutionContext`, so scopes opened inside it - including synchronous `Scope` on other threads - are recorded as its children.
+- `DisposeAsync()` writes `End` and restores the enclosing async scope.
+- Chrome trace export writes async scopes as `ph: "b"/"e"` pairs with `id`, so each of them gets its own async track.
 
 Example:
 

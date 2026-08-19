@@ -28,82 +28,64 @@ public static class OpenTelemetryExport
 
         var baseUtc = options.BaseUtc ?? DateTimeOffset.UtcNow - TimeSpan.FromSeconds(session.DurationMs / 1000.0);
         var spans = new List<Activity>(capacity: (int)Math.Min(int.MaxValue, session.EventCount / 2));
-        var stacks = new Dictionary<int, List<SpanFrame>>();
+        var live = new Dictionary<int, List<Activity>>();
+        var reader = new ScopeReader(session);
 
-        foreach (var e in session.EnumerateEventsSorted())
+        using var flows = FlowEvents(session, options.IncludeFlowsAsLinks).GetEnumerator();
+        var pendingFlow = flows.MoveNext();
+
+        foreach (var step in reader.Read())
         {
-            if (e.Kind == TraceEventKind.Begin)
-            {
-                if (!stacks.TryGetValue(e.ThreadId, out var stack))
-                {
-                    stack = new List<SpanFrame>(capacity: 64);
-                    stacks.Add(e.ThreadId, stack);
-                }
+            var timestamp = step.Kind == ScopeStepKind.Open ? step.StartTimestamp : step.EndTimestamp;
 
-                Resolve(meta, e.Id, out var name, out var category);
+            while (pendingFlow && flows.Current.Timestamp <= timestamp)
+            {
+                AddFlowLink(live, flows.Current);
+                pendingFlow = flows.MoveNext();
+            }
+
+            if (step.Kind == ScopeStepKind.Open)
+            {
+                Resolve(meta, step.Id, out var name, out var category);
 
                 var activity = new Activity(name);
                 activity.SetIdFormat(ActivityIdFormat.W3C);
-                activity.SetStartTime(ToUtc(session, baseUtc, e.Timestamp));
+                activity.SetStartTime(ToUtc(session, baseUtc, step.StartTimestamp));
 
-                if (stack.Count > 0)
-                {
-                    var parent = stack[^1].Activity;
+                if (step.ParentTag is Activity parent)
                     activity.SetParentId(parent.TraceId, parent.SpanId, parent.ActivityTraceFlags);
-                }
 
                 activity.Start();
-                activity.SetTag("embertrace.id", e.Id);
+                activity.SetTag("embertrace.id", step.Id);
 
                 if (!string.IsNullOrEmpty(category))
                     activity.SetTag("embertrace.category", category);
 
                 if (options.IncludeThreadIdTag)
-                    activity.SetTag("thread.id", e.ThreadId);
+                    activity.SetTag("thread.id", step.ThreadId);
 
-                stack.Add(new SpanFrame(e.Id, activity));
+                if (step.IsAsync)
+                    activity.SetTag("embertrace.async_scope_id", step.AsyncScopeId);
+
+                step.Tag = activity;
+                Track(live, step.ThreadId).Add(activity);
                 continue;
             }
 
-            if (e.Kind == TraceEventKind.End)
-            {
-                if (!stacks.TryGetValue(e.ThreadId, out var stack) || stack.Count == 0)
-                    continue;
-
-                var idx = FindMatch(stack, e.Id);
-                if (idx < 0)
-                    continue;
-
-                var endTime = ToUtc(session, baseUtc, e.Timestamp);
-                for (int i = stack.Count - 1; i >= idx; i--)
-                    CloseSpan(stack[i], endTime, spans);
-
-                stack.RemoveRange(idx, stack.Count - idx);
-                continue;
-            }
-
-            if (!options.IncludeFlowsAsLinks)
+            if (step.Tag is not Activity span)
                 continue;
 
-            if (e.FlowId == 0)
-                continue;
+            Untrack(live, step.ThreadId, span);
 
-            if (!stacks.TryGetValue(e.ThreadId, out var flowStack) || flowStack.Count == 0)
-                continue;
-
-            var link = CreateFlowLink(e.FlowId, e.Id, e.Timestamp);
-            flowStack[^1].Activity.AddLink(link);
+            span.SetEndTime(ToUtc(session, baseUtc, step.EndTimestamp));
+            span.Stop();
+            spans.Add(span);
         }
 
-        if (stacks.Count > 0)
+        while (pendingFlow)
         {
-            var endTime = ToUtc(session, baseUtc, session.EndTimestamp);
-            foreach (var kvp in stacks)
-            {
-                var stack = kvp.Value;
-                for (int i = stack.Count - 1; i >= 0; i--)
-                    CloseSpan(stack[i], endTime, spans);
-            }
+            AddFlowLink(live, flows.Current);
+            pendingFlow = flows.MoveNext();
         }
 
         return spans;
@@ -122,22 +104,47 @@ public static class OpenTelemetryExport
             onSpan(spans[i]);
     }
 
-    private static int FindMatch(List<SpanFrame> stack, int id)
+    private static IEnumerable<TraceEventRecord> FlowEvents(TraceSession session, bool include)
     {
-        for (int i = stack.Count - 1; i >= 0; i--)
-        {
-            if (stack[i].Id == id)
-                return i;
-        }
+        if (!include)
+            yield break;
 
-        return -1;
+        foreach (var e in session.EnumerateEventsSorted())
+        {
+            if (e.IsScope || e.FlowId == 0)
+                continue;
+
+            yield return e;
+        }
     }
 
-    private static void CloseSpan(SpanFrame frame, DateTime endTime, List<Activity> spans)
+    private static List<Activity> Track(Dictionary<int, List<Activity>> live, int threadId)
     {
-        frame.Activity.SetEndTime(endTime);
-        frame.Activity.Stop();
-        spans.Add(frame.Activity);
+        if (!live.TryGetValue(threadId, out var stack))
+        {
+            stack = new List<Activity>(capacity: 64);
+            live.Add(threadId, stack);
+        }
+
+        return stack;
+    }
+
+    private static void Untrack(Dictionary<int, List<Activity>> live, int threadId, Activity activity)
+    {
+        if (!live.TryGetValue(threadId, out var stack))
+            return;
+
+        var index = stack.LastIndexOf(activity);
+        if (index >= 0)
+            stack.RemoveAt(index);
+    }
+
+    private static void AddFlowLink(Dictionary<int, List<Activity>> live, TraceEventRecord e)
+    {
+        if (!live.TryGetValue(e.ThreadId, out var stack) || stack.Count == 0)
+            return;
+
+        stack[^1].AddLink(CreateFlowLink(e.FlowId, e.Id, e.Timestamp));
     }
 
     private static DateTime ToUtc(TraceSession session, DateTimeOffset baseUtc, long timestamp)
@@ -202,17 +209,5 @@ public static class OpenTelemetryExport
 
         name = id.ToString();
         category = string.Empty;
-    }
-
-    private readonly struct SpanFrame
-    {
-        public readonly int Id;
-        public readonly Activity Activity;
-
-        public SpanFrame(int id, Activity activity)
-        {
-            Id = id;
-            Activity = activity;
-        }
     }
 }

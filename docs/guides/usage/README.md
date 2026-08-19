@@ -45,6 +45,8 @@ await using (Tracer.ScopeAsync(Ids.Io))
 }
 ```
 
+An async scope is matched by its own identity, not by thread, so a continuation that resumes on another thread still produces the correct duration. Scopes opened inside it - including synchronous ones on worker threads - are attached to it as children.
+
 ## Identifiers (TraceId)
 
 EmberTrace works with `int id`. There are three convenient strategies:
