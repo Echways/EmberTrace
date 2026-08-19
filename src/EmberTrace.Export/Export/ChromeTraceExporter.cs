@@ -76,9 +76,15 @@ internal static class ChromeTraceExporter
         var start = session.StartTimestamp;
         var freq = session.TimestampFrequency;
 
-        var complete = CollectComplete(session, start);
+        var complete = new List<CompleteEvent>(capacity: checked((int)Math.Min(int.MaxValue, session.EventCount / 2)));
+        var asyncSpans = new List<AsyncSpan>();
+        CollectScopes(session, start, complete, asyncSpans);
+
         if (sortByStartTimestamp)
+        {
             complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.ThreadId, a.Sequence, b.StartTs, b.ThreadId, b.Sequence));
+            asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartThreadId, a.Sequence, b.StartTs, b.StartThreadId, b.Sequence));
+        }
 
         var markers = CollectFlows(session, start);
         markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
@@ -114,6 +120,9 @@ internal static class ChromeTraceExporter
             }
         }
 
+        for (int i = 0; i < asyncSpans.Count; i++)
+            WriteAsyncSpan(json, asyncSpans[i], meta, start, freq, pid);
+
         for (int i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, start, freq, pid);
 
@@ -146,20 +155,6 @@ internal static class ChromeTraceExporter
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
-    private readonly struct Frame
-    {
-        public readonly int Id;
-        public readonly long Start;
-        public readonly long Sequence;
-
-        public Frame(int id, long start, long sequence)
-        {
-            Id = id;
-            Start = start;
-            Sequence = sequence;
-        }
-    }
-
     private readonly struct CompleteEvent
     {
         public readonly int Id;
@@ -174,6 +169,28 @@ internal static class ChromeTraceExporter
             ThreadId = threadId;
             StartTs = startTs;
             DurTicks = durTicks;
+            Sequence = sequence;
+        }
+    }
+
+    private readonly struct AsyncSpan
+    {
+        public readonly int Id;
+        public readonly long AsyncScopeId;
+        public readonly int StartThreadId;
+        public readonly int EndThreadId;
+        public readonly long StartTs;
+        public readonly long EndTs;
+        public readonly long Sequence;
+
+        public AsyncSpan(int id, long asyncScopeId, int startThreadId, int endThreadId, long startTs, long endTs, long sequence)
+        {
+            Id = id;
+            AsyncScopeId = asyncScopeId;
+            StartThreadId = startThreadId;
+            EndThreadId = endThreadId;
+            StartTs = startTs;
+            EndTs = endTs;
             Sequence = sequence;
         }
     }
@@ -207,60 +224,41 @@ internal static class ChromeTraceExporter
         return list;
     }
 
-    private static List<CompleteEvent> CollectComplete(TraceSession session, long start)
+    private static void CollectScopes(
+        TraceSession session,
+        long start,
+        List<CompleteEvent> complete,
+        List<AsyncSpan> asyncSpans)
     {
-        var stacks = new Dictionary<int, List<Frame>>(capacity: 8);
-        var list = new List<CompleteEvent>(capacity: checked((int)Math.Min(int.MaxValue, session.EventCount / 2)));
+        var reader = new ScopeReader(session);
 
-        foreach (var e in session.EnumerateEvents())
+        foreach (var step in reader.Read())
         {
-            if (e.Timestamp < start) continue;
-            if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End) continue;
+            if (step.Kind != ScopeStepKind.Close || step.IsSynthetic)
+                continue;
 
-            if (!stacks.TryGetValue(e.ThreadId, out var stack))
-            {
-                stack = new List<Frame>(capacity: 64);
-                stacks.Add(e.ThreadId, stack);
-            }
+            if (step.StartTimestamp < start)
+                continue;
 
-            if (e.Kind == TraceEventKind.Begin)
+            var dur = step.DurationTicks;
+            if (dur < 0)
+                continue;
+
+            if (step.IsAsync)
             {
-                stack.Add(new Frame(e.Id, e.Timestamp, e.Sequence));
+                asyncSpans.Add(new AsyncSpan(
+                    step.Id,
+                    step.AsyncScopeId,
+                    step.ThreadId,
+                    step.EndThreadId,
+                    step.StartTimestamp,
+                    step.EndTimestamp,
+                    step.StartSequence));
                 continue;
             }
 
-            if (stack.Count == 0)
-                continue;
-
-            var top = stack[^1];
-            if (top.Id != e.Id)
-            {
-                var idx = -1;
-                for (int s = stack.Count - 2; s >= 0; s--)
-                {
-                    if (stack[s].Id == e.Id)
-                    {
-                        idx = s;
-                        break;
-                    }
-                }
-
-                if (idx < 0)
-                    continue;
-
-                stack.RemoveRange(idx + 1, stack.Count - (idx + 1));
-                top = stack[^1];
-            }
-
-            stack.RemoveAt(stack.Count - 1);
-
-            var dur = e.Timestamp - top.Start;
-            if (dur < 0) continue;
-
-            list.Add(new CompleteEvent(e.Id, e.ThreadId, top.Start, dur, top.Sequence));
+            complete.Add(new CompleteEvent(step.Id, step.ThreadId, step.StartTimestamp, dur, step.StartSequence));
         }
-
-        return list;
     }
 
     private static List<TraceEventRecord> CollectFlows(TraceSession session, long start)
@@ -287,10 +285,16 @@ internal static class ChromeTraceExporter
         switch (e.Kind)
         {
             case TraceEventKind.Begin:
-                WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'B');
+                if (e.AsyncScopeId != 0)
+                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.ThreadId, e.Timestamp, meta, start, freq, pid, phase: "b");
+                else
+                    WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'B');
                 break;
             case TraceEventKind.End:
-                WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'E');
+                if (e.AsyncScopeId != 0)
+                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.ThreadId, e.Timestamp, meta, start, freq, pid, phase: "e");
+                else
+                    WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'E');
                 break;
             case TraceEventKind.FlowStart:
             case TraceEventKind.FlowStep:
@@ -345,6 +349,43 @@ internal static class ChromeTraceExporter
         json.WriteNumber("dur", ToUs(e.DurTicks, freq));
         json.WriteNumber("pid", pid);
         json.WriteNumber("tid", e.ThreadId);
+        json.WriteEndObject();
+    }
+
+    private static void WriteAsyncSpan(
+        Utf8JsonWriter json,
+        in AsyncSpan span,
+        ITraceMetadataProvider meta,
+        long start,
+        long freq,
+        int pid)
+    {
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartThreadId, span.StartTs, meta, start, freq, pid, phase: "b");
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndThreadId, span.EndTs, meta, start, freq, pid, phase: "e");
+    }
+
+    private static void WriteAsyncPhase(
+        Utf8JsonWriter json,
+        int id,
+        long asyncScopeId,
+        int threadId,
+        long timestamp,
+        ITraceMetadataProvider meta,
+        long start,
+        long freq,
+        int pid,
+        string phase)
+    {
+        Resolve(meta, id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", phase);
+        json.WriteNumber("ts", ToUs(timestamp - start, freq));
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", threadId);
+        json.WriteNumber("id", asyncScopeId);
         json.WriteEndObject();
     }
 

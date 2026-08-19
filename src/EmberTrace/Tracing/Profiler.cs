@@ -94,7 +94,7 @@ internal sealed class Profiler
     public Scope Scope(int id)
     {
         if (!IsRunning) return new Scope(id, null, active: false);
-        Write(id, TraceEventKind.Begin, 0, 0);
+        Write(id, TraceEventKind.Begin, 0, AsyncScopeContext.Current);
         return new Scope(id, this, active: true);
     }
 
@@ -103,7 +103,19 @@ internal sealed class Profiler
     private void EndImpl(int id)
     {
         if (!IsRunning) return;
-        Write(id, TraceEventKind.End, 0, 0);
+        Write(id, TraceEventKind.End, 0, AsyncScopeContext.Current);
+    }
+
+    internal void BeginAsyncScope(int id, long scopeId, long parentScopeId)
+    {
+        if (!IsRunning) return;
+        Write(id, TraceEventKind.Begin, scopeId, parentScopeId);
+    }
+
+    internal void EndAsyncScope(int id, long scopeId, long parentScopeId)
+    {
+        if (!IsRunning) return;
+        Write(id, TraceEventKind.End, scopeId, parentScopeId);
     }
 
     public long NewFlowId()

@@ -5,3 +5,4 @@ English version: [./index.md](./index.md)
 Точные контракты публичного API.
 
 - [Tracer](tracer.ru.md)
+- [ScopeReader](scope-reader.ru.md)

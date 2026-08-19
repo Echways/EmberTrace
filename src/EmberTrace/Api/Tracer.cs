@@ -209,22 +209,37 @@ public enum TracerIdCollisionMode
 public readonly struct AsyncScope : IAsyncDisposable
 {
     private readonly int _id;
-    private readonly bool _active;
-    private readonly Profiler _profiler;
+    private readonly long _scopeId;
+    private readonly long _parentScopeId;
+    private readonly Profiler? _profiler;
 
     internal AsyncScope(int id, Profiler profiler)
     {
         _id = id;
+
+        if (!profiler.IsRunning)
+        {
+            _profiler = null;
+            _scopeId = 0;
+            _parentScopeId = 0;
+            return;
+        }
+
         _profiler = profiler;
-        _active = profiler.IsRunning;
-        if (_active)
-            profiler.Scope(id);
+        _parentScopeId = AsyncScopeContext.Current;
+        _scopeId = AsyncScopeContext.NewId();
+
+        profiler.BeginAsyncScope(id, _scopeId, _parentScopeId);
+        AsyncScopeContext.Set(_scopeId);
     }
 
     public ValueTask DisposeAsync()
     {
-        if (_active)
-            _profiler.EndScope(_id);
+        if (_profiler is not null)
+        {
+            AsyncScopeContext.Set(_parentScopeId);
+            _profiler.EndAsyncScope(_id, _scopeId, _parentScopeId);
+        }
 
         return ValueTask.CompletedTask;
     }

@@ -26,6 +26,14 @@ await using (Tracer.ScopeAsync(Ids.Io))
 }
 ```
 
+`ScopeAsync` carries its own scope id through `Begin`/`End`, so thread hops across `await` do not break matching or nesting.
+
+## Unmatched begin/end around `await`
+
+**Cause:** an `AsyncScope` that is not disposed in the same async context - it was stored in a field, disposed by another task, or created without `await using`.
+
+**Fix:** always create it in an `await using` statement (analyzer `ETA002` reports the rest).
+
 ## No names in the report (only numbers)
 
 **Cause:** metadata is missing.

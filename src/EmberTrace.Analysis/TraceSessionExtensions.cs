@@ -8,12 +8,6 @@ namespace EmberTrace;
 
 public static class TraceSessionExtensions
 {
-    private sealed class Frame
-    {
-        public int Id;
-        public long Start;
-    }
-
     private sealed class Agg
     {
         public long Count;
@@ -55,22 +49,15 @@ public static class TraceSessionExtensions
         }
     }
 
-    private readonly struct TreeFrame
+    private sealed class TreeFrame
     {
-        public readonly int Id;
-        public readonly long Start;
-        public readonly MutableNode Node;
-        public readonly long ChildTicks;
-
-        public TreeFrame(int id, long start, MutableNode node, long childTicks)
+        public TreeFrame(MutableNode node)
         {
-            Id = id;
-            Start = start;
             Node = node;
-            ChildTicks = childTicks;
         }
 
-        public TreeFrame WithChildTicks(long childTicks) => new(Id, Start, Node, childTicks);
+        public MutableNode Node { get; }
+        public long ChildTicks { get; set; }
     }
 
     private sealed class HotAgg
@@ -97,93 +84,26 @@ public static class TraceSessionExtensions
         if (session is null) throw new ArgumentNullException(nameof(session));
 
         var freq = session.TimestampFrequency;
-        var perThread = new Dictionary<int, List<Frame>>(capacity: 8);
         var perId = new Dictionary<int, Agg>(capacity: 256);
+        var reader = new ScopeReader(session, strict, session.Options.OnMismatchedEnd);
 
-        long totalEvents = 0;
-        long unmatchedBegin = 0;
-        long unmatchedEnd = 0;
-        long mismatchedEnd = 0;
-
-        var onMismatch = session.Options.OnMismatchedEnd;
-
-        foreach (var e in session.EnumerateEvents())
+        foreach (var step in reader.Read())
         {
-            if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
+            if (step.Kind != ScopeStepKind.Close || step.IsSynthetic)
                 continue;
 
-            totalEvents++;
-
-            if (!perThread.TryGetValue(e.ThreadId, out var stack))
-            {
-                stack = new List<Frame>(capacity: 64);
-                perThread.Add(e.ThreadId, stack);
-            }
-
-            if (e.Kind == TraceEventKind.Begin)
-            {
-                stack.Add(new Frame { Id = e.Id, Start = e.Timestamp });
-                continue;
-            }
-
-            if (stack.Count == 0)
-            {
-                unmatchedEnd++;
-                continue;
-            }
-
-            var top = stack[^1];
-            if (top.Id != e.Id)
-            {
-                mismatchedEnd++;
-                if (onMismatch is not null)
-                    onMismatch(new MismatchedEndInfo(e.ThreadId, top.Id, e.Id, e.Timestamp));
-                if (strict)
-                    continue;
-
-                var idx = -1;
-                for (int s = stack.Count - 2; s >= 0; s--)
-                {
-                    if (stack[s].Id == e.Id)
-                    {
-                        idx = s;
-                        break;
-                    }
-                }
-
-                if (idx < 0)
-                {
-                    unmatchedEnd++;
-                    continue;
-                }
-
-                var removed = stack.Count - (idx + 1);
-                if (removed > 0)
-                    unmatchedBegin += removed;
-
-                stack.RemoveRange(idx + 1, removed);
-                top = stack[^1];
-            }
-
-            stack.RemoveAt(stack.Count - 1);
-
-            var dtTicks = e.Timestamp - top.Start;
+            var dtTicks = step.DurationTicks;
             if (dtTicks < 0)
                 continue;
 
-            var ms = dtTicks * 1000.0 / freq;
-
-            if (!perId.TryGetValue(e.Id, out var agg))
+            if (!perId.TryGetValue(step.Id, out var agg))
             {
                 agg = new Agg();
-                perId.Add(e.Id, agg);
+                perId.Add(step.Id, agg);
             }
 
-            agg.Add(ms);
+            agg.Add(dtTicks * 1000.0 / freq);
         }
-
-        foreach (var kv in perThread)
-            unmatchedBegin += kv.Value.Count;
 
         var list = new List<TraceIdStats>(perId.Count);
         foreach (var kv in perId)
@@ -208,11 +128,11 @@ public static class TraceSessionExtensions
         return new TraceStats
         {
             DurationMs = session.DurationMs,
-            TotalEvents = totalEvents,
-            ThreadsSeen = perThread.Count,
-            UnmatchedBeginCount = unmatchedBegin,
-            UnmatchedEndCount = unmatchedEnd,
-            MismatchedEndCount = mismatchedEnd,
+            TotalEvents = reader.TotalEvents,
+            ThreadsSeen = reader.Threads.Count,
+            UnmatchedBeginCount = reader.UnmatchedBeginCount,
+            UnmatchedEndCount = reader.UnmatchedEndCount,
+            MismatchedEndCount = reader.MismatchedEndCount,
             ByTotalTimeDesc = list
         };
     }
@@ -224,117 +144,50 @@ public static class TraceSessionExtensions
         var conv = new TickConverter(session.TimestampFrequency);
 
         var roots = new Dictionary<int, MutableNode>(capacity: 8);
-        var stacks = new Dictionary<int, List<TreeFrame>>(capacity: 8);
         var hotspots = new Dictionary<int, HotAgg>(capacity: 256);
+        var reader = new ScopeReader(session, strict, session.Options.OnMismatchedEnd);
 
-        long totalEvents = 0;
-        long unmatchedBegin = 0;
-        long unmatchedEnd = 0;
-        long mismatchedEnd = 0;
-
-        var onMismatch = session.Options.OnMismatchedEnd;
-
-        foreach (var e in session.EnumerateEvents())
+        foreach (var step in reader.Read())
         {
-            if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
-                continue;
-
-            totalEvents++;
-
-            if (!roots.TryGetValue(e.ThreadId, out var root))
+            if (step.Kind == ScopeStepKind.Open)
             {
-                root = new MutableNode(0);
-                roots.Add(e.ThreadId, root);
-            }
-
-            if (!stacks.TryGetValue(e.ThreadId, out var stack))
-            {
-                stack = new List<TreeFrame>(capacity: 64);
-                stacks.Add(e.ThreadId, stack);
-            }
-
-            if (e.Kind == TraceEventKind.Begin)
-            {
-                var parent = stack.Count == 0 ? root : stack[^1].Node;
-                var node = parent.GetOrAddChild(e.Id);
+                var parentNode = step.ParentTag is TreeFrame parent ? parent.Node : GetRoot(roots, step.ThreadId);
+                var node = parentNode.GetOrAddChild(step.Id);
                 node.Count++;
-
-                stack.Add(new TreeFrame(e.Id, e.Timestamp, node, 0));
+                step.Tag = new TreeFrame(node);
                 continue;
             }
 
-            if (stack.Count == 0)
-            {
-                unmatchedEnd++;
+            if (step.IsSynthetic || step.Tag is not TreeFrame frame)
                 continue;
-            }
 
-            var top = stack[^1];
-            if (top.Id != e.Id)
-            {
-                mismatchedEnd++;
-                if (onMismatch is not null)
-                    onMismatch(new MismatchedEndInfo(e.ThreadId, top.Id, e.Id, e.Timestamp));
-                if (strict)
-                    continue;
-
-                var idx = -1;
-                for (int s = stack.Count - 2; s >= 0; s--)
-                {
-                    if (stack[s].Id == e.Id)
-                    {
-                        idx = s;
-                        break;
-                    }
-                }
-
-                if (idx < 0)
-                {
-                    unmatchedEnd++;
-                    continue;
-                }
-
-                var removed = stack.Count - (idx + 1);
-                if (removed > 0)
-                    unmatchedBegin += removed;
-
-                stack.RemoveRange(idx + 1, removed);
-                top = stack[^1];
-            }
-
-            stack.RemoveAt(stack.Count - 1);
-
-            var inclusive = e.Timestamp - top.Start;
+            var inclusive = step.DurationTicks;
             if (inclusive < 0)
                 continue;
 
-            var exclusive = inclusive - top.ChildTicks;
+            var exclusive = inclusive - frame.ChildTicks;
             if (exclusive < 0)
                 exclusive = 0;
 
-            top.Node.InclusiveTicks += inclusive;
-            top.Node.ExclusiveTicks += exclusive;
+            frame.Node.InclusiveTicks += inclusive;
+            frame.Node.ExclusiveTicks += exclusive;
 
-            if (!hotspots.TryGetValue(e.Id, out var agg))
+            if (!hotspots.TryGetValue(step.Id, out var agg))
             {
                 agg = new HotAgg();
-                hotspots.Add(e.Id, agg);
+                hotspots.Add(step.Id, agg);
             }
 
             agg.Count++;
             agg.InclusiveTicks += inclusive;
             agg.ExclusiveTicks += exclusive;
 
-            if (stack.Count > 0)
-            {
-                var parentIndex = stack.Count - 1;
-                var parent = stack[parentIndex];
-                stack[parentIndex] = parent.WithChildTicks(parent.ChildTicks + inclusive);
-            }
+            if (step.ParentTag is TreeFrame parentFrame)
+                parentFrame.ChildTicks += inclusive;
         }
 
-        foreach (var kv in stacks)
-            unmatchedBegin += kv.Value.Count;
+        foreach (var threadId in reader.Threads)
+            GetRoot(roots, threadId);
 
         var threadList = new List<ThreadTrace>(roots.Count);
         foreach (var kv in roots)
@@ -395,11 +248,11 @@ public static class TraceSessionExtensions
         return new ProcessedTrace
         {
             DurationMs = session.DurationMs,
-            TotalEvents = totalEvents,
-            ThreadsSeen = roots.Count,
-            UnmatchedBeginCount = unmatchedBegin,
-            UnmatchedEndCount = unmatchedEnd,
-            MismatchedEndCount = mismatchedEnd,
+            TotalEvents = reader.TotalEvents,
+            ThreadsSeen = reader.Threads.Count,
+            UnmatchedBeginCount = reader.UnmatchedBeginCount,
+            UnmatchedEndCount = reader.UnmatchedEndCount,
+            MismatchedEndCount = reader.MismatchedEndCount,
             DroppedEvents = session.DroppedEvents,
             DroppedChunks = session.DroppedChunks,
             SampledOutEvents = session.SampledOutEvents,
@@ -408,6 +261,17 @@ public static class TraceSessionExtensions
             GlobalRoot = globalFrozen,
             HotspotsByInclusiveDesc = hotList
         };
+    }
+
+    private static MutableNode GetRoot(Dictionary<int, MutableNode> roots, int threadId)
+    {
+        if (!roots.TryGetValue(threadId, out var root))
+        {
+            root = new MutableNode(0);
+            roots.Add(threadId, root);
+        }
+
+        return root;
     }
 
     public static IReadOnlyList<FlowAnalysis> AnalyzeFlows(this TraceSession session, int top = 10)

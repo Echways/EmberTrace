@@ -539,6 +539,8 @@ public static class TraceExport
             events.Add(e);
         }
 
+        events.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
+
         var tids = new HashSet<int>();
         for (int i = 0; i < events.Count; i++)
             tids.Add(events[i].ThreadId);
@@ -577,8 +579,20 @@ public static class TraceExport
             }
         }
 
-        var complete = CollectComplete(events);
+        var complete = new List<CompleteEv>(capacity: events.Count / 2);
+        var asyncSpans = new List<AsyncEv>();
+        CollectScopes(events, maxTs, complete, asyncSpans);
+
         complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.Tid, a.Sequence, b.StartTs, b.Tid, b.Sequence));
+        asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartTid, a.Sequence, b.StartTs, b.StartTid, b.Sequence));
+
+        for (int i = 0; i < asyncSpans.Count; i++)
+        {
+            var span = asyncSpans[i];
+            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTid, span.StartTs, meta, minTs, freq, pid, "b");
+            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTid, span.EndTs, meta, minTs, freq, pid, "e");
+        }
+
         for (int i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, minTs, freq, pid);
 
@@ -627,65 +641,34 @@ public static class TraceExport
         return list;
     }
 
-    static List<CompleteEv> CollectComplete(List<TraceEventRecord> events)
+    static void CollectScopes(List<TraceEventRecord> events, long endTimestamp, List<CompleteEv> complete, List<AsyncEv> asyncSpans)
     {
-        var stacks = new Dictionary<int, List<Frame>>(capacity: 8);
-        var list = new List<CompleteEv>(capacity: events.Count / 2);
+        var reader = new ScopeReader(events, endTimestamp);
 
-        for (int i = 0; i < events.Count; i++)
+        foreach (var step in reader.Read())
         {
-            var e = events[i];
-            if (e.Kind != TraceEventKind.Begin && e.Kind != TraceEventKind.End)
+            if (step.Kind != ScopeStepKind.Close || step.IsSynthetic)
                 continue;
 
-            if (!stacks.TryGetValue(e.ThreadId, out var stack))
-            {
-                stack = new List<Frame>(capacity: 64);
-                stacks.Add(e.ThreadId, stack);
-            }
-
-            if (e.Kind == TraceEventKind.Begin)
-            {
-                stack.Add(new Frame(e.Id, e.Timestamp, e.Sequence));
-                continue;
-            }
-
-            if (stack.Count == 0)
-                continue;
-
-            var top = stack[^1];
-            if (top.Id != e.Id)
-            {
-                var idx = -1;
-                for (int s = stack.Count - 2; s >= 0; s--)
-                {
-                    if (stack[s].Id == e.Id)
-                    {
-                        idx = s;
-                        break;
-                    }
-                }
-
-                if (idx < 0)
-                    continue;
-
-                stack.RemoveRange(idx + 1, stack.Count - (idx + 1));
-                top = stack[^1];
-            }
-
-            var depth = stack.Count - 1;
-            var parentId = depth > 0 ? stack[depth - 1].Id : 0;
-
-            stack.RemoveAt(stack.Count - 1);
-
-            var dur = e.Timestamp - top.Start;
+            var dur = step.DurationTicks;
             if (dur <= 0)
                 continue;
 
-            list.Add(new CompleteEv(e.Id, e.ThreadId, top.Start, dur, depth, parentId, top.Sequence));
-        }
+            if (step.IsAsync)
+            {
+                asyncSpans.Add(new AsyncEv(
+                    step.Id,
+                    step.AsyncScopeId,
+                    step.ThreadId,
+                    step.EndThreadId,
+                    step.StartTimestamp,
+                    step.EndTimestamp,
+                    step.StartSequence));
+                continue;
+            }
 
-        return list;
+            complete.Add(new CompleteEv(step.Id, step.ThreadId, step.StartTimestamp, dur, step.Depth, step.ParentId, step.StartSequence));
+        }
     }
 
     static void WriteSyntheticTopLevel(
@@ -741,6 +724,31 @@ public static class TraceExport
         if (e.ParentId != 0)
             json.WriteNumber("parent", e.ParentId);
         json.WriteEndObject();
+        json.WriteEndObject();
+    }
+
+    static void WriteAsyncPhase(
+        Utf8JsonWriter json,
+        int id,
+        long asyncScopeId,
+        int tid,
+        long timestamp,
+        ITraceMetadataProvider meta,
+        long baseTs,
+        long freq,
+        int pid,
+        string phase)
+    {
+        Resolve(meta, id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", phase);
+        json.WriteNumber("ts", ToUs(timestamp - baseTs, freq));
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", tid);
+        json.WriteNumber("id", asyncScopeId);
         json.WriteEndObject();
     }
 
@@ -944,16 +952,24 @@ public static class TraceExport
         }
     }
 
-    readonly struct Frame
+    readonly struct AsyncEv
     {
         public readonly int Id;
-        public readonly long Start;
+        public readonly long AsyncScopeId;
+        public readonly int StartTid;
+        public readonly int EndTid;
+        public readonly long StartTs;
+        public readonly long EndTs;
         public readonly long Sequence;
 
-        public Frame(int id, long start, long sequence)
+        public AsyncEv(int id, long asyncScopeId, int startTid, int endTid, long startTs, long endTs, long sequence)
         {
             Id = id;
-            Start = start;
+            AsyncScopeId = asyncScopeId;
+            StartTid = startTid;
+            EndTid = endTid;
+            StartTs = startTs;
+            EndTs = endTs;
             Sequence = sequence;
         }
     }
