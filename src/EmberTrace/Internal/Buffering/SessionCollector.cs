@@ -8,7 +8,6 @@ namespace EmberTrace.Internal.Buffering;
 internal sealed class SessionCollector
 {
     private readonly List<Chunk> _chunks = new();
-    private readonly List<ThreadWriter> _writers = new();
     private readonly Queue<Chunk> _inactive = new();
     private readonly HashSet<Chunk> _active = new();
     private readonly Dictionary<int, string> _threadNames = new();
@@ -50,12 +49,6 @@ internal sealed class SessionCollector
             var chunks = (_maxTotalEvents + chunkCapacity - 1) / chunkCapacity;
             _maxTotalChunks = chunks > int.MaxValue ? int.MaxValue : (int)Math.Max(1, chunks);
         }
-    }
-
-    public void RegisterWriter(ThreadWriter writer)
-    {
-        lock (_sync)
-            _writers.Add(writer);
     }
 
     public bool TryAcceptEvent()
@@ -296,15 +289,6 @@ internal sealed class SessionCollector
         }
     }
 
-    public IReadOnlyList<ThreadWriter> Writers
-    {
-        get
-        {
-            lock (_sync)
-                return _writers.ToArray();
-        }
-    }
-
     public IReadOnlyDictionary<int, string> ThreadNames
     {
         get
@@ -321,7 +305,6 @@ internal sealed class SessionCollector
             _chunks.Clear();
             _inactive.Clear();
             _active.Clear();
-            _writers.Clear();
             _threadNames.Clear();
             Volatile.Write(ref _closed, 0);
             Volatile.Write(ref _overflowed, 0);

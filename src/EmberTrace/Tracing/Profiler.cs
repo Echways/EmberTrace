@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
@@ -15,11 +16,9 @@ internal sealed class Profiler
     private int _enabled;
     private ProfilingState? _state;
     private long _nextFlowId;
-    private int _sessionVersion;
 
-    [ThreadStatic] private static Profiler? _writerOwner;
-    [ThreadStatic] private static int _writerVersion;
-    [ThreadStatic] private static ThreadWriter? _writer;
+    [ThreadStatic] private static long _cachedSessionId;
+    [ThreadStatic] private static ThreadWriter? _cachedWriter;
 
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
@@ -27,8 +26,6 @@ internal sealed class Profiler
     {
         if (Interlocked.Exchange(ref _enabled, 1) == 1)
             throw new InvalidOperationException("Profiler session already running.");
-
-        Interlocked.Increment(ref _sessionVersion);
 
         var opts = options ?? new SessionOptions();
 #if DEBUG
@@ -75,9 +72,8 @@ internal sealed class Profiler
         IReadOnlyDictionary<int, string> threadNames = new Dictionary<int, string>();
 
         collector.Close();
-        var writers = collector.Writers;
-        foreach (var t in writers)
-            t.CloseAndDetach();
+        foreach (var writer in state.Writers)
+            writer.CloseAndDetach();
 
         Interlocked.MemoryBarrier();
 
@@ -210,24 +206,19 @@ internal sealed class Profiler
         if (filter is not null && !filter.Allows(id))
             return;
 
-        var version = Volatile.Read(ref _sessionVersion);
-        if (_writerOwner != this || _writerVersion != version)
-        {
-            _writer?.CloseAndDetach();
-            _writer = null;
-            _writerOwner = this;
-            _writerVersion = version;
-        }
+        var writer = _cachedWriter;
+        if (writer is null || _cachedSessionId != state.Id)
+            writer = AcquireWriter(state);
 
-        var collector = state.Collector;
-        var w = _writer;
-        if (w is null || w.IsClosed)
-        {
-            w = new ThreadWriter(collector, state.Sampling);
-            collector.RegisterWriter(w);
-            _writer = w;
-        }
+        writer.Write(id, kind, flowId, value);
+    }
 
-        w.Write(id, kind, flowId, value);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static ThreadWriter AcquireWriter(ProfilingState state)
+    {
+        var writer = state.GetWriter();
+        _cachedWriter = writer;
+        _cachedSessionId = state.Id;
+        return writer;
     }
 }
