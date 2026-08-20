@@ -105,6 +105,28 @@ public class TraceAnalysisTests
             processed.Threads.Select(t => t.Root.Children[0].Id).ToArray());
     }
 
+    [TestMethod]
+    public void EventCounts_TotalMatchesSession_ScopeCountsOnlyBeginAndEnd()
+    {
+        var session = CreateSession(new[]
+        {
+            new TraceEvent(1, 1, 10, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(2, 1, 20, TraceEventKind.Instant, 0, 0),
+            new TraceEvent(3, 1, 30, TraceEventKind.FlowStart, 42, 0),
+            new TraceEvent(3, 1, 40, TraceEventKind.FlowEnd, 42, 0),
+            new TraceEvent(4, 1, 50, TraceEventKind.Counter, 0, 7),
+            new TraceEvent(1, 1, 60, TraceEventKind.End, 0, 0)
+        });
+
+        var stats = session.Analyze();
+        var processed = session.Process();
+
+        Assert.AreEqual(session.EventCount, stats.TotalEventCount);
+        Assert.AreEqual(session.EventCount, processed.TotalEventCount);
+        Assert.AreEqual(2, stats.ScopeEventCount);
+        Assert.AreEqual(2, processed.ScopeEventCount);
+    }
+
     private static TraceSession CreateSession(TraceEvent[] events)
     {
         var capacity = Math.Max(1, events.Length);

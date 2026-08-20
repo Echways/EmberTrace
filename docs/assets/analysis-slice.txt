@@ -1,6 +1,7 @@
 Summary
 Duration: 34.476 ms
 Events: 16
+ScopeEvents: 16
 Threads: 1
 MismatchedEnd: 0
 

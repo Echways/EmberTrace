@@ -128,7 +128,8 @@ public static class TraceSessionExtensions
         return new TraceStats
         {
             DurationMs = session.DurationMs,
-            TotalEvents = reader.TotalEvents,
+            TotalEventCount = reader.TotalEventCount,
+            ScopeEventCount = reader.ScopeEventCount,
             ThreadsSeen = reader.Tracks.Count,
             UnmatchedBeginCount = reader.UnmatchedBeginCount,
             UnmatchedEndCount = reader.UnmatchedEndCount,
@@ -250,7 +251,8 @@ public static class TraceSessionExtensions
         return new ProcessedTrace
         {
             DurationMs = session.DurationMs,
-            TotalEvents = reader.TotalEvents,
+            TotalEventCount = reader.TotalEventCount,
+            ScopeEventCount = reader.ScopeEventCount,
             ThreadsSeen = reader.Tracks.Count,
             UnmatchedBeginCount = reader.UnmatchedBeginCount,
             UnmatchedEndCount = reader.UnmatchedEndCount,

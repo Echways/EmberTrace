@@ -51,6 +51,6 @@ Console.WriteLine(reader.UnmatchedBeginCount + reader.UnmatchedEndCount + reader
 | `IsSynthetic` | scope не был закрыт и закрыт принудительно ридером |
 | `Tag`, `ParentTag` | состояние потребителя на кадре и на его родителе |
 
-Счётчики (`TotalEvents`, `UnmatchedBeginCount`, `UnmatchedEndCount`, `MismatchedEndCount`, `Tracks`)
+Счётчики (`TotalEventCount`, `ScopeEventCount`, `UnmatchedBeginCount`, `UnmatchedEndCount`, `MismatchedEndCount`, `Tracks`)
 заполняются по мере перечисления `Read()` и становятся окончательными после его завершения. `Tracks`
 сопоставляет каждой встреченной дорожке managed thread id, который её писал.

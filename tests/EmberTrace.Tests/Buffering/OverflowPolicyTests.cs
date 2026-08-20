@@ -251,6 +251,62 @@ public class OverflowPolicyTests
         Assert.AreEqual(3L, collector.SampledOutEvents);
     }
 
+    [TestMethod]
+    public void NoEventLimit_AcceptsEveryEvent()
+    {
+        var (collector, _) = MakeCollector(OverflowPolicy.DropNew, maxEvents: 0, capacity: 16);
+
+        for (int i = 0; i < 1024; i++)
+            Assert.IsTrue(collector.TryAcceptEvent(), "Without MaxTotalEvents no event may be rejected");
+
+        Assert.AreEqual(0L, collector.DroppedEvents);
+        Assert.IsFalse(collector.WasOverflow);
+    }
+
+    [TestMethod]
+    public void NoEventLimit_DroppedChunkEventsAreCountedAndLimitStaysDisabled()
+    {
+        const int capacity = 4;
+        var options = new SessionOptions
+        {
+            MaxTotalChunks = 1,
+            OverflowPolicy = OverflowPolicy.DropOldest,
+            ChunkCapacity = capacity
+        };
+        var pool = new ChunkPool(capacity);
+        var collector = new SessionCollector(options, pool, capacity);
+
+        Assert.IsTrue(collector.TryRentChunk(out var chunk));
+        var dummyEvent = new TraceEvent(1, 1, 100L, TraceEventKind.Begin, 0, 0);
+        for (int i = 0; i < capacity; i++)
+        {
+            Assert.IsTrue(collector.TryAcceptEvent());
+            chunk!.TryWrite(dummyEvent);
+        }
+
+        collector.MarkChunkInactive(chunk!);
+        Assert.IsTrue(collector.TryRentChunk(out _));
+
+        Assert.AreEqual(1L, collector.DroppedChunks);
+        Assert.AreEqual((long)capacity, collector.DroppedEvents);
+
+        for (int i = 0; i < capacity * 4; i++)
+            Assert.IsTrue(collector.TryAcceptEvent(), "Evicting a chunk must not turn on the event limit");
+    }
+
+    [TestMethod]
+    public void OverflowPolicy_NamesAreStableAndDropIsAliasOfDropNew()
+    {
+        Assert.AreEqual("DropNew", OverflowPolicy.DropNew.ToString());
+        Assert.AreEqual("DropOldest", OverflowPolicy.DropOldest.ToString());
+        Assert.AreEqual("StopSession", OverflowPolicy.StopSession.ToString());
+        Assert.AreEqual("DropNew", ((OverflowPolicy)0).ToString());
+        Assert.AreEqual("DropNew", Enum.GetName(OverflowPolicy.DropNew));
+
+        Assert.AreEqual(OverflowPolicy.DropNew, Enum.Parse<OverflowPolicy>("Drop"));
+        Assert.HasCount(3, new HashSet<OverflowPolicy>(Enum.GetValues<OverflowPolicy>()));
+    }
+
     private static (SessionCollector collector, ChunkPool pool) MakeCollector(
         OverflowPolicy policy, long maxEvents, int capacity)
     {

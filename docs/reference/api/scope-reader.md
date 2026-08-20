@@ -51,6 +51,6 @@ Console.WriteLine(reader.UnmatchedBeginCount + reader.UnmatchedEndCount + reader
 | `IsSynthetic` | the scope was never closed and was force-closed by the reader |
 | `Tag`, `ParentTag` | consumer state attached to the frame and to its parent |
 
-Counters (`TotalEvents`, `UnmatchedBeginCount`, `UnmatchedEndCount`, `MismatchedEndCount`, `Tracks`)
+Counters (`TotalEventCount`, `ScopeEventCount`, `UnmatchedBeginCount`, `UnmatchedEndCount`, `MismatchedEndCount`, `Tracks`)
 are filled while `Read()` is being enumerated and are final once enumeration completes. `Tracks` maps
 every track id seen to the managed thread id that wrote it.
