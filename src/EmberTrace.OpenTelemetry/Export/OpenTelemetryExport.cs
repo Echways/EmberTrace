@@ -24,7 +24,7 @@ public static class OpenTelemetryExport
         if (session is null) throw new ArgumentNullException(nameof(session));
 
         options ??= new OpenTelemetryExportOptions();
-        meta ??= TraceMetadata.CreateDefault();
+        meta ??= session.Metadata;
 
         var baseUtc = options.BaseUtc ?? DateTimeOffset.UtcNow - TimeSpan.FromSeconds(session.DurationMs / 1000.0);
         var spans = new List<Activity>(capacity: (int)Math.Min(int.MaxValue, session.EventCount / 2));
@@ -34,58 +34,67 @@ public static class OpenTelemetryExport
         using var flows = FlowEvents(session, options.IncludeFlowsAsLinks).GetEnumerator();
         var pendingFlow = flows.MoveNext();
 
-        foreach (var step in reader.Read())
+        var ambient = Activity.Current;
+        try
         {
-            var timestamp = step.Kind == ScopeStepKind.Open ? step.StartTimestamp : step.EndTimestamp;
+            foreach (var step in reader.Read())
+            {
+                var timestamp = step.Kind == ScopeStepKind.Open ? step.StartTimestamp : step.EndTimestamp;
 
-            while (pendingFlow && flows.Current.Timestamp <= timestamp)
+                while (pendingFlow && flows.Current.Timestamp <= timestamp)
+                {
+                    AddFlowLink(live, flows.Current);
+                    pendingFlow = flows.MoveNext();
+                }
+
+                if (step.Kind == ScopeStepKind.Open)
+                {
+                    Resolve(meta, step.Id, out var name, out var category);
+
+                    var activity = new Activity(name);
+                    activity.SetIdFormat(ActivityIdFormat.W3C);
+                    activity.SetStartTime(ToUtc(session, baseUtc, step.StartTimestamp));
+
+                    if (step.ParentTag is Activity parent)
+                        activity.SetParentId(parent.TraceId, parent.SpanId, parent.ActivityTraceFlags);
+
+                    Activity.Current = null;
+                    activity.Start();
+
+                    activity.SetTag("embertrace.id", step.Id);
+
+                    if (!string.IsNullOrEmpty(category))
+                        activity.SetTag("embertrace.category", category);
+
+                    if (options.IncludeThreadIdTag)
+                        activity.SetTag("thread.id", step.ThreadId);
+
+                    if (step.IsAsync)
+                        activity.SetTag("embertrace.async_scope_id", step.AsyncScopeId);
+
+                    step.Tag = activity;
+                    Track(live, step.TrackId).Add(activity);
+                    continue;
+                }
+
+                if (step.Tag is not Activity span)
+                    continue;
+
+                Untrack(live, step.TrackId, span);
+
+                span.SetEndTime(ToUtc(session, baseUtc, step.EndTimestamp));
+                spans.Add(span);
+            }
+
+            while (pendingFlow)
             {
                 AddFlowLink(live, flows.Current);
                 pendingFlow = flows.MoveNext();
             }
-
-            if (step.Kind == ScopeStepKind.Open)
-            {
-                Resolve(meta, step.Id, out var name, out var category);
-
-                var activity = new Activity(name);
-                activity.SetIdFormat(ActivityIdFormat.W3C);
-                activity.SetStartTime(ToUtc(session, baseUtc, step.StartTimestamp));
-
-                if (step.ParentTag is Activity parent)
-                    activity.SetParentId(parent.TraceId, parent.SpanId, parent.ActivityTraceFlags);
-
-                activity.Start();
-                activity.SetTag("embertrace.id", step.Id);
-
-                if (!string.IsNullOrEmpty(category))
-                    activity.SetTag("embertrace.category", category);
-
-                if (options.IncludeThreadIdTag)
-                    activity.SetTag("thread.id", step.ThreadId);
-
-                if (step.IsAsync)
-                    activity.SetTag("embertrace.async_scope_id", step.AsyncScopeId);
-
-                step.Tag = activity;
-                Track(live, step.ThreadId).Add(activity);
-                continue;
-            }
-
-            if (step.Tag is not Activity span)
-                continue;
-
-            Untrack(live, step.ThreadId, span);
-
-            span.SetEndTime(ToUtc(session, baseUtc, step.EndTimestamp));
-            span.Stop();
-            spans.Add(span);
         }
-
-        while (pendingFlow)
+        finally
         {
-            AddFlowLink(live, flows.Current);
-            pendingFlow = flows.MoveNext();
+            Activity.Current = ambient;
         }
 
         return spans;
@@ -118,20 +127,20 @@ public static class OpenTelemetryExport
         }
     }
 
-    private static List<Activity> Track(Dictionary<int, List<Activity>> live, int threadId)
+    private static List<Activity> Track(Dictionary<int, List<Activity>> live, int trackId)
     {
-        if (!live.TryGetValue(threadId, out var stack))
+        if (!live.TryGetValue(trackId, out var stack))
         {
             stack = new List<Activity>(capacity: 64);
-            live.Add(threadId, stack);
+            live.Add(trackId, stack);
         }
 
         return stack;
     }
 
-    private static void Untrack(Dictionary<int, List<Activity>> live, int threadId, Activity activity)
+    private static void Untrack(Dictionary<int, List<Activity>> live, int trackId, Activity activity)
     {
-        if (!live.TryGetValue(threadId, out var stack))
+        if (!live.TryGetValue(trackId, out var stack))
             return;
 
         var index = stack.LastIndexOf(activity);
@@ -141,7 +150,7 @@ public static class OpenTelemetryExport
 
     private static void AddFlowLink(Dictionary<int, List<Activity>> live, TraceEventRecord e)
     {
-        if (!live.TryGetValue(e.ThreadId, out var stack) || stack.Count == 0)
+        if (!live.TryGetValue(e.TrackId, out var stack) || stack.Count == 0)
             return;
 
         stack[^1].AddLink(CreateFlowLink(e.FlowId, e.Id, e.Timestamp));

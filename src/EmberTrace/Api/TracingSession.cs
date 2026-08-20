@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using EmberTrace.Flow;
 using EmberTrace.Metadata;
@@ -9,12 +10,35 @@ namespace EmberTrace;
 public sealed class TracingSession : IDisposable
 {
     private readonly Profiler _profiler = new();
+    private readonly Action<TraceSession>? _onStopped;
+    private bool _disposed;
+
+    public TracingSession()
+    {
+    }
+
+    public TracingSession(Action<TraceSession> onStopped)
+    {
+        _onStopped = onStopped ?? throw new ArgumentNullException(nameof(onStopped));
+    }
 
     public bool IsRunning => _profiler.IsRunning;
 
-    public void Start(SessionOptions? options = null) => _profiler.Start(options);
+    public TraceSession? LastSession { get; private set; }
 
-    public TraceSession Stop() => _profiler.Stop();
+    public void Start(SessionOptions? options = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _profiler.Start(options);
+    }
+
+    public TraceSession Stop()
+    {
+        var session = _profiler.Stop();
+        LastSession = session;
+        _onStopped?.Invoke(session);
+        return session;
+    }
 
     public Scope Scope(int id) => _profiler.Scope(id);
 
@@ -32,7 +56,7 @@ public sealed class TracingSession : IDisposable
 
     public void FlowEnd(int id, long flowId) => _profiler.FlowEnd(id, flowId);
 
-    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
+    [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
     public long FlowFromActivityCurrent(int id)
     {
         if (!IsRunning)
@@ -60,11 +84,16 @@ public sealed class TracingSession : IDisposable
 
     public void FlowStep(FlowHandle handle) => handle.Step();
 
-    public ITraceMetadataProvider CreateMetadata() => TraceMetadata.CreateDefault();
+    public ITraceMetadataProvider CreateMetadata() => _profiler.Metadata;
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
         if (_profiler.IsRunning)
-            _profiler.Stop();
+            Stop();
     }
 }

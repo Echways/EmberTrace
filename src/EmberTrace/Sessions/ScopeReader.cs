@@ -11,13 +11,14 @@ public enum ScopeStepKind : byte
 
 internal sealed class ScopeFrame
 {
-    public ScopeFrame(int index, ScopeFrame? parent, int id, long asyncScopeId, int threadId, long startTimestamp, long startSequence)
+    public ScopeFrame(int index, ScopeFrame? parent, int id, long asyncScopeId, int trackId, int threadId, long startTimestamp, long startSequence)
     {
         Index = index;
         Parent = parent;
         Depth = parent is null ? 0 : parent.Depth + 1;
         Id = id;
         AsyncScopeId = asyncScopeId;
+        TrackId = trackId;
         ThreadId = threadId;
         StartTimestamp = startTimestamp;
         StartSequence = startSequence;
@@ -28,6 +29,7 @@ internal sealed class ScopeFrame
     public int Depth { get; }
     public int Id { get; }
     public long AsyncScopeId { get; }
+    public int TrackId { get; }
     public int ThreadId { get; }
     public long StartTimestamp { get; }
     public long StartSequence { get; }
@@ -38,16 +40,18 @@ public readonly struct ScopeStep
 {
     private readonly ScopeFrame _frame;
 
-    internal ScopeStep(ScopeStepKind kind, ScopeFrame frame, int endThreadId, long endTimestamp, bool synthetic)
+    internal ScopeStep(ScopeStepKind kind, ScopeFrame frame, int endTrackId, int endThreadId, long endTimestamp, bool synthetic)
     {
         Kind = kind;
         _frame = frame;
+        EndTrackId = endTrackId;
         EndThreadId = endThreadId;
         EndTimestamp = endTimestamp;
         IsSynthetic = synthetic;
     }
 
     public ScopeStepKind Kind { get; }
+    public int EndTrackId { get; }
     public int EndThreadId { get; }
     public long EndTimestamp { get; }
     public bool IsSynthetic { get; }
@@ -56,6 +60,7 @@ public readonly struct ScopeStep
     public int Depth => _frame.Depth;
     public int Id => _frame.Id;
     public int ParentId => _frame.Parent?.Id ?? 0;
+    public int TrackId => _frame.TrackId;
     public int ThreadId => _frame.ThreadId;
     public long AsyncScopeId => _frame.AsyncScopeId;
     public long StartTimestamp => _frame.StartTimestamp;
@@ -80,7 +85,7 @@ public sealed class ScopeReader
     private readonly long _endTimestamp;
     private readonly bool _strict;
     private readonly Action<MismatchedEndInfo>? _onMismatchedEnd;
-    private readonly HashSet<int> _threads = new();
+    private readonly Dictionary<int, int> _tracks = new();
 
     public ScopeReader(TraceSession session, bool strict = false, Action<MismatchedEndInfo>? onMismatchedEnd = null)
         : this(
@@ -107,7 +112,7 @@ public sealed class ScopeReader
     public long UnmatchedBeginCount { get; private set; }
     public long UnmatchedEndCount { get; private set; }
     public long MismatchedEndCount { get; private set; }
-    public IReadOnlyCollection<int> Threads => _threads;
+    public IReadOnlyDictionary<int, int> Tracks => _tracks;
 
     public IEnumerable<ScopeStep> Read()
     {
@@ -121,7 +126,7 @@ public sealed class ScopeReader
                 continue;
 
             TotalEvents++;
-            _threads.Add(e.ThreadId);
+            _tracks[e.TrackId] = e.ThreadId;
 
             var contextId = e.AsyncContextId;
             ScopeFrame? context = null;
@@ -129,7 +134,7 @@ public sealed class ScopeReader
             if (contextId != 0 && !asyncFrames.TryGetValue(contextId, out context))
                 contextId = 0;
 
-            var key = new TrackKey(e.ThreadId, contextId);
+            var key = new TrackKey(e.TrackId, contextId);
             if (!tracks.TryGetValue(key, out var track))
             {
                 track = new List<ScopeFrame>(capacity: 64);
@@ -140,14 +145,14 @@ public sealed class ScopeReader
             {
                 var parent = track.Count > 0 ? track[^1] : context;
 
-                var frame = new ScopeFrame(index++, parent, e.Id, e.AsyncScopeId, e.ThreadId, e.Timestamp, e.Sequence);
+                var frame = new ScopeFrame(index++, parent, e.Id, e.AsyncScopeId, e.TrackId, e.ThreadId, e.Timestamp, e.Sequence);
 
                 if (frame.AsyncScopeId != 0)
                     asyncFrames[frame.AsyncScopeId] = frame;
                 else
                     track.Add(frame);
 
-                yield return new ScopeStep(ScopeStepKind.Open, frame, 0, 0, synthetic: false);
+                yield return new ScopeStep(ScopeStepKind.Open, frame, 0, 0, 0, synthetic: false);
                 continue;
             }
 
@@ -159,7 +164,7 @@ public sealed class ScopeReader
                     continue;
                 }
 
-                yield return new ScopeStep(ScopeStepKind.Close, asyncFrame, e.ThreadId, e.Timestamp, synthetic: false);
+                yield return new ScopeStep(ScopeStepKind.Close, asyncFrame, e.TrackId, e.ThreadId, e.Timestamp, synthetic: false);
                 continue;
             }
 
@@ -197,7 +202,7 @@ public sealed class ScopeReader
                 for (int i = track.Count - 1; i > target; i--)
                 {
                     UnmatchedBeginCount++;
-                    yield return new ScopeStep(ScopeStepKind.Close, track[i], e.ThreadId, e.Timestamp, synthetic: true);
+                    yield return new ScopeStep(ScopeStepKind.Close, track[i], e.TrackId, e.ThreadId, e.Timestamp, synthetic: true);
                 }
 
                 track.RemoveRange(target + 1, track.Count - (target + 1));
@@ -205,7 +210,7 @@ public sealed class ScopeReader
             }
 
             track.RemoveAt(track.Count - 1);
-            yield return new ScopeStep(ScopeStepKind.Close, top, e.ThreadId, e.Timestamp, synthetic: false);
+            yield return new ScopeStep(ScopeStepKind.Close, top, e.TrackId, e.ThreadId, e.Timestamp, synthetic: false);
         }
 
         foreach (var kv in tracks)
@@ -214,14 +219,14 @@ public sealed class ScopeReader
             for (int i = track.Count - 1; i >= 0; i--)
             {
                 UnmatchedBeginCount++;
-                yield return new ScopeStep(ScopeStepKind.Close, track[i], track[i].ThreadId, _endTimestamp, synthetic: true);
+                yield return new ScopeStep(ScopeStepKind.Close, track[i], track[i].TrackId, track[i].ThreadId, _endTimestamp, synthetic: true);
             }
         }
 
         foreach (var kv in asyncFrames)
         {
             UnmatchedBeginCount++;
-            yield return new ScopeStep(ScopeStepKind.Close, kv.Value, kv.Value.ThreadId, _endTimestamp, synthetic: true);
+            yield return new ScopeStep(ScopeStepKind.Close, kv.Value, kv.Value.TrackId, kv.Value.ThreadId, _endTimestamp, synthetic: true);
         }
     }
 
@@ -231,5 +236,5 @@ public sealed class ScopeReader
             yield return e;
     }
 
-    private readonly record struct TrackKey(int ThreadId, long ContextId);
+    private readonly record struct TrackKey(int TrackId, long ContextId);
 }

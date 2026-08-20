@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EmberTrace;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
@@ -63,6 +64,45 @@ public class TraceAnalysisTests
         Assert.AreEqual(strict.MismatchedEndCount, processed.MismatchedEndCount);
         Assert.AreEqual(strict.UnmatchedBeginCount, processed.UnmatchedBeginCount);
         Assert.AreEqual(strict.UnmatchedEndCount, processed.UnmatchedEndCount);
+    }
+
+    [TestMethod]
+    public void Analyze_RecycledThreadId_DoesNotCloseTheOtherTracksFrame()
+    {
+        var session = CreateSession(new[]
+        {
+            new TraceEvent(5, 7, 10, TraceEventKind.Begin, 0, 0, 1, trackId: 1),
+            new TraceEvent(5, 7, 1000, TraceEventKind.End, 0, 0, 1, trackId: 2)
+        });
+
+        var stats = session.Analyze();
+
+        Assert.IsEmpty(stats.ByTotalTimeDesc, "an End from another writer must not close a frame opened on a different track");
+        Assert.AreEqual(1, stats.UnmatchedBeginCount);
+        Assert.AreEqual(1, stats.UnmatchedEndCount);
+        Assert.AreEqual(2, stats.ThreadsSeen, "writers are counted per track, not per managed thread id");
+    }
+
+    [TestMethod]
+    public void Process_RecycledThreadId_KeepsCallTreesApart()
+    {
+        var session = CreateSession(new[]
+        {
+            new TraceEvent(1, 7, 10, TraceEventKind.Begin, 0, 0, 1, trackId: 1),
+            new TraceEvent(1, 7, 20, TraceEventKind.End, 0, 0, 2, trackId: 1),
+            new TraceEvent(2, 7, 30, TraceEventKind.Begin, 0, 0, 1, trackId: 2),
+            new TraceEvent(2, 7, 40, TraceEventKind.End, 0, 0, 2, trackId: 2)
+        });
+
+        var processed = session.Process();
+
+        Assert.HasCount(2, processed.Threads);
+        foreach (var thread in processed.Threads)
+            Assert.AreEqual(7, thread.ThreadId, "the managed thread id stays available for display");
+
+        CollectionAssert.AreEquivalent(
+            new[] { 1, 2 },
+            processed.Threads.Select(t => t.Root.Children[0].Id).ToArray());
     }
 
     private static TraceSession CreateSession(TraceEvent[] events)

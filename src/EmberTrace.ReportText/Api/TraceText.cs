@@ -13,6 +13,6 @@ public static class TraceText
         string? categoryFilter = null,
         double minPercent = 0)
     {
-        return ReportText.TextReportWriter.Write(trace, meta, topHotspots, maxDepth, categoryFilter, minPercent);
+        return ReportText.TextReportWriter.Write(trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent);
     }
 }

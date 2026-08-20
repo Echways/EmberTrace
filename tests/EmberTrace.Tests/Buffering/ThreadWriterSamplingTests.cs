@@ -1,5 +1,7 @@
+using System;
 using System.Linq;
 using System.Threading;
+using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -67,8 +69,8 @@ public class ThreadWriterSamplingTests
         var session = ts.Stop();
         var events = ToArray(session);
 
-        Assert.AreEqual(3, events.Count(e => e.Id == 1), "id=1, everyN=2: events 1,3,5 should pass");
-        Assert.AreEqual(2, events.Count(e => e.Id == 2), "id=2, everyN=3: events 1,4 should pass");
+        Assert.AreEqual(3, events.Count(e => e.Id == 1), "id=1, everyN=2: tickets 0,2,4 should pass");
+        Assert.AreEqual(2, events.Count(e => e.Id == 2), "id=2, everyN=3: tickets 0,3 should pass");
         Assert.AreEqual(5, events.Count(e => e.Id == 3), "id=3, no per-id rule: all should pass");
     }
 
@@ -194,7 +196,83 @@ public class ThreadWriterSamplingTests
         var session = ts.Stop();
 
         Assert.AreEqual(3L, session.EventCount,
-            "Per-id everyN=4 should pass events 1, 5, 9 (counter mod 4 == 1)");
+            "Per-id everyN=4 should pass tickets 0, 4, 8");
+    }
+
+    [TestMethod]
+    public void GlobalEveryN_OneEventPerThread_KeepsGlobalRatio()
+    {
+        const int everyN = 8;
+        const int threads = 64;
+
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { SampleEveryNGlobal = everyN, ChunkCapacity = 1024 });
+
+        RunOnThreads(threads, () => ts.Instant(42));
+
+        var session = ts.Stop();
+
+        Assert.AreEqual((long)(threads / everyN), session.EventCount,
+            "Short-lived threads must share one global ticket sequence, not each keep their first event");
+    }
+
+    [TestMethod]
+    public void GlobalEveryN_ManyEventsPerThread_KeepsGlobalRatio()
+    {
+        const int everyN = 10;
+        const int threads = 8;
+        const int perThread = 1000;
+
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions { SampleEveryNGlobal = everyN, ChunkCapacity = 4096 });
+
+        RunOnThreads(threads, () =>
+        {
+            for (int i = 0; i < perThread; i++)
+                ts.Instant(42);
+        });
+
+        var session = ts.Stop();
+
+        var expected = threads * perThread / everyN;
+        var slack = threads * SampleTicketPool.BlockSize / everyN;
+
+        Assert.IsGreaterThanOrEqualTo(expected - slack, session.EventCount);
+        Assert.IsLessThanOrEqualTo(expected + slack, session.EventCount);
+        Assert.AreEqual(threads * perThread - session.EventCount, session.SampledOutEvents);
+    }
+
+    [TestMethod]
+    public void EveryNById_OneEventPerThread_KeepsGlobalRatio()
+    {
+        const int everyN = 8;
+        const int threads = 64;
+
+        var ts = new TracingSession();
+        ts.Start(new SessionOptions
+        {
+            SampleEveryNById = new System.Collections.Generic.Dictionary<int, int> { [7] = everyN },
+            ChunkCapacity = 1024
+        });
+
+        RunOnThreads(threads, () => ts.Instant(7));
+
+        var session = ts.Stop();
+
+        Assert.AreEqual((long)(threads / everyN), session.EventCount);
+    }
+
+    private static void RunOnThreads(int count, Action body)
+    {
+        var threads = new Thread[count];
+        for (int i = 0; i < count; i++)
+        {
+            threads[i] = new Thread(() => body()) { IsBackground = true };
+            threads[i].Start();
+        }
+
+        foreach (var thread in threads)
+            thread.Join();
     }
 
     private static TraceEventRecord[] ToArray(TraceSession session)

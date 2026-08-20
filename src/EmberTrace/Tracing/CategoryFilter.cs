@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using EmberTrace.Internal;
 using EmberTrace.Metadata;
-using EmberTrace;
 
 namespace EmberTrace.Tracing;
 
@@ -47,7 +47,7 @@ internal sealed class CategoryFilter
             return categoryId;
 
         if (_meta.TryGet(id, out var meta) && !string.IsNullOrEmpty(meta.Category))
-            categoryId = Tracer.CategoryId(meta.Category);
+            categoryId = TraceIds.Category(meta.Category);
         else
             categoryId = 0;
 

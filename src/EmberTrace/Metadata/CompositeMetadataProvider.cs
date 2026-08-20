@@ -1,21 +1,63 @@
+using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+
 namespace EmberTrace.Metadata;
 
 internal sealed class CompositeMetadataProvider : ITraceMetadataProvider
 {
-    private readonly ITraceMetadataProvider[] _providers;
+    private readonly FrozenDictionary<int, TraceMeta> _flattened;
+    private readonly ITraceMetadataProvider[] _fallbacks;
 
-    public CompositeMetadataProvider(ITraceMetadataProvider[] providers)
+    private CompositeMetadataProvider(FrozenDictionary<int, TraceMeta> flattened, ITraceMetadataProvider[] fallbacks)
     {
-        _providers = providers;
+        _flattened = flattened;
+        _fallbacks = fallbacks;
     }
 
-    public ITraceMetadataProvider[] Providers => _providers;
+    public static ITraceMetadataProvider Create(IReadOnlyList<ITraceMetadataProvider> providers)
+    {
+        var flattened = new Dictionary<int, TraceMeta>();
+        List<ITraceMetadataProvider>? fallbacks = null;
+
+        for (int i = 0; i < providers.Count; i++)
+        {
+            var provider = providers[i];
+            if (provider is IEnumerable<TraceMeta> entries)
+            {
+                foreach (var entry in entries)
+                    flattened.TryAdd(entry.Id, entry);
+
+                continue;
+            }
+
+            (fallbacks ??= new List<ITraceMetadataProvider>()).Add(provider);
+        }
+
+        if (flattened.Count == 0 && fallbacks is { Count: 1 })
+            return fallbacks[0];
+
+        return new CompositeMetadataProvider(
+            flattened.ToFrozenDictionary(),
+            fallbacks?.ToArray() ?? Array.Empty<ITraceMetadataProvider>());
+    }
+
+    public ITraceMetadataProvider Append(ITraceMetadataProvider provider)
+    {
+        var merged = new ITraceMetadataProvider[_fallbacks.Length + 1];
+        Array.Copy(_fallbacks, merged, _fallbacks.Length);
+        merged[^1] = provider;
+        return new CompositeMetadataProvider(_flattened, merged);
+    }
 
     public bool TryGet(int id, out TraceMeta metadata)
     {
-        for (int i = 0; i < _providers.Length; i++)
+        if (_flattened.TryGetValue(id, out metadata))
+            return true;
+
+        for (int i = 0; i < _fallbacks.Length; i++)
         {
-            if (_providers[i].TryGet(id, out metadata))
+            if (_fallbacks[i].TryGet(id, out metadata))
                 return true;
         }
 

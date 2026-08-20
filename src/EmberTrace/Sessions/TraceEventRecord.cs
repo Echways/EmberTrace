@@ -7,8 +7,11 @@ public readonly record struct TraceEventRecord(
     TraceEventKind Kind,
     long FlowId,
     long Value,
-    long Sequence = 0)
+    long Sequence = 0,
+    int TrackId = 0)
 {
+    public int TrackId { get; init; } = TrackId == 0 ? ThreadId : TrackId;
+
     public bool IsScope => Kind == TraceEventKind.Begin || Kind == TraceEventKind.End;
 
     public long AsyncScopeId => IsScope ? FlowId : 0;

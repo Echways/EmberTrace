@@ -82,10 +82,10 @@ public class TracerConcurrencyTests
     }
 
     [TestMethod]
-    public void Stop_WaitsForAWriterThatIsStillInsideWrite()
+    public void OnOverflow_DoesNotRunOnTheWritingThread()
     {
-        using var insideWrite = new ManualResetEventSlim();
-        using var releaseWrite = new ManualResetEventSlim();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
 
         var ts = new TracingSession();
         ts.Start(new SessionOptions
@@ -95,8 +95,8 @@ public class TracerConcurrencyTests
             OverflowPolicy = OverflowPolicy.DropNew,
             OnOverflow = _ =>
             {
-                insideWrite.Set();
-                releaseWrite.Wait();
+                entered.Set();
+                release.Wait();
             }
         });
 
@@ -106,16 +106,11 @@ public class TracerConcurrencyTests
             ts.Instant(2);
         });
 
-        Assert.IsTrue(insideWrite.Wait(TimeSpan.FromSeconds(10)));
+        Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(10)), "the overflow handler must still be invoked");
+        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)), "a blocking overflow handler must not stall the tracing thread");
 
-        var stop = Task.Run(ts.Stop);
-        Assert.IsFalse(stop.Wait(TimeSpan.FromMilliseconds(200)), "Stop() must not snapshot while a writer is in flight");
-
-        releaseWrite.Set();
-
-        Assert.IsTrue(stop.Wait(TimeSpan.FromSeconds(10)));
-        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)));
-        Assert.AreEqual(1, stop.Result.EventCount);
+        release.Set();
+        Assert.AreEqual(1, ts.Stop().EventCount);
     }
 
     [TestMethod]
@@ -123,13 +118,18 @@ public class TracerConcurrencyTests
     {
         var ts = new TracingSession();
         TraceSession? stopped = null;
+        using var fired = new ManualResetEventSlim();
 
         ts.Start(new SessionOptions
         {
             ChunkCapacity = 512,
             MaxTotalEvents = 1,
             OverflowPolicy = OverflowPolicy.DropNew,
-            OnOverflow = _ => stopped = ts.Stop()
+            OnOverflow = _ =>
+            {
+                stopped = ts.Stop();
+                fired.Set();
+            }
         });
 
         var writer = Task.Run(() =>
@@ -139,6 +139,7 @@ public class TracerConcurrencyTests
         });
 
         Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)), "Stop() called from the overflow handler must not deadlock");
+        Assert.IsTrue(fired.Wait(TimeSpan.FromSeconds(10)));
         Assert.IsNotNull(stopped);
     }
 

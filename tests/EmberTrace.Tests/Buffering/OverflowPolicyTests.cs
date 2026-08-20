@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -43,14 +46,19 @@ public class OverflowPolicyTests
     [TestMethod]
     public void DropNew_OnOverflow_FiredExactlyOnceWithCorrectInfo()
     {
-        var received = new List<OverflowInfo>();
+        var received = new ConcurrentQueue<OverflowInfo>();
+        using var fired = new ManualResetEventSlim();
 
         var options = new SessionOptions
         {
             MaxTotalEvents = 3,
             OverflowPolicy = OverflowPolicy.DropNew,
             ChunkCapacity = 16,
-            OnOverflow = info => received.Add(info)
+            OnOverflow = info =>
+            {
+                received.Enqueue(info);
+                fired.Set();
+            }
         };
         var pool = new ChunkPool(16);
         var collector = new SessionCollector(options, pool, 16);
@@ -58,9 +66,11 @@ public class OverflowPolicyTests
         for (int i = 0; i < 10; i++)
             collector.TryAcceptEvent();
 
+        Assert.IsTrue(fired.Wait(TimeSpan.FromSeconds(10)), "OnOverflow must be delivered outside the writing path");
         Assert.HasCount(1, received, "OnOverflow must fire exactly once regardless of how many events overflow");
-        Assert.AreEqual(OverflowReason.MaxTotalEvents, received[0].Reason);
-        Assert.AreEqual(OverflowPolicy.DropNew, received[0].Policy);
+        Assert.IsTrue(received.TryDequeue(out var info));
+        Assert.AreEqual(OverflowReason.MaxTotalEvents, info.Reason);
+        Assert.AreEqual(OverflowPolicy.DropNew, info.Policy);
     }
 
     [TestMethod]

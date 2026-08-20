@@ -1,8 +1,9 @@
+using System.Collections;
 using System.Collections.Generic;
 
 namespace EmberTrace.Metadata;
 
-internal sealed class DictionaryTraceMetadataProvider : ITraceMetadataProvider
+internal sealed class DictionaryTraceMetadataProvider : ITraceMetadataProvider, IEnumerable<TraceMeta>
 {
     private readonly Dictionary<int, TraceMeta> _map = new();
 
@@ -12,4 +13,8 @@ internal sealed class DictionaryTraceMetadataProvider : ITraceMetadataProvider
     }
 
     public bool TryGet(int id, out TraceMeta metadata) => _map.TryGetValue(id, out metadata);
+
+    public IEnumerator<TraceMeta> GetEnumerator() => _map.Values.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

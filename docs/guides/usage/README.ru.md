@@ -90,8 +90,8 @@ Tracer.Start(new SessionOptions
 - `ChunkCapacity` — размер чанка событий в буфере потока
 - `OverflowPolicy` — поведение при переполнении (`DropNew`, `DropOldest`, `StopSession`)
 - `MaxTotalEvents` / `MaxTotalChunks` — лимиты на общий объём
-- `MaxEventsPerSecond` — лимит событий в секунду на writer
-- `SampleEveryNGlobal` / `SampleEveryNById` — sampling без глобальных lock
+- `MaxEventsPerSecond` — лимит событий в секунду на writer‑поток
+- `SampleEveryNGlobal` / `SampleEveryNById` — sampling на всю сессию без глобальных lock
 - `EnabledCategoryIds` / `DisabledCategoryIds` — фильтрация категорий
 
 ## Session API

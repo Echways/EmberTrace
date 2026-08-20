@@ -20,7 +20,7 @@ using var fs = File.Create("out/trace_complete.json");
 TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
-Порядок событий стабилен: timestamp → thread → sequence.
+Порядок событий стабилен: timestamp → track → sequence.
 
 ## WriteChromeBeginEnd
 
@@ -35,6 +35,11 @@ TraceExport.WriteChromeBeginEnd(session, fs, meta: meta);
 - Flow (`FlowStart/Step/End`)
 - Instant и Counter
 - имена потоков (если заданы через `Thread.CurrentThread.Name`)
+
+Chrome-поле `tid` — это id дорожки писателя, а не managed thread id: дорожка соответствует одному потоку
+в пределах одной сессии, поэтому поток, который умер и отдал свой `ManagedThreadId` новому потоку,
+получает отдельную строку, а не склеенную. Managed thread id используется для имени строки — через
+метаданные `thread_name`.
 
 ## MarkedComplete: снять короткое окно
 

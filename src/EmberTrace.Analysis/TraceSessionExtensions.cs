@@ -129,7 +129,7 @@ public static class TraceSessionExtensions
         {
             DurationMs = session.DurationMs,
             TotalEvents = reader.TotalEvents,
-            ThreadsSeen = reader.Threads.Count,
+            ThreadsSeen = reader.Tracks.Count,
             UnmatchedBeginCount = reader.UnmatchedBeginCount,
             UnmatchedEndCount = reader.UnmatchedEndCount,
             MismatchedEndCount = reader.MismatchedEndCount,
@@ -151,7 +151,7 @@ public static class TraceSessionExtensions
         {
             if (step.Kind == ScopeStepKind.Open)
             {
-                var parentNode = step.ParentTag is TreeFrame parent ? parent.Node : GetRoot(roots, step.ThreadId);
+                var parentNode = step.ParentTag is TreeFrame parent ? parent.Node : GetRoot(roots, step.TrackId);
                 var node = parentNode.GetOrAddChild(step.Id);
                 node.Count++;
                 step.Tag = new TreeFrame(node);
@@ -186,20 +186,21 @@ public static class TraceSessionExtensions
                 parentFrame.ChildTicks += inclusive;
         }
 
-        foreach (var threadId in reader.Threads)
-            GetRoot(roots, threadId);
+        foreach (var track in reader.Tracks)
+            GetRoot(roots, track.Key);
 
         var threadList = new List<ThreadTrace>(roots.Count);
         foreach (var kv in roots)
         {
             threadList.Add(new ThreadTrace
             {
-                ThreadId = kv.Key,
+                TrackId = kv.Key,
+                ThreadId = reader.Tracks.TryGetValue(kv.Key, out var threadId) ? threadId : kv.Key,
                 Root = Freeze(kv.Value, conv)
             });
         }
 
-        threadList.Sort((a, b) => a.ThreadId.CompareTo(b.ThreadId));
+        threadList.Sort((a, b) => a.TrackId.CompareTo(b.TrackId));
 
         var globalRoot = new MutableNode(0);
         foreach (var kv in roots)
@@ -223,6 +224,7 @@ public static class TraceSessionExtensions
             {
                 new ThreadTrace
                 {
+                    TrackId = 0,
                     ThreadId = 0,
                     Root = globalFrozen
                 }
@@ -249,7 +251,7 @@ public static class TraceSessionExtensions
         {
             DurationMs = session.DurationMs,
             TotalEvents = reader.TotalEvents,
-            ThreadsSeen = reader.Threads.Count,
+            ThreadsSeen = reader.Tracks.Count,
             UnmatchedBeginCount = reader.UnmatchedBeginCount,
             UnmatchedEndCount = reader.UnmatchedEndCount,
             MismatchedEndCount = reader.MismatchedEndCount,
@@ -257,18 +259,19 @@ public static class TraceSessionExtensions
             DroppedChunks = session.DroppedChunks,
             SampledOutEvents = session.SampledOutEvents,
             WasOverflow = session.WasOverflow,
+            Metadata = session.Metadata,
             Threads = threadList,
             GlobalRoot = globalFrozen,
             HotspotsByInclusiveDesc = hotList
         };
     }
 
-    private static MutableNode GetRoot(Dictionary<int, MutableNode> roots, int threadId)
+    private static MutableNode GetRoot(Dictionary<int, MutableNode> roots, int trackId)
     {
-        if (!roots.TryGetValue(threadId, out var root))
+        if (!roots.TryGetValue(trackId, out var root))
         {
             root = new MutableNode(0);
-            roots.Add(threadId, root);
+            roots.Add(trackId, root);
         }
 
         return root;

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -16,7 +17,7 @@ public class ProfilingStateWriterTests
     {
         var options = new SessionOptions { ChunkCapacity = 1024 };
         var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
-        return new ProfilingState(options, collector, null, default, 0);
+        return new ProfilingState(options, collector, TraceMetadata.CreateDefault(), null, default, 0);
     }
 
     [TestMethod]

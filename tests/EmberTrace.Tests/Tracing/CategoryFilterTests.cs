@@ -134,8 +134,6 @@ public class CategoryFilterTests
     [DataRow("Audio", false)]
     public void Integration_EnabledCategoryIds_FiltersAtSessionLevel(string category, bool expected)
     {
-        Tracer.EnableRuntimeMetadata();
-
         var _ = Tracer.Id("IntegTest_Network_Fetch");
         var __ = Tracer.Id("IntegTest_Rendering_Draw");
         var ___ = Tracer.Id("IntegTest_Audio_Play");

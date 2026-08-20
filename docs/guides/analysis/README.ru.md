@@ -26,6 +26,11 @@ var processed = session.Process(strict: true, groupByThread: false);
 - `strict` — не пытается «ремонтировать» стек при mismatched end
 - `groupByThread` — если `false`, строится общий call tree
 
+Один `ThreadTrace` — это одна дорожка писателя, а не один managed thread id: `TrackId` — то, по чему
+сгруппировано дерево, `ThreadId` — поток, который его писал, и нужен для отображения. Поэтому две
+записи могут иметь одинаковый `ThreadId`, если рантайм переиспользовал его в течение сессии, а
+`ThreadsSeen` считает дорожки и в этом случае не занижает результат.
+
 Для лёгкой диагностики:
 
 ```csharp

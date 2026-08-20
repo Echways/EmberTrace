@@ -9,11 +9,12 @@ internal static class SourceEmitter
     {
         var sb = new StringBuilder();
 
+        sb.AppendLine("using System.Collections;");
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine();
         sb.AppendLine("namespace EmberTrace.Internal.Metadata");
         sb.AppendLine("{");
-        sb.AppendLine("    internal sealed class GeneratedTraceMetadataProvider : global::EmberTrace.Metadata.ITraceMetadataProvider");
+        sb.AppendLine("    internal sealed class GeneratedTraceMetadataProvider : global::EmberTrace.Metadata.ITraceMetadataProvider, IEnumerable<global::EmberTrace.Metadata.TraceMeta>");
         sb.AppendLine("    {");
         sb.AppendLine("        private static readonly Dictionary<int, global::EmberTrace.Metadata.TraceMeta> Map = new()");
         sb.AppendLine("        {");
@@ -39,6 +40,10 @@ internal static class SourceEmitter
         sb.AppendLine("        };");
         sb.AppendLine();
         sb.AppendLine("        public bool TryGet(int id, out global::EmberTrace.Metadata.TraceMeta meta) => Map.TryGetValue(id, out meta);");
+        sb.AppendLine();
+        sb.AppendLine("        public IEnumerator<global::EmberTrace.Metadata.TraceMeta> GetEnumerator() => Map.Values.GetEnumerator();");
+        sb.AppendLine();
+        sb.AppendLine("        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    internal static class EmberTraceMetadataModuleInitializer");

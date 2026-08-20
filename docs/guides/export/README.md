@@ -20,7 +20,7 @@ using var fs = File.Create("out/trace_complete.json");
 TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
-Event ordering is stable: timestamp -> thread -> sequence.
+Event ordering is stable: timestamp -> track -> sequence.
 
 ## WriteChromeBeginEnd
 
@@ -35,6 +35,11 @@ Export includes:
 - Flow (`FlowStart/Step/End`)
 - Instant and Counter
 - thread names (if set via `Thread.CurrentThread.Name`)
+
+The Chrome `tid` is a writer track id, not a managed thread id: a track is one thread for the lifetime
+of one session, so a thread that dies and lets the runtime hand its `ManagedThreadId` to a new thread
+gets a row of its own instead of one spliced row. The managed thread id is what the row is named after,
+through the emitted `thread_name` metadata.
 
 ## MarkedComplete: capture a short window
 

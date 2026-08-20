@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using EmberTrace.Flow;
+using EmberTrace.Internal;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 using EmberTrace.Tracing;
@@ -15,21 +15,13 @@ public static partial class Tracer
 {
     internal static readonly Profiler Default = new();
 
-    private static readonly ConcurrentDictionary<int, string> IdToName = new();
-    private static readonly ConcurrentDictionary<string, int> NameToId = new(StringComparer.Ordinal);
-    private static RuntimeMetadataProvider? _runtimeMetadata;
-    private static int _runtimeMetadataEnabled;
-    private static int _runtimeMetadataRegistered;
     private const string DefaultCategory = "Default";
+    private const int DefaultMaxTrackedNames = 16_384;
 
-    static Tracer()
-    {
-#if DEBUG
-        EnableRuntimeMetadata();
-#endif
-    }
+    internal static readonly RuntimeMetadataProvider Names = new(DefaultMaxTrackedNames);
 
-    private static int _idCollisionMode = (int)TracerIdCollisionMode.Warn;
+    private static int _idCollisionMode =
+        (int)RuntimeConfig.GetEnum("EmberTrace.IdCollisionMode", TracerIdCollisionMode.Warn);
 
     public static bool IsRunning => Default.IsRunning;
 
@@ -81,7 +73,7 @@ public static partial class Tracer
 
     public static void FlowStep(FlowHandle handle) => handle.Step();
 
-    public static ITraceMetadataProvider CreateMetadata() => TraceMetadata.CreateDefault();
+    public static ITraceMetadataProvider CreateMetadata() => Default.Metadata;
 
     public static TracerIdCollisionMode IdCollisionMode
     {
@@ -89,114 +81,52 @@ public static partial class Tracer
         set => Volatile.Write(ref _idCollisionMode, (int)value);
     }
 
+    public static Action<TracerIdCollision>? OnIdCollision { get; set; }
+
+    public static int MaxTrackedNames
+    {
+        get => Names.MaxEntries;
+        set => Names.MaxEntries = value;
+    }
+
     public static int Id(string name)
     {
-        var id = StableId(name);
-        RegisterIdCollision(name, id);
-        RegisterRuntimeMetadata(id, name);
+        var id = TraceIds.Stable(name);
+
+        if (!Names.TryRegister(id, name, DefaultCategory, out var owner))
+            HandleIdCollision(id, owner, name);
+
         return id;
     }
 
-    public static int CategoryId(string category)
+    public static int CategoryId(string category) => TraceIds.Category(category);
+
+    private static void HandleIdCollision(int id, string existingName, string newName)
     {
-        if (string.IsNullOrWhiteSpace(category))
-            return 0;
-
-        return StableId(category);
-    }
-
-    internal static int StableId(string name)
-    {
-        if (name is null) throw new ArgumentNullException(nameof(name));
-
-        unchecked
-        {
-            const uint offset = 2166136261;
-            const uint prime = 16777619;
-
-            uint h = offset;
-            foreach (var t in name)
-            {
-                h ^= t;
-                h *= prime;
-            }
-
-            h &= 0x7fffffff;
-            if (h == 0) h = 1;
-            return (int)h;
-        }
-    }
-
-    private static void RegisterIdCollision(string name, int id)
-    {
-        var mode = (TracerIdCollisionMode)Volatile.Read(ref _idCollisionMode);
-#if !DEBUG
+        var mode = IdCollisionMode;
         if (mode == TracerIdCollisionMode.Ignore)
             return;
-#endif
 
-        NameToId.TryAdd(name, id);
+        var collision = new TracerIdCollision(id, existingName, newName);
+        var handler = OnIdCollision;
+        handler?.Invoke(collision);
 
-        if (IdToName.TryGetValue(id, out var existing))
-        {
-            if (!string.Equals(existing, name, StringComparison.Ordinal))
-                HandleIdCollision(mode, id, existing, name);
-            return;
-        }
-
-        if (!IdToName.TryAdd(id, name))
-        {
-            if (IdToName.TryGetValue(id, out existing) && !string.Equals(existing, name, StringComparison.Ordinal))
-                HandleIdCollision(mode, id, existing, name);
-        }
-    }
-
-    private static void HandleIdCollision(TracerIdCollisionMode mode, int id, string existingName, string newName)
-    {
         if (mode == TracerIdCollisionMode.Throw)
-            throw new InvalidOperationException($"Tracer.Id collision: '{existingName}' and '{newName}' map to {id}.");
+            throw new InvalidOperationException(collision.ToString());
 
-        if (mode == TracerIdCollisionMode.Warn)
-            Trace.TraceWarning($"Tracer.Id collision: '{existingName}' and '{newName}' map to {id}.");
+        if (mode == TracerIdCollisionMode.Warn && handler is null)
+            Trace.TraceWarning(collision.ToString());
     }
+}
 
-    internal static void EnableRuntimeMetadata()
-    {
-        Volatile.Write(ref _runtimeMetadataEnabled, 1);
-        var provider = EnsureRuntimeMetadataProvider();
-        if (provider is null)
-            return;
+public readonly struct TracerIdCollision(int id, string existingName, string newName)
+{
+    public int Id { get; } = id;
+    public string ExistingName { get; } = existingName;
+    public string NewName { get; } = newName;
 
-        foreach (var entry in IdToName)
-            provider.Register(entry.Key, entry.Value, DefaultCategory);
-    }
-
-    private static void RegisterRuntimeMetadata(int id, string name)
-    {
-        var provider = EnsureRuntimeMetadataProvider();
-        if (provider is null)
-            return;
-
-        provider.Register(id, name, DefaultCategory);
-    }
-
-    private static RuntimeMetadataProvider? EnsureRuntimeMetadataProvider()
-    {
-        if (Volatile.Read(ref _runtimeMetadataEnabled) == 0)
-            return null;
-
-        var provider = _runtimeMetadata;
-        if (provider is null)
-        {
-            var created = new RuntimeMetadataProvider();
-            provider = Interlocked.CompareExchange(ref _runtimeMetadata, created, null) ?? created;
-        }
-
-        if (Interlocked.CompareExchange(ref _runtimeMetadataRegistered, 1, 0) == 0)
-            TraceMetadata.Register(provider);
-
-        return provider;
-    }
+    public override string ToString() =>
+        $"Tracer.Id collision: '{ExistingName}' and '{NewName}' map to {Id}.";
 }
 
 public enum TracerIdCollisionMode
