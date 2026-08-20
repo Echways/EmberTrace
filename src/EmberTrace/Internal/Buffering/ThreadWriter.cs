@@ -8,17 +8,18 @@ namespace EmberTrace.Internal.Buffering;
 internal readonly struct SamplingPolicy
 {
     public readonly int GlobalEveryN;
-    public readonly IReadOnlyDictionary<int, int>? EveryNById;
     public readonly int MaxEventsPerSecond;
+    public readonly SampleTicketPool? Tickets;
 
     public SamplingPolicy(int globalEveryN, IReadOnlyDictionary<int, int>? everyNById, int maxEventsPerSecond)
     {
         GlobalEveryN = globalEveryN;
-        EveryNById = everyNById;
         MaxEventsPerSecond = maxEventsPerSecond;
+
+        var pool = new SampleTicketPool(everyNById);
+        Tickets = globalEveryN > 1 || pool.SlotCount > 1 ? pool : null;
     }
 
-    public bool IsEnabled => GlobalEveryN > 1 || (EveryNById is { Count: > 0 });
     public bool HasRateLimit => MaxEventsPerSecond > 0;
 }
 
@@ -30,11 +31,10 @@ internal sealed class ThreadWriter
     private Chunk? _chunk;
     private int _writesInFlight;
     private readonly SamplingPolicy _sampling;
-    private long _globalSampleCounter;
     private long _sequence;
     private long _rateWindowStart;
     private int _rateWindowCount;
-    private Dictionary<int, long>? _perIdSampleCounters;
+    private TicketBlock[]? _ticketBlocks;
 
     public ThreadWriter(SessionCollector collector, SamplingPolicy sampling)
     {
@@ -112,36 +112,45 @@ internal sealed class ThreadWriter
 
     private bool ShouldSample(int id, SessionCollector collector)
     {
-        if (!_sampling.IsEnabled)
+        var tickets = _sampling.Tickets;
+        if (tickets is null)
             return true;
 
-        if (_sampling.EveryNById is { Count: > 0 } perId && perId.TryGetValue(id, out var everyN) && everyN > 1)
+        int slot, everyN;
+        if (tickets.TryGetSlot(id, out var perId))
         {
-            _perIdSampleCounters ??= new Dictionary<int, long>(perId.Count);
-
-            var next = _perIdSampleCounters.TryGetValue(id, out var current) ? current + 1 : 1;
-            _perIdSampleCounters[id] = next;
-
-            if (next % everyN != 1)
-            {
-                collector.RecordSampledOutEvent();
-                return false;
-            }
-
+            slot = perId.Index;
+            everyN = perId.EveryN;
+        }
+        else if (_sampling.GlobalEveryN > 1)
+        {
+            slot = SampleTicketPool.GlobalSlot;
+            everyN = _sampling.GlobalEveryN;
+        }
+        else
+        {
             return true;
         }
 
-        if (_sampling.GlobalEveryN > 1)
+        if (NextTicket(tickets, slot) % everyN == 0)
+            return true;
+
+        collector.RecordSampledOutEvent();
+        return false;
+    }
+
+    private long NextTicket(SampleTicketPool tickets, int slot)
+    {
+        var blocks = _ticketBlocks ??= new TicketBlock[tickets.SlotCount];
+        ref var block = ref blocks[slot];
+
+        if (block.Next == block.End)
         {
-            var next = ++_globalSampleCounter;
-            if (next % _sampling.GlobalEveryN != 1)
-            {
-                collector.RecordSampledOutEvent();
-                return false;
-            }
+            block.Next = tickets.RentBlock(slot);
+            block.End = block.Next + SampleTicketPool.BlockSize;
         }
 
-        return true;
+        return block.Next++;
     }
 
     private bool ShouldAcceptRate(long timestamp, SessionCollector collector)
@@ -163,5 +172,11 @@ internal sealed class ThreadWriter
             return true;
 
         return collector.HandleRateLimitExceeded();
+    }
+
+    private struct TicketBlock
+    {
+        public long Next;
+        public long End;
     }
 }

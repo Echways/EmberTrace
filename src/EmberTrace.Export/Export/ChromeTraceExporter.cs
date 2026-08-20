@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
+using static EmberTrace.Export.TraceTime;
 
 namespace EmberTrace.Export;
 
@@ -430,8 +431,6 @@ internal static class ChromeTraceExporter
         if (cmp != 0) return cmp;
         return sequence.CompareTo(otherSequence);
     }
-
-    private static double ToUs(long ticks, long freq) => ticks * 1_000_000.0 / freq;
 
     private static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
     {

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EmberTrace.Export;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
+using static EmberTrace.Export.TraceTime;
 
 namespace EmberTrace;
 
@@ -807,14 +808,6 @@ public static class TraceExport
             return name;
 
         return $"Thread {tid}";
-    }
-
-    static long ToUs(long deltaTicks, long freq)
-    {
-        if (deltaTicks <= 0)
-            return 0;
-
-        return (deltaTicks * 1_000_000L) / freq;
     }
 
     static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)

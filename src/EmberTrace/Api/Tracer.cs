@@ -16,11 +16,20 @@ public static partial class Tracer
     internal static readonly Profiler Default = new();
 
     private static readonly ConcurrentDictionary<int, string> IdToName = new();
-    private static readonly ConcurrentDictionary<string, int> NameToId = new(StringComparer.Ordinal);
+    private static int _trackedNames;
     private static RuntimeMetadataProvider? _runtimeMetadata;
     private static int _runtimeMetadataEnabled;
     private static int _runtimeMetadataRegistered;
     private const string DefaultCategory = "Default";
+
+#if DEBUG
+    private const TracerIdCollisionMode DefaultIdCollisionMode = TracerIdCollisionMode.Throw;
+#else
+    private const TracerIdCollisionMode DefaultIdCollisionMode = TracerIdCollisionMode.Warn;
+#endif
+
+    private static int _idCollisionMode = (int)DefaultIdCollisionMode;
+    private static int _maxTrackedNames = 16_384;
 
     static Tracer()
     {
@@ -28,8 +37,6 @@ public static partial class Tracer
         EnableRuntimeMetadata();
 #endif
     }
-
-    private static int _idCollisionMode = (int)TracerIdCollisionMode.Warn;
 
     public static bool IsRunning => Default.IsRunning;
 
@@ -89,6 +96,14 @@ public static partial class Tracer
         set => Volatile.Write(ref _idCollisionMode, (int)value);
     }
 
+    public static Action<TracerIdCollision>? OnIdCollision { get; set; }
+
+    public static int MaxTrackedNames
+    {
+        get => Volatile.Read(ref _maxTrackedNames);
+        set => Volatile.Write(ref _maxTrackedNames, value < 0 ? 0 : value);
+    }
+
     public static int Id(string name)
     {
         var id = StableId(name);
@@ -135,8 +150,6 @@ public static partial class Tracer
             return;
 #endif
 
-        NameToId.TryAdd(name, id);
-
         if (IdToName.TryGetValue(id, out var existing))
         {
             if (!string.Equals(existing, name, StringComparison.Ordinal))
@@ -144,20 +157,36 @@ public static partial class Tracer
             return;
         }
 
-        if (!IdToName.TryAdd(id, name))
+        if (!WithinNameLimit(Volatile.Read(ref _trackedNames)))
+            return;
+
+        if (IdToName.TryAdd(id, name))
         {
-            if (IdToName.TryGetValue(id, out existing) && !string.Equals(existing, name, StringComparison.Ordinal))
-                HandleIdCollision(mode, id, existing, name);
+            Interlocked.Increment(ref _trackedNames);
+            return;
         }
+
+        if (IdToName.TryGetValue(id, out existing) && !string.Equals(existing, name, StringComparison.Ordinal))
+            HandleIdCollision(mode, id, existing, name);
+    }
+
+    internal static bool WithinNameLimit(int tracked)
+    {
+        var limit = MaxTrackedNames;
+        return limit == 0 || tracked < limit;
     }
 
     private static void HandleIdCollision(TracerIdCollisionMode mode, int id, string existingName, string newName)
     {
-        if (mode == TracerIdCollisionMode.Throw)
-            throw new InvalidOperationException($"Tracer.Id collision: '{existingName}' and '{newName}' map to {id}.");
+        var collision = new TracerIdCollision(id, existingName, newName);
+        var handler = OnIdCollision;
+        handler?.Invoke(collision);
 
-        if (mode == TracerIdCollisionMode.Warn)
-            Trace.TraceWarning($"Tracer.Id collision: '{existingName}' and '{newName}' map to {id}.");
+        if (mode == TracerIdCollisionMode.Throw)
+            throw new InvalidOperationException(collision.ToString());
+
+        if (mode == TracerIdCollisionMode.Warn && handler is null)
+            Trace.TraceWarning(collision.ToString());
     }
 
     internal static void EnableRuntimeMetadata()
@@ -197,6 +226,16 @@ public static partial class Tracer
 
         return provider;
     }
+}
+
+public readonly struct TracerIdCollision(int id, string existingName, string newName)
+{
+    public int Id { get; } = id;
+    public string ExistingName { get; } = existingName;
+    public string NewName { get; } = newName;
+
+    public override string ToString() =>
+        $"Tracer.Id collision: '{ExistingName}' and '{NewName}' map to {Id}.";
 }
 
 public enum TracerIdCollisionMode

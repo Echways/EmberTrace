@@ -90,8 +90,8 @@ Tracer.Start(new SessionOptions
 - `ChunkCapacity` - size of the event chunk in a thread buffer
 - `OverflowPolicy` - overflow behavior (`DropNew`, `DropOldest`, `StopSession`)
 - `MaxTotalEvents` / `MaxTotalChunks` - limits for total volume
-- `MaxEventsPerSecond` - events-per-second limit per writer
-- `SampleEveryNGlobal` / `SampleEveryNById` - sampling without global locks
+- `MaxEventsPerSecond` - events-per-second limit per writer thread
+- `SampleEveryNGlobal` / `SampleEveryNById` - session-wide sampling without global locks
 - `EnabledCategoryIds` / `DisabledCategoryIds` - category filtering
 
 ## Session API

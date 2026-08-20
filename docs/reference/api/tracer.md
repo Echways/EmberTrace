@@ -140,7 +140,8 @@ registers a name with category `Default`.
 Stable string-based `int` identifier computed as a 31-bit FNV-1a hash.
 
 - Deterministic: same string → same `id`.
-- **Collision risk**: the hash space holds ~2.1 billion values. By the birthday paradox, the probability of the first collision reaches 50% around **46 000 unique names** — a realistic threshold in a large monorepo.
+- **Collision risk**: the hash space holds ~2.1 billion values. By the birthday paradox, the probability of a collision is ~1% at about **6 500** unique names and ~50% at about **54 000** — a realistic threshold in a large monorepo. A collision silently merges two spans into one, which corrupts aggregates instead of emptying them.
+- Intended for a **bounded set of static names**. Do not build names per request (`Tracer.Id($"req:{userId}")`): every distinct name is retained for the lifetime of the process; see `Tracer.MaxTrackedNames`.
 - Collision behaviour is controlled by `Tracer.IdCollisionMode` (see below).
 - For projects with many unique trace names, prefer the source generator or `[TraceId]` attribute — they guarantee collision-free identifiers at compile time.
 
@@ -149,11 +150,27 @@ Controls what happens when two distinct names hash to the same value.
 
 | Value | Behaviour | Default |
 |-------|-----------|---------|
-| `Warn` | Emits `Trace.TraceWarning` | **Yes** (all configurations) |
-| `Throw` | Throws `InvalidOperationException` | — |
+| `Throw` | Throws `InvalidOperationException` | **Yes** in `DEBUG` |
+| `Warn` | Invokes `Tracer.OnIdCollision`, or falls back to `Trace.TraceWarning` when no handler is set | **Yes** in `RELEASE` |
 | `Ignore` | Silently keeps the first mapping; correctness not guaranteed | — |
 
 > **Recommendation for CI**: set `Tracer.IdCollisionMode = TracerIdCollisionMode.Throw` early in your test entry point. This surfaces collisions immediately rather than letting them corrupt traces silently.
+
+### `Action<TracerIdCollision>? Tracer.OnIdCollision`
+Called on every detected collision, before the mode is applied, with the id and both names.
+Route it to your own logger or metrics — `Trace.TraceWarning` is only the fallback for `Warn`
+when no handler is set.
+
+```csharp
+Tracer.OnIdCollision = c => logger.LogError("EmberTrace id collision: {Collision}", c);
+```
+
+### `int Tracer.MaxTrackedNames`
+Upper bound on how many `name → id` pairs the tracer retains for collision detection and
+runtime metadata. Default `16 384`; `0` disables the limit. Once the limit is reached, new
+names are no longer registered: they still get an id, but stop being covered by collision
+detection and stop appearing by name in traces. This caps the memory a dynamic-name misuse
+can leak.
 
 ### `int Tracer.CategoryId(string category)`
 Stable `int` identifier for categories (used in filters).

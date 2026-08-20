@@ -22,6 +22,15 @@
 - `SampleEveryNById` - dictionary `{ id -> everyN }` for targeted sampling
 - `MaxEventsPerSecond` - events-per-second cap per writer (0 = unlimited)
 
+Sampling counters are shared by the whole session, not by thread: writer threads reserve
+tickets from one global sequence in blocks of 127, so the kept share stays `1/N` no matter
+how many threads produce events, and short-lived threads no longer keep their first event
+unconditionally. The block size is coprime with any practical `everyN`, which keeps the
+block boundaries from lining up with the sampling period.
+
+`MaxEventsPerSecond`, unlike sampling, is enforced per writer thread: the effective ceiling
+for the process is `MaxEventsPerSecond` x number of threads that write events.
+
 ## Metadata
 
 - `EnableRuntimeMetadata` - register runtime metadata (see `Tracer.Id`)
