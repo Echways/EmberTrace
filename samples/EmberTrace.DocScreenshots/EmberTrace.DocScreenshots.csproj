@@ -9,6 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Remove="out/**" />
+        <None Remove="out/**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj" />
         <ProjectReference Include="..\..\src\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
         <ProjectReference Include="..\..\src\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />

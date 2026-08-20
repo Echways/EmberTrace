@@ -1,0 +1,94 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SOLUTION: EmberTrace.slnx
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  codeql:
+    name: 🛡️ CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          build-mode: manual
+          queries: security-and-quality
+
+      - run: dotnet build "$SOLUTION" -c Release --no-restore -p:UseLocalEmberTrace=true
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:csharp
+
+  dependency-review:
+    name: 🔗 Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+  advisories:
+    name: 🧪 NuGet advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Collect
+        run: |
+          mkdir -p artifacts/audit
+          dotnet list "$SOLUTION" package --vulnerable --include-transitive --format json \
+            > artifacts/audit/vulnerable.json
+          dotnet list "$SOLUTION" package --deprecated --include-transitive --format json \
+            > artifacts/audit/deprecated.json
+
+      - name: Evaluate
+        run: |
+          python3 .github/scripts/audit_packages.py \
+            --vulnerable artifacts/audit/vulnerable.json \
+            --deprecated artifacts/audit/deprecated.json \
+            --fail-on moderate
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: artifacts/audit
+          retention-days: 30
+          if-no-files-found: warn

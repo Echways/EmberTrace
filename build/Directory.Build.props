@@ -15,7 +15,13 @@
         <NoWarn>$(NoWarn);1591</NoWarn>
 
         <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/Echways/EmberTrace</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/Echways/EmberTrace</PackageProjectUrl>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
+
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     </PropertyGroup>

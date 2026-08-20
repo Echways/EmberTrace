@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: deps
+    groups:
+      test-tooling:
+        patterns: ['MSTest*', 'Microsoft.NET.Test.Sdk', 'Microsoft.CodeCoverage']
+      roslyn:
+        patterns: ['Microsoft.CodeAnalysis*']
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: EmberTrace*

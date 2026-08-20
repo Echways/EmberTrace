@@ -1,0 +1,89 @@
+name: Benchmarks
+
+on:
+  workflow_call:
+    inputs:
+      job:
+        type: string
+        required: false
+        default: short
+      filter:
+        type: string
+        required: false
+        default: '*ScopeBenchmarks*'
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        type: choice
+        options: [short, medium, default, long]
+        default: default
+      filter:
+        type: string
+        default: '*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  BDN_JOB: ${{ inputs.job || 'default' }}
+  BDN_FILTER: ${{ inputs.filter || '*ScopeBenchmarks*' }}
+
+jobs:
+  benchmark:
+    name: 📈 Perf gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Build
+        run: |
+          dotnet build benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj \
+            -c Release --no-restore -p:UseLocalEmberTrace=true
+
+      - name: Run
+        run: |
+          dotnet run --project benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj \
+            -c Release --no-build -p:UseLocalEmberTrace=true \
+            -- --filter "$BDN_FILTER" --job "$BDN_JOB" \
+            --exporters json github --artifacts artifacts/benchmarks
+
+      - name: Compare with baseline
+        run: |
+          set -o pipefail
+          python3 benchmarks/compare_benchmarks.py benchmarks/baseline.json artifacts/benchmarks \
+            2>&1 | tee artifacts/benchmarks/gate.txt
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "## 📈 Perf gate — job \`$BDN_JOB\`, filter \`$BDN_FILTER\`"
+            echo
+            echo '```'
+            cat artifacts/benchmarks/gate.txt 2>/dev/null || echo "no comparison produced"
+            echo '```'
+            for report in artifacts/benchmarks/results/*-report-github.md; do
+              [ -e "$report" ] || continue
+              echo
+              cat "$report"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-${{ github.run_id }}
+          path: artifacts/benchmarks
+          retention-days: 30
+          if-no-files-found: warn
