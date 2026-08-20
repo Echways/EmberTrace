@@ -76,9 +76,9 @@ internal static class ChromeTraceExporter
         var start = session.StartTimestamp;
         var freq = session.TimestampFrequency;
 
-        var complete = new List<CompleteEvent>(capacity: checked((int)Math.Min(int.MaxValue, session.EventCount / 2)));
+        var complete = new List<CompleteSpan>(capacity: checked((int)Math.Min(int.MaxValue, session.EventCount / 2)));
         var asyncSpans = new List<AsyncSpan>();
-        CollectScopes(session, start, complete, asyncSpans);
+        ScopeCollector.CollectComplete(new ScopeReader(session), start, complete, asyncSpans);
 
         if (sortByStartTimestamp)
         {
@@ -155,46 +155,6 @@ internal static class ChromeTraceExporter
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
-    private readonly struct CompleteEvent
-    {
-        public readonly int Id;
-        public readonly int ThreadId;
-        public readonly long StartTs;
-        public readonly long DurTicks;
-        public readonly long Sequence;
-
-        public CompleteEvent(int id, int threadId, long startTs, long durTicks, long sequence)
-        {
-            Id = id;
-            ThreadId = threadId;
-            StartTs = startTs;
-            DurTicks = durTicks;
-            Sequence = sequence;
-        }
-    }
-
-    private readonly struct AsyncSpan
-    {
-        public readonly int Id;
-        public readonly long AsyncScopeId;
-        public readonly int StartThreadId;
-        public readonly int EndThreadId;
-        public readonly long StartTs;
-        public readonly long EndTs;
-        public readonly long Sequence;
-
-        public AsyncSpan(int id, long asyncScopeId, int startThreadId, int endThreadId, long startTs, long endTs, long sequence)
-        {
-            Id = id;
-            AsyncScopeId = asyncScopeId;
-            StartThreadId = startThreadId;
-            EndThreadId = endThreadId;
-            StartTs = startTs;
-            EndTs = endTs;
-            Sequence = sequence;
-        }
-    }
-
     private static List<int> CollectThreadIds(TraceSession session, bool includeSynthetic = false)
     {
         var set = new HashSet<int>();
@@ -222,43 +182,6 @@ internal static class ChromeTraceExporter
             list.Add(e);
         }
         return list;
-    }
-
-    private static void CollectScopes(
-        TraceSession session,
-        long start,
-        List<CompleteEvent> complete,
-        List<AsyncSpan> asyncSpans)
-    {
-        var reader = new ScopeReader(session);
-
-        foreach (var step in reader.Read())
-        {
-            if (step.Kind != ScopeStepKind.Close || step.IsSynthetic)
-                continue;
-
-            if (step.StartTimestamp < start)
-                continue;
-
-            var dur = step.DurationTicks;
-            if (dur < 0)
-                continue;
-
-            if (step.IsAsync)
-            {
-                asyncSpans.Add(new AsyncSpan(
-                    step.Id,
-                    step.AsyncScopeId,
-                    step.ThreadId,
-                    step.EndThreadId,
-                    step.StartTimestamp,
-                    step.EndTimestamp,
-                    step.StartSequence));
-                continue;
-            }
-
-            complete.Add(new CompleteEvent(step.Id, step.ThreadId, step.StartTimestamp, dur, step.StartSequence));
-        }
     }
 
     private static List<TraceEventRecord> CollectFlows(TraceSession session, long start)
@@ -333,7 +256,7 @@ internal static class ChromeTraceExporter
 
     private static void WriteCompleteEvent(
         Utf8JsonWriter json,
-        CompleteEvent e,
+        in CompleteSpan e,
         ITraceMetadataProvider meta,
         long start,
         long freq,

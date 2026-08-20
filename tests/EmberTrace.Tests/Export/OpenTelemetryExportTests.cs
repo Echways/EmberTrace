@@ -285,6 +285,42 @@ public class OpenTelemetryExportTests
     }
 
     [TestMethod]
+    public void CreateSpans_DoesNotDisturbAmbientActivity()
+    {
+        long freq = Timestamp.Frequency;
+        var session = BuildSession(
+            new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(2, 1, freq / 4, TraceEventKind.Begin, 0, 0),
+            new TraceEvent(2, 1, freq / 2, TraceEventKind.End, 0, 0),
+            new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
+
+        using var ambient = new Activity("ambient");
+        ambient.SetIdFormat(ActivityIdFormat.W3C);
+        Activity.Current = null;
+        ambient.Start();
+
+        try
+        {
+            var spans = OpenTelemetryExport.CreateSpans(session, Meta(1, "outer", 2, "inner"), Opts());
+
+            Assert.AreSame(ambient, Activity.Current, "the exporter must leave Activity.Current untouched");
+
+            foreach (var span in spans)
+            {
+                Assert.AreNotEqual(ambient.TraceId, span.TraceId,
+                    $"exported span '{span.DisplayName}' must not join the caller's live trace");
+                Assert.AreNotEqual(default(ActivitySpanId), span.SpanId,
+                    $"exported span '{span.DisplayName}' must carry a real W3C span id");
+            }
+        }
+        finally
+        {
+            ambient.Stop();
+            Activity.Current = null;
+        }
+    }
+
+    [TestMethod]
     public void Export_NullCallback_ThrowsArgumentNullException()
     {
         var session = BuildSession();

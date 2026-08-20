@@ -34,58 +34,67 @@ public static class OpenTelemetryExport
         using var flows = FlowEvents(session, options.IncludeFlowsAsLinks).GetEnumerator();
         var pendingFlow = flows.MoveNext();
 
-        foreach (var step in reader.Read())
+        var ambient = Activity.Current;
+        try
         {
-            var timestamp = step.Kind == ScopeStepKind.Open ? step.StartTimestamp : step.EndTimestamp;
+            foreach (var step in reader.Read())
+            {
+                var timestamp = step.Kind == ScopeStepKind.Open ? step.StartTimestamp : step.EndTimestamp;
 
-            while (pendingFlow && flows.Current.Timestamp <= timestamp)
+                while (pendingFlow && flows.Current.Timestamp <= timestamp)
+                {
+                    AddFlowLink(live, flows.Current);
+                    pendingFlow = flows.MoveNext();
+                }
+
+                if (step.Kind == ScopeStepKind.Open)
+                {
+                    Resolve(meta, step.Id, out var name, out var category);
+
+                    var activity = new Activity(name);
+                    activity.SetIdFormat(ActivityIdFormat.W3C);
+                    activity.SetStartTime(ToUtc(session, baseUtc, step.StartTimestamp));
+
+                    if (step.ParentTag is Activity parent)
+                        activity.SetParentId(parent.TraceId, parent.SpanId, parent.ActivityTraceFlags);
+
+                    Activity.Current = null;
+                    activity.Start();
+
+                    activity.SetTag("embertrace.id", step.Id);
+
+                    if (!string.IsNullOrEmpty(category))
+                        activity.SetTag("embertrace.category", category);
+
+                    if (options.IncludeThreadIdTag)
+                        activity.SetTag("thread.id", step.ThreadId);
+
+                    if (step.IsAsync)
+                        activity.SetTag("embertrace.async_scope_id", step.AsyncScopeId);
+
+                    step.Tag = activity;
+                    Track(live, step.ThreadId).Add(activity);
+                    continue;
+                }
+
+                if (step.Tag is not Activity span)
+                    continue;
+
+                Untrack(live, step.ThreadId, span);
+
+                span.SetEndTime(ToUtc(session, baseUtc, step.EndTimestamp));
+                spans.Add(span);
+            }
+
+            while (pendingFlow)
             {
                 AddFlowLink(live, flows.Current);
                 pendingFlow = flows.MoveNext();
             }
-
-            if (step.Kind == ScopeStepKind.Open)
-            {
-                Resolve(meta, step.Id, out var name, out var category);
-
-                var activity = new Activity(name);
-                activity.SetIdFormat(ActivityIdFormat.W3C);
-                activity.SetStartTime(ToUtc(session, baseUtc, step.StartTimestamp));
-
-                if (step.ParentTag is Activity parent)
-                    activity.SetParentId(parent.TraceId, parent.SpanId, parent.ActivityTraceFlags);
-
-                activity.Start();
-                activity.SetTag("embertrace.id", step.Id);
-
-                if (!string.IsNullOrEmpty(category))
-                    activity.SetTag("embertrace.category", category);
-
-                if (options.IncludeThreadIdTag)
-                    activity.SetTag("thread.id", step.ThreadId);
-
-                if (step.IsAsync)
-                    activity.SetTag("embertrace.async_scope_id", step.AsyncScopeId);
-
-                step.Tag = activity;
-                Track(live, step.ThreadId).Add(activity);
-                continue;
-            }
-
-            if (step.Tag is not Activity span)
-                continue;
-
-            Untrack(live, step.ThreadId, span);
-
-            span.SetEndTime(ToUtc(session, baseUtc, step.EndTimestamp));
-            span.Stop();
-            spans.Add(span);
         }
-
-        while (pendingFlow)
+        finally
         {
-            AddFlowLink(live, flows.Current);
-            pendingFlow = flows.MoveNext();
+            Activity.Current = ambient;
         }
 
         return spans;
