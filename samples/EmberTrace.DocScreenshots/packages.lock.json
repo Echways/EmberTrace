@@ -11,20 +11,20 @@
       "embertrace.analysis": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.2, )"
+          "EmberTrace": "[0.2.3, )"
         }
       },
       "embertrace.export": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.2, )"
+          "EmberTrace": "[0.2.3, )"
         }
       },
       "embertrace.reporttext": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.2, )",
-          "EmberTrace.Analysis": "[0.2.2, )"
+          "EmberTrace": "[0.2.3, )",
+          "EmberTrace.Analysis": "[0.2.3, )"
         }
       }
     }
