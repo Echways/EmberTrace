@@ -24,8 +24,8 @@ class Run:
         return self.passed + self.failed + self.skipped
 
     @property
-    def icon(self) -> str:
-        return "❌" if self.failed else "⚪" if not self.total else "✅"
+    def status(self) -> str:
+        return "FAIL" if self.failed else "empty" if not self.total else "ok"
 
 
 def parse_duration(value: str | None) -> float:
@@ -91,7 +91,7 @@ def fence(text: str, limit: int) -> str:
 
 def render(runs: list[Run], title: str, max_failures: int) -> str:
     if not runs:
-        return f"## ⚪ {title}\n\n> No `.trx` files were produced.\n"
+        return f"## {title}: no data\n\n> No `.trx` files were produced.\n"
 
     passed = sum(r.passed for r in runs)
     failed = sum(r.failed for r in runs)
@@ -99,16 +99,16 @@ def render(runs: list[Run], title: str, max_failures: int) -> str:
     duration = sum(r.duration for r in runs)
 
     lines = [
-        f"## {'❌' if failed else '✅'} {title}",
+        f"## {title}: {'failed' if failed else 'passed'}",
         "",
-        f"**{passed} passed · {failed} failed · {skipped} skipped** in {duration:.2f}s",
+        f"**{passed} passed, {failed} failed, {skipped} skipped** in {duration:.2f}s",
         "",
-        "| | Suite | Passed | Failed | Skipped | Time |",
+        "| Result | Suite | Passed | Failed | Skipped | Time |",
         "|---|---|---:|---:|---:|---:|",
     ]
     for run in sorted(runs, key=lambda r: (r.failed == 0, r.name)):
         lines.append(
-            f"| {run.icon} | `{run.name}` | {run.passed} | {run.failed} | "
+            f"| {run.status} | `{run.name}` | {run.passed} | {run.failed} | "
             f"{run.skipped} | {run.duration:.2f}s |"
         )
     lines.append("")
@@ -118,7 +118,7 @@ def render(runs: list[Run], title: str, max_failures: int) -> str:
         lines += ["### Failures", ""]
         for suite, name, message, stack in failures[:max_failures]:
             lines += [
-                f"<details open><summary><code>{name}</code> — <em>{suite}</em></summary>",
+                f"<details open><summary><code>{name}</code> in <em>{suite}</em></summary>",
                 "",
                 fence(message, 1600),
             ]

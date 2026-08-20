@@ -39,11 +39,11 @@ env:
 
 jobs:
   benchmark:
-    name: 📈 Perf gate
+    name: Perf gate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
       - name: Build
@@ -68,7 +68,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## 📈 Perf gate — job \`$BDN_JOB\`, filter \`$BDN_FILTER\`"
+            echo "## Perf gate: job \`$BDN_JOB\`, filter \`$BDN_FILTER\`"
             echo
             echo '```'
             cat artifacts/benchmarks/gate.txt 2>/dev/null || echo "no comparison produced"
@@ -81,7 +81,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmarks-${{ github.run_id }}
           path: artifacts/benchmarks

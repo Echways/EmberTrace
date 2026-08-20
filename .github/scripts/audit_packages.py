@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 SEVERITIES = ["low", "moderate", "high", "critical"]
-ICONS = {"low": "🔵", "moderate": "🟡", "high": "🟠", "critical": "🔴"}
 
 
 def load(path: str | None) -> dict:
@@ -61,20 +60,20 @@ def main() -> int:
     blocking = [f for f in findings
                 if f["severity"] in SEVERITIES and SEVERITIES.index(f["severity"]) >= floor]
 
-    lines = [f"## {'🔴' if blocking else '🟢'} Dependency audit", ""]
+    lines = [f"## Dependency audit: {'failed' if blocking else 'passed'}", ""]
     if findings:
         lines += [
             f"**{len(findings)} advisory finding(s)**, {len(blocking)} at or above `{args.fail_on}`.",
             "",
-            "| | Package | Version | Severity | Project | Advisory |",
+            "| Package | Scope | Version | Severity | Project | Advisory |",
             "|---|---|---|---|---|---|",
         ]
         rank = lambda f: SEVERITIES.index(f["severity"]) if f["severity"] in SEVERITIES else -1
         for finding in sorted(findings, key=rank, reverse=True):
-            link = f"[details]({finding['url']})" if finding["url"] else "—"
+            link = f"[details]({finding['url']})" if finding["url"] else "n/a"
             lines.append(
-                f"| {ICONS.get(finding['severity'], '⚪')} | {'↳' if finding['transitive'] else '•'} "
-                f"`{finding['id']}` | {finding['version']} | {finding['severity']} | "
+                f"| `{finding['id']}` | {'transitive' if finding['transitive'] else 'direct'} | "
+                f"{finding['version']} | {finding['severity']} | "
                 f"`{finding['project']}` | {link} |"
             )
         lines.append("")

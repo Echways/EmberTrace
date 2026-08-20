@@ -18,12 +18,12 @@ runs:
     - shell: bash
       run: echo "NUGET_PACKAGES=${GITHUB_WORKSPACE}/.nuget/packages" >> "$GITHUB_ENV"
 
-    - uses: actions/setup-dotnet@v4
+    - uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json
 
     - if: inputs.cache == 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ github.workspace }}/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj', 'global.json') }}

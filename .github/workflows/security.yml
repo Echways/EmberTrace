@@ -24,7 +24,7 @@ env:
 
 jobs:
   codeql:
-    name: 🛡️ CodeQL
+    name: CodeQL
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -32,10 +32,10 @@ jobs:
       security-events: write
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: csharp
           build-mode: manual
@@ -43,12 +43,12 @@ jobs:
 
       - run: dotnet build "$SOLUTION" -c Release --no-restore -p:UseLocalEmberTrace=true
 
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
         with:
           category: /language:csharp
 
   dependency-review:
-    name: 🔗 Dependency review
+    name: Dependency review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -56,18 +56,18 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5.0.0
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
 
   advisories:
-    name: 🧪 NuGet advisories
+    name: NuGet advisories
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
       - name: Collect
@@ -86,7 +86,7 @@ jobs:
             --fail-on moderate
 
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-audit
           path: artifacts/audit

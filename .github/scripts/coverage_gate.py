@@ -8,7 +8,7 @@ from pathlib import Path
 
 def bar(rate: float, width: int = 20) -> str:
     filled = round(rate * width)
-    return "█" * filled + "░" * (width - filled)
+    return "#" * filled + "." * (width - filled)
 
 
 def counters(node: ET.Element) -> tuple[int, int, int, int]:
@@ -46,7 +46,7 @@ def main() -> int:
 
     files = gather(args.paths)
     if not files:
-        emit(f"## ⚪ {args.title}\n\n> No Cobertura report was produced.\n")
+        emit(f"## {args.title}: no data\n\n> No Cobertura report was produced.\n")
         return 1
 
     packages: dict[str, list[int]] = {}
@@ -65,19 +65,19 @@ def main() -> int:
     ok = line_rate >= min_line and branch_rate >= min_branch
 
     lines = [
-        f"## {'✅' if ok else '❌'} {args.title}",
+        f"## {args.title}: {'passed' if ok else 'failed'}",
         "",
-        f"`{bar(line_rate)}` **{line_rate * 100:.1f}%** lines ({total[0]}/{total[1]}) · floor {args.min_line:.0f}%",
+        f"`{bar(line_rate)}` **{line_rate * 100:.1f}%** lines ({total[0]}/{total[1]}), floor {args.min_line:.0f}%",
         "",
-        f"`{bar(branch_rate)}` **{branch_rate * 100:.1f}%** branches ({total[2]}/{total[3]}) · floor {args.min_branch:.0f}%",
+        f"`{bar(branch_rate)}` **{branch_rate * 100:.1f}%** branches ({total[2]}/{total[3]}), floor {args.min_branch:.0f}%",
         "",
-        "| | Assembly | Lines | Branches |",
+        "| Result | Assembly | Lines | Branches |",
         "|---|---|---:|---:|",
     ]
     for name, (lc, lv, bc, bv) in sorted(packages.items(), key=lambda kv: kv[1][0] / max(kv[1][1], 1)):
         rate = lc / lv if lv else 0.0
         lines.append(
-            f"| {'✅' if rate >= min_line else '❌'} | `{name}` | "
+            f"| {'ok' if rate >= min_line else 'FAIL'} | `{name}` | "
             f"{rate * 100:.1f}% <sub>{lc}/{lv}</sub> | "
             f"{(bc / bv * 100) if bv else 0:.1f}% <sub>{bc}/{bv}</sub> |"
         )

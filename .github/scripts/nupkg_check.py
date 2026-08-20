@@ -69,20 +69,20 @@ def main() -> int:
 
     packages = sorted(Path(args.directory).glob("*.nupkg"))
     if not packages:
-        emit(f"## ❌ Package validation\n\n> No `.nupkg` files in `{args.directory}`.\n")
+        emit(f"## Package validation: failed\n\n> No `.nupkg` files in `{args.directory}`.\n")
         return 1
 
-    lines = ["| | Package | Version | Size | Notes |", "|---|---|---|---:|---|"]
+    lines = ["| Result | Package | Version | Size | Notes |", "|---|---|---|---:|---|"]
     failed = False
     for package in packages:
         version, problems = check(package, args.version, not args.no_symbols)
         failed = failed or bool(problems)
         lines.append(
-            f"| {'❌' if problems else '✅'} | `{package.name}` | {version} | "
+            f"| {'FAIL' if problems else 'ok'} | `{package.name}` | {version} | "
             f"{package.stat().st_size / 1024:.0f} KB | {'<br>'.join(problems) or 'ok'} |"
         )
 
-    emit("\n".join([f"## {'❌' if failed else '✅'} Package validation", "", *lines, ""]))
+    emit("\n".join([f"## Package validation: {'failed' if failed else 'passed'}", "", *lines, ""]))
     return 1 if failed else 0
 
 
