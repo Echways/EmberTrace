@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Export;
@@ -55,17 +56,13 @@ internal static class ScopeCollector
         List<CompleteSpan> complete,
         List<AsyncSpan> asyncSpans)
     {
-        foreach (var step in reader.Read())
+        foreach (var step in reader.Read().Where(step =>
+                     step.Kind == ScopeStepKind.Close &&
+                     !step.IsSynthetic &&
+                     step.StartTimestamp >= minStartTimestamp &&
+                     step.DurationTicks >= 0))
         {
-            if (step.Kind != ScopeStepKind.Close || step.IsSynthetic)
-                continue;
-
-            if (step.StartTimestamp < minStartTimestamp)
-                continue;
-
             var dur = step.DurationTicks;
-            if (dur < 0)
-                continue;
 
             if (step.IsAsync)
             {
