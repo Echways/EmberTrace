@@ -9,12 +9,16 @@ English version: [./README.md](./README.md)
 
 `EmberTrace.Generator`:
 
-1) Сканирует проект на `[assembly: TraceId(id, name, category)]`
+1) Сканирует проект на `[assembly: TraceId(id, name, category)]` и на поля `const int`,
+   помеченные `[TraceName]` / `[TraceCategory]`
 2) Генерирует провайдер метаданных (`ITraceMetadataProvider`)
 3) **Автоматически регистрирует** его через `ModuleInitializer`, так что `Tracer.CreateMetadata()`
    начнёт возвращать имена/категории без ручной инициализации.
 4) Опционально генерирует `TraceIds.g.cs` с константами `const int` для каждого TraceId
 5) Выдаёт диагностики по ошибкам атрибутов
+
+Если в сборке нет ни одного объявления метаданных, генератор не выдаёт вообще ничего — ни пустого
+провайдера, ни `ModuleInitializer`.
 
 ## Атрибут TraceId
 
@@ -30,6 +34,28 @@ using EmberTrace.Abstractions.Attributes;
 - `id` (`int`) — идентификатор события
 - `name` (`string`) — человекочитаемое имя
 - `category` (`string?`) — опционально (для группировки)
+
+## Имена для уже объявленных id
+
+Если id уже живут в коде как константы, размечай их вместо дублирования на уровне сборки.
+`[TraceName]` и `[TraceCategory]` применяются к полям `const int`; без `[TraceName]` берётся имя поля:
+
+```csharp
+using EmberTrace.Abstractions.Attributes;
+
+static class Ids
+{
+    [TraceName("CPU work")]
+    [TraceCategory("CPU")]
+    public const int Cpu = 2100;
+
+    [TraceCategory("IO")]
+    public const int IoWait = 2200;
+}
+```
+
+Такие поля попадают только в провайдер метаданных — они уже константы, поэтому в `TraceIds.g.cs`
+повторно не выносятся.
 
 ## Подключение
 
@@ -48,13 +74,19 @@ dotnet add package EmberTrace.Generator
 </PropertyGroup>
 ```
 
-Генератор создаст файл `TraceIds.g.cs` с `const int` полями. Имена нормализуются,
-а при коллизиях добавляется суффикс.
+Генератор создаст файл `TraceIds.g.cs` с `const int` полями. Имена нормализуются, а при коллизиях
+добавляется суффикс. Элементы упорядочены по `id`, поэтому новый атрибут, добавленный выше уже
+существующего, не переименовывает константу, которой пользуется код.
 
 ### Диагностики
 
-- Ошибка, если один и тот же `id` встречается больше одного раза
-- Warning, если `name` или `category` пустые
+- **ETG001** (ошибка) — один и тот же `id` встречается больше одного раза
+- **ETG002** (warning) — пустой `name`
+- **ETG003** (warning) — пустой `category`
+- **ETG004** (warning) — аргументы `TraceId` не являются константными `int` id и `string` name, атрибут
+  пропускается; остальная сборка генерируется как обычно
+- **ETG005** (warning) — `[TraceName]` / `[TraceCategory]` стоят на поле, которое не `const int`
+- **ETG006** (warning) — два имени нормализуются в одно и то же имя константы; второму добавляется суффикс
 
 ## Глобальный реестр
 

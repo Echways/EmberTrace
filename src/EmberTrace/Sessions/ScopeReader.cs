@@ -108,7 +108,8 @@ public sealed class ScopeReader
         _onMismatchedEnd = onMismatchedEnd;
     }
 
-    public long TotalEvents { get; private set; }
+    public long TotalEventCount { get; private set; }
+    public long ScopeEventCount { get; private set; }
     public long UnmatchedBeginCount { get; private set; }
     public long UnmatchedEndCount { get; private set; }
     public long MismatchedEndCount { get; private set; }
@@ -122,10 +123,12 @@ public sealed class ScopeReader
 
         foreach (var e in _events)
         {
+            TotalEventCount++;
+
             if (!e.IsScope)
                 continue;
 
-            TotalEvents++;
+            ScopeEventCount++;
             _tracks[e.TrackId] = e.ThreadId;
 
             var contextId = e.AsyncContextId;

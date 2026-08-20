@@ -57,10 +57,7 @@ internal sealed class SessionCollector
             return false;
 
         if (_maxTotalEvents <= 0)
-        {
-            Interlocked.Increment(ref _totalEvents);
             return true;
-        }
 
         var after = Interlocked.Increment(ref _totalEvents);
         if (after <= _maxTotalEvents)
@@ -185,6 +182,17 @@ internal sealed class SessionCollector
         }
     }
 
+    private void ReleaseEvents(long count)
+    {
+        if (count <= 0)
+            return;
+
+        if (_maxTotalEvents > 0)
+            Interlocked.Add(ref _totalEvents, -count);
+
+        Interlocked.Add(ref _droppedEvents, count);
+    }
+
     private bool TryDropOldestForEvents()
     {
         if (_policy != OverflowPolicy.DropOldest)
@@ -199,12 +207,7 @@ internal sealed class SessionCollector
                 if (!TryDropOldestChunkLocked(out var dropped) || dropped is null)
                     break;
 
-                var count = dropped.Count;
-                if (count > 0)
-                {
-                    Interlocked.Add(ref _totalEvents, -count);
-                    Interlocked.Add(ref _droppedEvents, count);
-                }
+                ReleaseEvents(dropped.Count);
                 Interlocked.Increment(ref _droppedChunks);
                 Interlocked.Decrement(ref _totalChunks);
                 dropped.Reset();
@@ -235,12 +238,7 @@ internal sealed class SessionCollector
 
         if (dropped is not null)
         {
-            var count = dropped.Count;
-            if (count > 0)
-            {
-                Interlocked.Add(ref _totalEvents, -count);
-                Interlocked.Add(ref _droppedEvents, count);
-            }
+            ReleaseEvents(dropped.Count);
             Interlocked.Increment(ref _droppedChunks);
             dropped.Reset();
             MarkOverflow(OverflowReason.MaxTotalChunks);

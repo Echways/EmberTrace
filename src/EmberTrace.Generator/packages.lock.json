@@ -1,18 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "dependencies": {
     ".NETStandard,Version=v2.0": {
-      "EmberTrace.Abstractions": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "ZMRKXLrGk7EO+FoGhtQTM5YAvVW0mgpCENp2iXOFSlSDRBWIjgVY4WfwSUny3rS0It/18QmoT78nlSkxVzSP/Q=="
-      },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "Direct",
-        "requested": "[5.0.0-1.25277.114, )",
-        "resolved": "5.0.0-1.25277.114",
-        "contentHash": "c6QPsJG6HzM7eA05YjzEerMWIKgyoF7y0D0MC/mftEll4Vd1Gy6dxH8GO9i3dFpUil0Ij7E4hLLsKdD1IJrkrQ=="
+        "requested": "[5.9.0, )",
+        "resolved": "5.9.0",
+        "contentHash": "jMNOo+uoBGiWbZ6Wx0dqU93r5WD4P5WnIRZdoz67RP5N09OUetHgAbo4L7hihOH1NHdD2TgW5/l+SP4gQukwww=="
       },
       "Microsoft.CodeAnalysis.CSharp": {
         "type": "Direct",
@@ -121,6 +115,9 @@
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.1.0"
         }
+      },
+      "embertrace.abstractions": {
+        "type": "Project"
       }
     }
   }

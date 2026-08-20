@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using EmberTrace;
@@ -9,9 +11,15 @@ namespace EmberTrace.Benchmarks;
 public class ScopeBenchmarks
 {
     private const int Operations = 10_000;
-    private const int MultiThreadDegree = 4;
 
     private readonly int _id = Tracer.Id("Bench.Scope");
+
+    public static IEnumerable<int> ThreadCounts()
+    {
+        yield return 4;
+        if (Environment.ProcessorCount > 4)
+            yield return Environment.ProcessorCount;
+    }
 
     [IterationSetup]
     public void Setup()
@@ -41,9 +49,10 @@ public class ScopeBenchmarks
     }
 
     [Benchmark]
-    public void Scope_BeginEnd_MultiThread()
+    [ArgumentsSource(nameof(ThreadCounts))]
+    public void Scope_BeginEnd_MultiThread(int threads)
     {
-        var options = new ParallelOptions { MaxDegreeOfParallelism = MultiThreadDegree };
+        var options = new ParallelOptions { MaxDegreeOfParallelism = threads };
         Parallel.For(0, Operations, options, _ =>
         {
             using (Tracer.Scope(_id))

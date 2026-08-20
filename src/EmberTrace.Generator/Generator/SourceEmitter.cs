@@ -1,11 +1,11 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace EmberTrace.Generator.Generator;
 
 internal static class SourceEmitter
 {
-    internal static string RenderProvider(List<TraceItem> items)
+    internal static string RenderProvider(ImmutableArray<TraceItem> items)
     {
         var sb = new StringBuilder();
 
@@ -20,20 +20,19 @@ internal static class SourceEmitter
         sb.AppendLine("        {");
 
         var seen = new HashSet<int>();
-        for (int i = 0; i < items.Count; i++)
+        foreach (var item in items)
         {
-            var it = items[i];
-            if (!seen.Add(it.Id))
+            if (!seen.Add(item.Id))
                 continue;
 
             sb.Append("            [");
-            sb.Append(it.Id);
+            sb.Append(item.Id);
             sb.Append("] = new global::EmberTrace.Metadata.TraceMeta(");
-            sb.Append(it.Id);
+            sb.Append(item.Id);
             sb.Append(", ");
-            sb.Append(NameFormatting.Escape(it.Name));
+            sb.Append(NameFormatting.Escape(item.Name!));
             sb.Append(", ");
-            sb.Append(it.Category is null ? "null" : NameFormatting.Escape(it.Category));
+            sb.Append(item.Category is null ? "null" : NameFormatting.Escape(item.Category));
             sb.AppendLine("),");
         }
 
@@ -59,7 +58,7 @@ internal static class SourceEmitter
         return sb.ToString();
     }
 
-    internal static string RenderTraceIds(List<TraceItem> items)
+    internal static string RenderTraceIds(ImmutableArray<TraceConstant> constants)
     {
         var sb = new StringBuilder();
 
@@ -68,19 +67,12 @@ internal static class SourceEmitter
         sb.AppendLine("    public static class TraceIds");
         sb.AppendLine("    {");
 
-        var used = new HashSet<string>(StringComparer.Ordinal);
-        var counters = new Dictionary<string, int>(StringComparer.Ordinal);
-
-        for (int i = 0; i < items.Count; i++)
+        foreach (var constant in constants)
         {
-            var it = items[i];
-            var baseName = IdComputation.NormalizeConstName(it.Name, it.Id);
-            var name = IdComputation.EnsureUniqueName(baseName, used, counters);
-
             sb.Append("        public const int ");
-            sb.Append(name);
+            sb.Append(constant.Name);
             sb.Append(" = ");
-            sb.Append(it.Id);
+            sb.Append(constant.Id);
             sb.AppendLine(";");
         }
 

@@ -3,7 +3,7 @@
 # EmberTrace
 
 **EmberTrace** is a fast in-process tracer/profiler for .NET with minimal overhead on the hot path:
-- **Allocation-free Begin/End** and no global locks (thread-local buffers)
+- **Allocation-free Begin/End** with a lock-free hot path (thread-local buffers; shared session state is touched only on chunk rotation and when a limit is configured)
 - **Flows** for links between threads and `async/await`
 - **Offline analysis** after stopping a session (aggregations + reports)
 - **Export to Chrome Trace** (for `chrome://tracing` / Perfetto)

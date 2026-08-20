@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -99,8 +99,8 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         ImmutableArray<INamedTypeSymbol> tracingTypes,
         INamedTypeSymbol flowHandleType)
     {
-        var created = new Dictionary<ILocalSymbol, SyntaxNode>(SymbolEqualityComparer.Default);
-        var ended = new HashSet<ILocalSymbol>(SymbolEqualityComparer.Default);
+        var created = new ConcurrentDictionary<ILocalSymbol, SyntaxNode>(SymbolEqualityComparer.Default);
+        var ended = new ConcurrentDictionary<ILocalSymbol, byte>(SymbolEqualityComparer.Default);
 
         context.RegisterOperationAction(opContext =>
         {
@@ -136,14 +136,14 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
 
             var name = invocation.TargetMethod.Name;
             if (name == "End" || name == "TryEnd")
-                ended.Add(localRef.Local);
+                ended.TryAdd(localRef.Local, 0);
         }, OperationKind.Invocation);
 
         context.RegisterOperationBlockEndAction(endContext =>
         {
             foreach (var kvp in created)
             {
-                if (ended.Contains(kvp.Key))
+                if (ended.ContainsKey(kvp.Key))
                     continue;
 
                 endContext.ReportDiagnostic(Diagnostic.Create(FlowHandleNotEnded, kvp.Value.GetLocation()));
@@ -158,24 +158,24 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
                tracingTypes.Any(t => SymbolEqualityComparer.Default.Equals(method.ContainingType, t));
     }
 
-    private static UsingInfo GetUsingInfo(SyntaxNode node)
+    private static UsingInfo GetUsingInfo(InvocationExpressionSyntax invocation)
     {
-        for (var current = node; current is not null; current = current.Parent)
+        switch (invocation.Parent)
         {
-            if (current is UsingStatementSyntax usingStatement)
-            {
-                if (usingStatement.Expression == node)
-                    return new UsingInfo(true, usingStatement.AwaitKeyword != default);
+            case UsingStatementSyntax usingStatement when usingStatement.Expression == invocation:
+                return new UsingInfo(true, usingStatement.AwaitKeyword != default);
 
-                if (usingStatement.Declaration is not null)
-                    return new UsingInfo(true, usingStatement.AwaitKeyword != default);
-            }
+            case EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax declaration } }:
+                return declaration.Parent switch
+                {
+                    UsingStatementSyntax usingStatement => new UsingInfo(true, usingStatement.AwaitKeyword != default),
+                    LocalDeclarationStatementSyntax local when local.UsingKeyword != default => new UsingInfo(true, local.AwaitKeyword != default),
+                    _ => default,
+                };
 
-            if (current is LocalDeclarationStatementSyntax localDecl && localDecl.UsingKeyword != default)
-                return new UsingInfo(true, localDecl.AwaitKeyword != default);
+            default:
+                return default;
         }
-
-        return new UsingInfo(false, false);
     }
 
     private readonly struct UsingInfo

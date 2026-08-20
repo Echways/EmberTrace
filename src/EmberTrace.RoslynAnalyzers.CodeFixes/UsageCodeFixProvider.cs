@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 
 namespace EmberTrace.RoslynAnalyzers;
 
@@ -29,46 +30,81 @@ public sealed class UsageCodeFixProvider : CodeFixProvider
         if (root is null)
             return;
 
-        var diagnostic = context.Diagnostics.First();
-        var invocation = root.FindNode(diagnostic.Location.SourceSpan).FirstAncestorOrSelf<InvocationExpressionSyntax>();
-        if (invocation is null)
-            return;
-
-        var statement = invocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
-        if (statement is null)
+        var diagnostic = context.Diagnostics[0];
+        if (root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true)
+                .FirstAncestorOrSelf<InvocationExpressionSyntax>() is not { } invocation)
             return;
 
         var isAsync = diagnostic.Id == AsyncScopeNotAwaitedId;
-        var title = isAsync ? "Wrap in await using" : "Wrap in using";
+        var keyword = isAsync ? "await using" : "using";
 
-        context.RegisterCodeFix(
-            CodeAction.Create(
-                title,
-                cancellationToken => WrapInUsingAsync(context.Document, root, statement, invocation, isAsync, cancellationToken),
-                equivalenceKey: title),
-            diagnostic);
+        switch (invocation.Parent)
+        {
+            case EqualsValueClauseSyntax
+            {
+                Parent: VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax { Parent: LocalDeclarationStatementSyntax declaration } }
+            }:
+                Register(
+                    context,
+                    diagnostic,
+                    $"Declare with '{keyword}'",
+                    _ => Task.FromResult(AddUsingKeyword(context.Document, root, declaration, isAsync)));
+                break;
+
+            case ExpressionStatementSyntax { Parent: BlockSyntax block } statement:
+                Register(
+                    context,
+                    diagnostic,
+                    $"Wrap the rest of the block in '{keyword}'",
+                    _ => Task.FromResult(WrapRestOfBlock(context.Document, root, block, statement, invocation, isAsync)));
+                break;
+        }
     }
 
-    private static Task<Document> WrapInUsingAsync(
+    private static void Register(CodeFixContext context, Diagnostic diagnostic, string title, Func<CancellationToken, Task<Document>> createChangedDocument)
+        => context.RegisterCodeFix(CodeAction.Create(title, createChangedDocument, equivalenceKey: title), diagnostic);
+
+    private static Document AddUsingKeyword(
         Document document,
         SyntaxNode root,
+        LocalDeclarationStatementSyntax declaration,
+        bool isAsync)
+    {
+        var updated = declaration
+            .WithLeadingTrivia(SyntaxTriviaList.Empty)
+            .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+
+        if (isAsync)
+            updated = updated.WithAwaitKeyword(SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+
+        updated = updated.WithLeadingTrivia(declaration.GetLeadingTrivia());
+
+        return document.WithSyntaxRoot(root.ReplaceNode(declaration, updated));
+    }
+
+    private static Document WrapRestOfBlock(
+        Document document,
+        SyntaxNode root,
+        BlockSyntax block,
         ExpressionStatementSyntax statement,
         InvocationExpressionSyntax invocation,
-        bool isAsync,
-        CancellationToken cancellationToken)
+        bool isAsync)
     {
+        var index = block.Statements.IndexOf(statement);
+
         var usingStatement = SyntaxFactory.UsingStatement(
                 isAsync ? SyntaxFactory.Token(SyntaxKind.AwaitKeyword) : default,
                 SyntaxFactory.Token(SyntaxKind.UsingKeyword),
                 SyntaxFactory.Token(SyntaxKind.OpenParenToken),
                 declaration: null,
-                expression: invocation,
+                expression: invocation.WithoutTrivia(),
                 SyntaxFactory.Token(SyntaxKind.CloseParenToken),
-                SyntaxFactory.Block())
+                SyntaxFactory.Block(block.Statements.Skip(index + 1)))
             .WithLeadingTrivia(statement.GetLeadingTrivia())
-            .WithTrailingTrivia(statement.GetTrailingTrivia());
+            .WithAdditionalAnnotations(Formatter.Annotation);
 
-        var newRoot = root.ReplaceNode(statement, usingStatement);
-        return Task.FromResult(document.WithSyntaxRoot(newRoot));
+        var statements = SyntaxFactory.List(block.Statements.Take(index).Append<StatementSyntax>(usingStatement));
+
+        return document.WithSyntaxRoot(root.ReplaceNode(block, block.WithStatements(statements)));
     }
 }

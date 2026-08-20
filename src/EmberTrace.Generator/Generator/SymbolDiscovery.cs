@@ -1,62 +1,61 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace EmberTrace.Generator.Generator;
 
 internal static class SymbolDiscovery
 {
-    internal static List<TraceItem> Collect(Compilation compilation, SourceProductionContext spc)
+    internal const string TraceIdAttribute = "EmberTrace.Abstractions.Attributes.TraceIdAttribute";
+    internal const string TraceNameAttribute = "EmberTrace.Abstractions.Attributes.TraceNameAttribute";
+    internal const string TraceCategoryAttribute = "EmberTrace.Abstractions.Attributes.TraceCategoryAttribute";
+
+    internal static ImmutableArray<TraceItem> FromAssembly(GeneratorAttributeSyntaxContext context)
     {
-        var list = new List<TraceItem>();
-        var seen = new Dictionary<int, string>();
+        var builder = ImmutableArray.CreateBuilder<TraceItem>(context.Attributes.Length);
 
-        foreach (var attr in compilation.Assembly.GetAttributes())
+        foreach (var attribute in context.Attributes)
         {
-            var a = attr.AttributeClass;
-            if (a is null) continue;
+            var location = LocationInfo.From(attribute.ApplicationSyntaxReference?.GetSyntax());
+            var arguments = attribute.ConstructorArguments;
 
-            var fullName = a.ToDisplayString();
-            if (fullName != "EmberTrace.Abstractions.Attributes.TraceIdAttribute"
-                && fullName != "EmberTrace.Abstractions.TraceIdAttribute")
-                continue;
-
-            if (attr.ConstructorArguments.Length < 2)
-                continue;
-
-            var id = (int)attr.ConstructorArguments[0].Value!;
-            var name = attr.ConstructorArguments[1].Value as string ?? string.Empty;
-
-            var location = attr.ApplicationSyntaxReference?.GetSyntax().GetLocation();
-            if (string.IsNullOrWhiteSpace(name))
-                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EmptyName, location, id));
-
-            string? category = null;
-            if (attr.ConstructorArguments.Length >= 3)
-                category = attr.ConstructorArguments[2].Value as string;
-
-            if (category is not null && string.IsNullOrWhiteSpace(category))
-                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EmptyCategory, location, id));
-
-            CollisionDetector.CheckAndRecord(id, name, seen, location, spc);
-            list.Add(new TraceItem(id, name, category, location));
+            builder.Add(arguments.Length >= 2 && arguments[0].Value is int id && arguments[1].Value is string name
+                ? new TraceItem(id, name, arguments.Length >= 3 ? arguments[2].Value as string : null, location)
+                : TraceItem.Malformed(location));
         }
 
-        return list;
+        return builder.ToImmutable();
     }
-}
 
-internal readonly struct TraceItem
-{
-    public TraceItem(int id, string name, string? category, Location? location)
+    internal static TraceItem? FromNamedField(GeneratorAttributeSyntaxContext context) => FromField(context);
+
+    internal static TraceItem? FromCategorizedField(GeneratorAttributeSyntaxContext context)
+        => StringArgumentOf(context.TargetSymbol, TraceNameAttribute) is null ? FromField(context) : null;
+
+    private static TraceItem FromField(GeneratorAttributeSyntaxContext context)
     {
-        Id = id;
-        Name = name;
-        Category = category;
-        Location = location;
+        var location = LocationInfo.From(context.Attributes[0].ApplicationSyntaxReference?.GetSyntax() ?? context.TargetNode);
+
+        if (context.TargetSymbol is not IFieldSymbol { HasConstantValue: true, ConstantValue: int id } field)
+            return TraceItem.Malformed(location);
+
+        return new TraceItem(
+            id,
+            StringArgumentOf(field, TraceNameAttribute) ?? field.Name,
+            StringArgumentOf(field, TraceCategoryAttribute),
+            location);
     }
 
-    public int Id { get; }
-    public string Name { get; }
-    public string? Category { get; }
-    public Location? Location { get; }
+    private static string? StringArgumentOf(ISymbol symbol, string attributeFullName)
+    {
+        foreach (var attribute in symbol.GetAttributes().Where(attribute =>
+                     attribute.AttributeClass?.ToDisplayString() == attributeFullName
+                     && attribute.ConstructorArguments.Length == 1
+                     && attribute.ConstructorArguments[0].Value is string))
+        {
+            return (string)attribute.ConstructorArguments[0].Value!;
+        }
+
+        return null;
+    }
 }

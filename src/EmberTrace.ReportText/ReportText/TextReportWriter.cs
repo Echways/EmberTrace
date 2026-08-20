@@ -21,7 +21,8 @@ internal static class TextReportWriter
 
         sb.AppendLine("Summary");
         sb.AppendLine($"Duration: {trace.DurationMs:F3} ms");
-        sb.AppendLine($"Events: {trace.TotalEvents}");
+        sb.AppendLine($"Events: {trace.TotalEventCount}");
+        sb.AppendLine($"ScopeEvents: {trace.ScopeEventCount}");
         sb.AppendLine($"Threads: {trace.ThreadsSeen}");
         sb.AppendLine($"DroppedEvents: {trace.DroppedEvents}");
         sb.AppendLine($"DroppedChunks: {trace.DroppedChunks}");

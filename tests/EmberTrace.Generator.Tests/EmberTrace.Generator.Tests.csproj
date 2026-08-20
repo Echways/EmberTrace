@@ -19,15 +19,16 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
     </ItemGroup>
 
     <ItemGroup>
+        <!--
+            Reference EmberTrace and the attributes so generated code and test snippets compile,
+            and the generator as a plain assembly so it can be driven directly.
+        -->
         <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj" />
-        <ProjectReference Include="../../src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj"
-                          ReferenceOutputAssembly="true"
-                          OutputItemType="Content" />
-        <ProjectReference Include="../../src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj"
+        <ProjectReference Include="../../src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj" />
+        <ProjectReference Include="../../src/EmberTrace.Generator/EmberTrace.Generator.csproj"
                           ReferenceOutputAssembly="true"
                           OutputItemType="Content" />
     </ItemGroup>

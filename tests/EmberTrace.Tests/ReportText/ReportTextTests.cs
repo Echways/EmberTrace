@@ -33,6 +33,8 @@ public class ReportTextTests
 
         var report = TraceText.Write(trace, meta);
 
+        Assert.Contains("Events: " + trace.TotalEventCount, report);
+        Assert.Contains("ScopeEvents: " + trace.ScopeEventCount, report);
         Assert.Contains("DroppedEvents:", report);
         Assert.Contains("DroppedChunks:", report);
         Assert.Contains("SampledOut:", report);
