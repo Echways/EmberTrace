@@ -66,7 +66,7 @@ public class TracingSessionLifecycleTests
     [TestMethod]
     public void Start_AfterDispose_Throws()
     {
-        var ts = new TracingSession();
+        using var ts = new TracingSession();
         ts.Start();
         ts.Dispose();
 
