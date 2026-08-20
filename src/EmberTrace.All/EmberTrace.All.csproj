@@ -15,6 +15,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         
         <IncludeBuildOutput>false</IncludeBuildOutput>
+        <IncludeSymbols>false</IncludeSymbols>
         <IncludeReferencedProjects>false</IncludeReferencedProjects>
     </PropertyGroup>
 

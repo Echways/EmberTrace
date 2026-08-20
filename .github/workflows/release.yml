@@ -133,18 +133,69 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
-      - env:
+      - name: Push component packages
+        env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
-          dotnet nuget push 'artifacts/packages/*.nupkg' \
+          shopt -s nullglob
+          pushed=0
+          for package in artifacts/packages/*.nupkg; do
+            case "${package##*/}" in EmberTrace.All.*) continue ;; esac
+            dotnet nuget push "$package" \
+              --source https://api.nuget.org/v3/index.json \
+              --api-key "$NUGET_API_KEY" \
+              --skip-duplicate
+            pushed=$((pushed + 1))
+          done
+          [ "$pushed" -gt 0 ] || { echo "::error::No component packages to push"; exit 1; }
+
+  publish-meta:
+    name: Publish meta package
+    needs: [verify, pack, publish]
+    if: needs.verify.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/EmberTrace.All
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          restore: 'false'
+          cache: 'false'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts/packages
+
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push EmberTrace.All
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(artifacts/packages/EmberTrace.All.*.nupkg)
+          [ "${#packages[@]}" -gt 0 ] || { echo "::error::EmberTrace.All package is missing"; exit 1; }
+          dotnet nuget push "${packages[@]}" \
             --source https://api.nuget.org/v3/index.json \
             --api-key "$NUGET_API_KEY" \
             --skip-duplicate
 
   github-release:
     name: GitHub Release
-    needs: [verify, pack, publish]
+    needs: [verify, pack, publish, publish-meta]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 10
