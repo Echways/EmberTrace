@@ -49,9 +49,10 @@ def find_results(path: Path) -> Path:
     raise FileNotFoundError(f"No BenchmarkDotNet report JSON found under {path}")
 
 
-def load_benchmark_means(path: Path):
+def load_benchmark_records(path: Path):
+    """Return [(full_name, mean_or_None)] for every case in a BenchmarkDotNet report."""
     data = load_json(path)
-    results = {}
+    records = []
 
     for bench in data.get("Benchmarks", []):
         name = bench.get("FullName")
@@ -65,13 +66,19 @@ def load_benchmark_means(path: Path):
             continue
 
         stats = bench.get("Statistics") or {}
-        mean = stats.get("Mean")
-        if mean is None:
-            continue
+        records.append((name, stats.get("Mean")))
 
-        results[name] = mean
+    return records
 
-    return results
+
+def matches(baseline_name: str, case_name: str) -> bool:
+    """Parameterised cases are reported as `Namespace.Type.Method(param: value)`.
+
+    A baseline entry keyed by the bare method name gates every one of its cases,
+    which keeps the baseline stable when the argument source depends on the
+    machine (e.g. Environment.ProcessorCount).
+    """
+    return case_name == baseline_name or case_name.startswith(baseline_name + "(")
 
 
 def main():
@@ -90,25 +97,32 @@ def main():
         print("Baseline file has no benchmarks.", file=sys.stderr)
         return 2
 
-    current = load_benchmark_means(results_path)
-    if not current:
+    records = load_benchmark_records(results_path)
+    if not records:
         print(f"No benchmarks found in {results_path}", file=sys.stderr)
         return 2
 
     failed = False
     for name, base in baseline_benchmarks.items():
-        current_mean = current.get(name)
-        if current_mean is None:
+        cases = [(case, mean) for case, mean in records if matches(name, case)]
+        if not cases:
             print(f"Missing benchmark result: {name}", file=sys.stderr)
             failed = True
             continue
 
-        limit = base * (1.0 + threshold)
-        if current_mean > limit:
-            print(f"Regression: {name} mean {current_mean:.2f}ns > baseline {base:.2f}ns (+{threshold*100:.0f}%)", file=sys.stderr)
+        measured = [(case, mean) for case, mean in cases if mean is not None]
+        if not measured:
+            print(f"Benchmark produced no statistics (did it fail to run?): {name}", file=sys.stderr)
             failed = True
-        else:
-            print(f"OK: {name} mean {current_mean:.2f}ns <= {limit:.2f}ns")
+            continue
+
+        limit = base * (1.0 + threshold)
+        for case, mean in sorted(measured):
+            if mean > limit:
+                print(f"Regression: {case} mean {mean:.2f}ns > baseline {base:.2f}ns (+{threshold*100:.0f}%)", file=sys.stderr)
+                failed = True
+            else:
+                print(f"OK: {case} mean {mean:.2f}ns <= {limit:.2f}ns")
 
     return 1 if failed else 0
 
