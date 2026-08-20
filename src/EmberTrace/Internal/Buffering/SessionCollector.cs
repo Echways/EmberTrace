@@ -277,7 +277,23 @@ internal sealed class SessionCollector
         if (handler is null)
             return;
 
-        handler(new OverflowInfo(reason, _policy));
+        ThreadPool.UnsafeQueueUserWorkItem(
+            new OverflowNotification(handler, new OverflowInfo(reason, _policy)),
+            preferLocal: false);
+    }
+
+    private sealed class OverflowNotification(Action<OverflowInfo> handler, OverflowInfo info) : IThreadPoolWorkItem
+    {
+        public void Execute()
+        {
+            try
+            {
+                handler(info);
+            }
+            catch
+            {
+            }
+        }
     }
 
     public IReadOnlyList<Chunk> Chunks

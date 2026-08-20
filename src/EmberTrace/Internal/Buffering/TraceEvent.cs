@@ -9,7 +9,8 @@ internal readonly struct TraceEvent(
     TraceEventKind kind,
     long flowId,
     long value,
-    long sequence = 0)
+    long sequence = 0,
+    int trackId = 0)
 {
     public readonly int Id = id;
     public readonly int ThreadId = threadId;
@@ -18,4 +19,5 @@ internal readonly struct TraceEvent(
     public readonly long FlowId = flowId;
     public readonly long Value = value;
     public readonly long Sequence = sequence;
+    public readonly int TrackId = trackId == 0 ? threadId : trackId;
 }

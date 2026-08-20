@@ -34,10 +34,10 @@ internal static class ChromeTraceExporter
         json.WritePropertyName("traceEvents");
         json.WriteStartArray();
 
-        var tids = CollectThreadIds(session);
+        var tracks = CollectTracks(session);
         WriteProcessName(json, pid, processName);
-        for (int i = 0; i < tids.Count; i++)
-            WriteThreadName(json, pid, tids[i], ResolveThreadName(session, tids[i]));
+        for (int i = 0; i < tracks.Count; i++)
+            WriteThreadName(json, pid, tracks[i].Key, ResolveThreadName(session, tracks[i].Value));
 
         if (sortByTimestamp)
         {
@@ -83,12 +83,12 @@ internal static class ChromeTraceExporter
 
         if (sortByStartTimestamp)
         {
-            complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.ThreadId, a.Sequence, b.StartTs, b.ThreadId, b.Sequence));
-            asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartThreadId, a.Sequence, b.StartTs, b.StartThreadId, b.Sequence));
+            complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.TrackId, a.Sequence, b.StartTs, b.TrackId, b.Sequence));
+            asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
         }
 
         var markers = CollectFlows(session, start);
-        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
+        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
 
         using var json = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = false });
 
@@ -97,10 +97,10 @@ internal static class ChromeTraceExporter
         json.WritePropertyName("traceEvents");
         json.WriteStartArray();
 
-        var tids = CollectThreadIds(session, includeSynthetic: true);
+        var tracks = CollectTracks(session, includeSynthetic: true);
         WriteProcessName(json, pid, processName);
-        for (int i = 0; i < tids.Count; i++)
-            WriteThreadName(json, pid, tids[i], ResolveThreadName(session, tids[i]));
+        for (int i = 0; i < tracks.Count; i++)
+            WriteThreadName(json, pid, tracks[i].Key, ResolveThreadName(session, tracks[i].Value));
 
         for (int i = 0; i < markers.Count; i++)
         {
@@ -156,32 +156,17 @@ internal static class ChromeTraceExporter
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
-    private static List<int> CollectThreadIds(TraceSession session, bool includeSynthetic = false)
+    private static List<KeyValuePair<int, int>> CollectTracks(TraceSession session, bool includeSynthetic = false)
     {
-        var set = new HashSet<int>();
+        var threadByTrack = new Dictionary<int, int>();
         foreach (var e in session.EnumerateEvents())
-            set.Add(e.ThreadId);
-
-        var list = new List<int>(set);
-        list.Sort();
+            threadByTrack.TryAdd(e.TrackId, e.ThreadId);
 
         if (includeSynthetic)
-        {
-            if (!set.Contains(0))
-                list.Insert(0, 0);
-        }
+            threadByTrack.TryAdd(0, 0);
 
-        return list;
-    }
-
-    private static List<TraceEventRecord> CollectEvents(TraceSession session, long start)
-    {
-        var list = new List<TraceEventRecord>(checked((int)Math.Min(int.MaxValue, session.EventCount)));
-        foreach (var e in session.EnumerateEvents())
-        {
-            if (e.Timestamp < start) continue;
-            list.Add(e);
-        }
+        var list = new List<KeyValuePair<int, int>>(threadByTrack);
+        list.Sort(static (a, b) => a.Key.CompareTo(b.Key));
         return list;
     }
 
@@ -210,13 +195,13 @@ internal static class ChromeTraceExporter
         {
             case TraceEventKind.Begin:
                 if (e.AsyncScopeId != 0)
-                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.ThreadId, e.Timestamp, meta, start, freq, pid, phase: "b");
+                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.TrackId, e.Timestamp, meta, start, freq, pid, phase: "b");
                 else
                     WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'B');
                 break;
             case TraceEventKind.End:
                 if (e.AsyncScopeId != 0)
-                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.ThreadId, e.Timestamp, meta, start, freq, pid, phase: "e");
+                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.TrackId, e.Timestamp, meta, start, freq, pid, phase: "e");
                 else
                     WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'E');
                 break;
@@ -251,7 +236,7 @@ internal static class ChromeTraceExporter
         json.WriteString("ph", phase.ToString());
         json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WriteEndObject();
     }
 
@@ -272,7 +257,7 @@ internal static class ChromeTraceExporter
         json.WriteNumber("ts", ToUs(e.StartTs - start, freq));
         json.WriteNumber("dur", ToUs(e.DurTicks, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WriteEndObject();
     }
 
@@ -284,15 +269,15 @@ internal static class ChromeTraceExporter
         long freq,
         int pid)
     {
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartThreadId, span.StartTs, meta, start, freq, pid, phase: "b");
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndThreadId, span.EndTs, meta, start, freq, pid, phase: "e");
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, start, freq, pid, phase: "b");
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, start, freq, pid, phase: "e");
     }
 
     private static void WriteAsyncPhase(
         Utf8JsonWriter json,
         int id,
         long asyncScopeId,
-        int threadId,
+        int trackId,
         long timestamp,
         ITraceMetadataProvider meta,
         long start,
@@ -308,7 +293,7 @@ internal static class ChromeTraceExporter
         json.WriteString("ph", phase);
         json.WriteNumber("ts", ToUs(timestamp - start, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", threadId);
+        json.WriteNumber("tid", trackId);
         json.WriteNumber("id", asyncScopeId);
         json.WriteEndObject();
     }
@@ -337,7 +322,7 @@ internal static class ChromeTraceExporter
         json.WriteString("ph", ph);
         json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WriteNumber("id", e.FlowId);
         json.WriteEndObject();
     }
@@ -358,7 +343,7 @@ internal static class ChromeTraceExporter
         json.WriteString("ph", "i");
         json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WriteString("s", "t");
         json.WriteEndObject();
     }
@@ -379,7 +364,7 @@ internal static class ChromeTraceExporter
         json.WriteString("ph", "C");
         json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WritePropertyName("args");
         json.WriteStartObject();
         json.WriteNumber("value", e.Value);
@@ -415,19 +400,19 @@ internal static class ChromeTraceExporter
         json.WriteEndObject();
     }
 
-    private static string ResolveThreadName(TraceSession session, int tid)
+    private static string ResolveThreadName(TraceSession session, int threadId)
     {
-        if (session.ThreadNames.TryGetValue(tid, out var name) && !string.IsNullOrWhiteSpace(name))
+        if (session.ThreadNames.TryGetValue(threadId, out var name) && !string.IsNullOrWhiteSpace(name))
             return name;
 
-        return $"Thread {tid}";
+        return $"Thread {threadId}";
     }
 
-    private static int CompareEventOrder(long timestamp, int threadId, long sequence, long otherTimestamp, int otherThreadId, long otherSequence)
+    private static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp, int otherTrackId, long otherSequence)
     {
         var cmp = timestamp.CompareTo(otherTimestamp);
         if (cmp != 0) return cmp;
-        cmp = threadId.CompareTo(otherThreadId);
+        cmp = trackId.CompareTo(otherTrackId);
         if (cmp != 0) return cmp;
         return sequence.CompareTo(otherSequence);
     }

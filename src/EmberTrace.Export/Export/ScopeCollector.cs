@@ -6,17 +6,17 @@ namespace EmberTrace.Export;
 internal readonly struct CompleteSpan
 {
     public readonly int Id;
-    public readonly int ThreadId;
+    public readonly int TrackId;
     public readonly long StartTs;
     public readonly long DurTicks;
     public readonly int Depth;
     public readonly int ParentId;
     public readonly long Sequence;
 
-    public CompleteSpan(int id, int threadId, long startTs, long durTicks, int depth, int parentId, long sequence)
+    public CompleteSpan(int id, int trackId, long startTs, long durTicks, int depth, int parentId, long sequence)
     {
         Id = id;
-        ThreadId = threadId;
+        TrackId = trackId;
         StartTs = startTs;
         DurTicks = durTicks;
         Depth = depth;
@@ -29,18 +29,18 @@ internal readonly struct AsyncSpan
 {
     public readonly int Id;
     public readonly long AsyncScopeId;
-    public readonly int StartThreadId;
-    public readonly int EndThreadId;
+    public readonly int StartTrackId;
+    public readonly int EndTrackId;
     public readonly long StartTs;
     public readonly long EndTs;
     public readonly long Sequence;
 
-    public AsyncSpan(int id, long asyncScopeId, int startThreadId, int endThreadId, long startTs, long endTs, long sequence)
+    public AsyncSpan(int id, long asyncScopeId, int startTrackId, int endTrackId, long startTs, long endTs, long sequence)
     {
         Id = id;
         AsyncScopeId = asyncScopeId;
-        StartThreadId = startThreadId;
-        EndThreadId = endThreadId;
+        StartTrackId = startTrackId;
+        EndTrackId = endTrackId;
         StartTs = startTs;
         EndTs = endTs;
         Sequence = sequence;
@@ -72,8 +72,8 @@ internal static class ScopeCollector
                 asyncSpans.Add(new AsyncSpan(
                     step.Id,
                     step.AsyncScopeId,
-                    step.ThreadId,
-                    step.EndThreadId,
+                    step.TrackId,
+                    step.EndTrackId,
                     step.StartTimestamp,
                     step.EndTimestamp,
                     step.StartSequence));
@@ -82,7 +82,7 @@ internal static class ScopeCollector
 
             complete.Add(new CompleteSpan(
                 step.Id,
-                step.ThreadId,
+                step.TrackId,
                 step.StartTimestamp,
                 dur,
                 step.Depth,

@@ -49,6 +49,12 @@ for the process is `MaxEventsPerSecond` x number of threads that write events.
 - `OnOverflow` - called once on first overflow
 - `OnMismatchedEnd` - called when mismatched end is detected in `Analyze/Process`
 
+`OnOverflow` never runs on the thread that recorded the overflowing event: it is queued to the thread
+pool, so it is safe to trace, lock, or call `Stop()` from inside it. In exchange, delivery is
+asynchronous and not guaranteed to be timely - the handler may still be pending when `Stop()` returns,
+and it may not run at all if the process exits first. Use `TraceSession.WasOverflow` when you need a
+definitive answer after the session ends. Exceptions thrown by the handler are swallowed.
+
 ## Example
 
 ```csharp

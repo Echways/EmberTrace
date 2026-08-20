@@ -73,14 +73,14 @@ public static class OpenTelemetryExport
                         activity.SetTag("embertrace.async_scope_id", step.AsyncScopeId);
 
                     step.Tag = activity;
-                    Track(live, step.ThreadId).Add(activity);
+                    Track(live, step.TrackId).Add(activity);
                     continue;
                 }
 
                 if (step.Tag is not Activity span)
                     continue;
 
-                Untrack(live, step.ThreadId, span);
+                Untrack(live, step.TrackId, span);
 
                 span.SetEndTime(ToUtc(session, baseUtc, step.EndTimestamp));
                 spans.Add(span);
@@ -127,20 +127,20 @@ public static class OpenTelemetryExport
         }
     }
 
-    private static List<Activity> Track(Dictionary<int, List<Activity>> live, int threadId)
+    private static List<Activity> Track(Dictionary<int, List<Activity>> live, int trackId)
     {
-        if (!live.TryGetValue(threadId, out var stack))
+        if (!live.TryGetValue(trackId, out var stack))
         {
             stack = new List<Activity>(capacity: 64);
-            live.Add(threadId, stack);
+            live.Add(trackId, stack);
         }
 
         return stack;
     }
 
-    private static void Untrack(Dictionary<int, List<Activity>> live, int threadId, Activity activity)
+    private static void Untrack(Dictionary<int, List<Activity>> live, int trackId, Activity activity)
     {
-        if (!live.TryGetValue(threadId, out var stack))
+        if (!live.TryGetValue(trackId, out var stack))
             return;
 
         var index = stack.LastIndexOf(activity);
@@ -150,7 +150,7 @@ public static class OpenTelemetryExport
 
     private static void AddFlowLink(Dictionary<int, List<Activity>> live, TraceEventRecord e)
     {
-        if (!live.TryGetValue(e.ThreadId, out var stack) || stack.Count == 0)
+        if (!live.TryGetValue(e.TrackId, out var stack) || stack.Count == 0)
             return;
 
         stack[^1].AddLink(CreateFlowLink(e.FlowId, e.Id, e.Timestamp));

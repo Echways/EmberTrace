@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -13,7 +12,8 @@ internal sealed class ProfilingState
 {
     private static long _nextId;
 
-    private readonly ConcurrentDictionary<int, ThreadWriter> _writers = new();
+    private readonly ConcurrentDictionary<long, ThreadWriter> _writers = new();
+    private int _nextTrackId;
 
     public long Id { get; } = Interlocked.Increment(ref _nextId);
     public SessionOptions Options { get; }
@@ -43,7 +43,7 @@ internal sealed class ProfilingState
     public IEnumerable<ThreadWriter> Writers => _writers.Values;
 
     public ThreadWriter GetWriter() => _writers.GetOrAdd(
-        Environment.CurrentManagedThreadId,
-        static (_, state) => new ThreadWriter(state.Collector, state.Sampling),
+        ThreadIdentity.Current,
+        static (_, state) => new ThreadWriter(state.Collector, state.Sampling, Interlocked.Increment(ref state._nextTrackId)),
         this);
 }

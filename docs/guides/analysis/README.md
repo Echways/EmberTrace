@@ -26,6 +26,11 @@ var processed = session.Process(strict: true, groupByThread: false);
 - `strict` - does not attempt stack repair for mismatched end
 - `groupByThread` - when `false`, builds a global call tree
 
+One `ThreadTrace` is one writer track, not one managed thread id: `TrackId` is what the tree was grouped
+by, `ThreadId` is the managed thread that wrote it and is there for display. Two entries can therefore
+carry the same `ThreadId` when the runtime recycled it during the session, and `ThreadsSeen` counts
+tracks, so it does not undercount in that case.
+
 For lightweight diagnostics:
 
 ```csharp

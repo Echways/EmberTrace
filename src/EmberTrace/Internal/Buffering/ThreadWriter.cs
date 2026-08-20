@@ -28,6 +28,7 @@ internal sealed class ThreadWriter
     private SessionCollector? _collector;
 
     private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
+    private readonly int _trackId;
     private Chunk? _chunk;
     private int _writesInFlight;
     private readonly SamplingPolicy _sampling;
@@ -36,15 +37,16 @@ internal sealed class ThreadWriter
     private int _rateWindowCount;
     private TicketBlock[]? _ticketBlocks;
 
-    public ThreadWriter(SessionCollector collector, SamplingPolicy sampling)
+    public ThreadWriter(SessionCollector collector, SamplingPolicy sampling, int trackId)
     {
         _collector = collector;
+        _trackId = trackId;
         _chunk = collector.TryRentChunk(out var chunk) ? chunk : null;
         _sampling = sampling;
 
         var threadName = Thread.CurrentThread.Name;
         if (!string.IsNullOrWhiteSpace(threadName))
-            collector.RegisterThreadName(Environment.CurrentManagedThreadId, threadName);
+            collector.RegisterThreadName(_ownerThreadId, threadName);
     }
 
     public void DrainAndDetach()
@@ -107,7 +109,7 @@ internal sealed class ThreadWriter
         if (!collector.TryAcceptEvent())
             return;
 
-        chunk.TryWrite(new TraceEvent(id, Environment.CurrentManagedThreadId, now, kind, flowId, value, ++_sequence));
+        chunk.TryWrite(new TraceEvent(id, _ownerThreadId, now, kind, flowId, value, ++_sequence, _trackId));
     }
 
     private bool ShouldSample(int id, SessionCollector collector)

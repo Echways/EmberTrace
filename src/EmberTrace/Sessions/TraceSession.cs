@@ -98,7 +98,8 @@ public sealed class TraceSession
                 _current.Kind,
                 _current.FlowId,
                 _current.Value,
-                _current.Sequence);
+                _current.Sequence,
+                _current.TrackId);
 
             public bool MoveNext()
             {
@@ -166,7 +167,8 @@ public sealed class TraceSession
                 _current.Kind,
                 _current.FlowId,
                 _current.Value,
-                _current.Sequence);
+                _current.Sequence,
+                _current.TrackId);
 
             public bool MoveNext()
             {
@@ -204,13 +206,13 @@ public sealed class TraceSession
         private readonly struct EventKey : IComparable<EventKey>
         {
             private readonly long _timestamp;
-            private readonly int _threadId;
+            private readonly int _trackId;
             private readonly long _sequence;
 
             public EventKey(in TraceEvent ev)
             {
                 _timestamp = ev.Timestamp;
-                _threadId = ev.ThreadId;
+                _trackId = ev.TrackId;
                 _sequence = ev.Sequence;
             }
 
@@ -218,7 +220,7 @@ public sealed class TraceSession
             {
                 var c = _timestamp.CompareTo(other._timestamp);
                 if (c != 0) return c;
-                c = _threadId.CompareTo(other._threadId);
+                c = _trackId.CompareTo(other._trackId);
                 if (c != 0) return c;
                 return _sequence.CompareTo(other._sequence);
             }

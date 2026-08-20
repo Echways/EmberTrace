@@ -56,6 +56,23 @@ and collisions get a suffix.
 - Error when the same `id` is declared more than once
 - Warning when `name` or `category` are empty
 
+## The global registry
+
+Every instrumented assembly registers its own provider through its own `ModuleInitializer`, so a process
+with twenty of them ends up with twenty registrations. They are not consulted one by one: on the first
+resolve after a registration changes, `TraceMetadata` folds every provider that also implements
+`IEnumerable<TraceMeta>` - the generated ones do - into a single `FrozenDictionary<int, TraceMeta>`.
+Resolving an id is then one lookup, no matter how many assemblies are instrumented. Providers that
+cannot enumerate their contents (`EnableRuntimeMetadata` uses one) stay behind that dictionary as an
+ordered fallback chain.
+
+The snapshot is cached and rebuilt lazily, so registering late is cheap and correct:
+
+- `TraceMetadata.Register(provider)` - add a provider and invalidate the snapshot
+- `TraceMetadata.Unregister(provider)` - remove a provider previously registered, `false` if it was not
+- `TraceMetadata.Reset()` - drop every registration; intended for tests that must not leak providers
+  into each other
+
 ## If generator is not connected
 
 `Tracer.CreateMetadata()` returns an empty provider (without names). This is fine - the trace remains valid,

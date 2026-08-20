@@ -515,14 +515,14 @@ public static class TraceExport
             events.Add(e);
         }
 
-        events.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
+        events.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
 
-        var tids = new HashSet<int>();
+        var threadByTrack = new Dictionary<int, int>();
         for (int i = 0; i < events.Count; i++)
-            tids.Add(events[i].ThreadId);
+            threadByTrack.TryAdd(events[i].TrackId, events[i].ThreadId);
 
-        foreach (var tid in tids)
-            WriteThreadName(json, pid, tid, ResolveThreadName(session, tid));
+        foreach (var track in threadByTrack)
+            WriteThreadName(json, pid, track.Key, ResolveThreadName(session, track.Value));
 
         WriteSyntheticTopLevel(json, pid, minTs, maxTs, freq, markerId, markerName);
 
@@ -530,7 +530,7 @@ public static class TraceExport
         flows.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.Tid, a.Sequence, b.Timestamp, b.Tid, b.Sequence));
 
         var markers = CollectInstantCounters(events);
-        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.ThreadId, a.Sequence, b.Timestamp, b.ThreadId, b.Sequence));
+        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
 
         var fi = 0;
         var mi = 0;
@@ -559,14 +559,14 @@ public static class TraceExport
         var asyncSpans = new List<AsyncSpan>();
         ScopeCollector.CollectComplete(new ScopeReader(events, maxTs), minTs, complete, asyncSpans);
 
-        complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.ThreadId, a.Sequence, b.StartTs, b.ThreadId, b.Sequence));
-        asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartThreadId, a.Sequence, b.StartTs, b.StartThreadId, b.Sequence));
+        complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.TrackId, a.Sequence, b.StartTs, b.TrackId, b.Sequence));
+        asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
 
         for (int i = 0; i < asyncSpans.Count; i++)
         {
             var span = asyncSpans[i];
-            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartThreadId, span.StartTs, meta, minTs, freq, pid, "b");
-            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndThreadId, span.EndTs, meta, minTs, freq, pid, "e");
+            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, minTs, freq, pid, "b");
+            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, minTs, freq, pid, "e");
         }
 
         for (int i = 0; i < complete.Count; i++)
@@ -598,7 +598,7 @@ public static class TraceExport
             if (ph is null)
                 continue;
 
-            list.Add(new FlowEv(e.Id, e.ThreadId, e.Timestamp, e.Sequence, e.FlowId, ph));
+            list.Add(new FlowEv(e.Id, e.TrackId, e.Timestamp, e.Sequence, e.FlowId, ph));
         }
 
         return list;
@@ -662,7 +662,7 @@ public static class TraceExport
         json.WriteNumber("ts", tsUs);
         json.WriteNumber("dur", durUs);
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WritePropertyName("args");
         json.WriteStartObject();
         json.WriteNumber("id", e.Id);
@@ -677,7 +677,7 @@ public static class TraceExport
         Utf8JsonWriter json,
         int id,
         long asyncScopeId,
-        int tid,
+        int trackId,
         long timestamp,
         ITraceMetadataProvider meta,
         long baseTs,
@@ -693,7 +693,7 @@ public static class TraceExport
         json.WriteString("ph", phase);
         json.WriteNumber("ts", ToUs(timestamp - baseTs, freq));
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", tid);
+        json.WriteNumber("tid", trackId);
         json.WriteNumber("id", asyncScopeId);
         json.WriteEndObject();
     }
@@ -741,7 +741,7 @@ public static class TraceExport
         json.WriteString("ph", "i");
         json.WriteNumber("ts", tsUs);
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WriteString("s", "t");
         json.WriteEndObject();
     }
@@ -763,7 +763,7 @@ public static class TraceExport
         json.WriteString("ph", "C");
         json.WriteNumber("ts", tsUs);
         json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.ThreadId);
+        json.WriteNumber("tid", e.TrackId);
         json.WritePropertyName("args");
         json.WriteStartObject();
         json.WriteNumber("value", e.Value);
@@ -799,12 +799,12 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static string ResolveThreadName(TraceSession session, int tid)
+    static string ResolveThreadName(TraceSession session, int threadId)
     {
-        if (session.ThreadNames.TryGetValue(tid, out var name) && !string.IsNullOrWhiteSpace(name))
+        if (session.ThreadNames.TryGetValue(threadId, out var name) && !string.IsNullOrWhiteSpace(name))
             return name;
 
-        return $"Thread {tid}";
+        return $"Thread {threadId}";
     }
 
     static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
@@ -876,11 +876,11 @@ public static class TraceExport
         return charsUsed >= value.Length ? value : value[..charsUsed];
     }
 
-    static int CompareEventOrder(long timestamp, int threadId, long sequence, long otherTimestamp, int otherThreadId, long otherSequence)
+    static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp, int otherTrackId, long otherSequence)
     {
         var cmp = timestamp.CompareTo(otherTimestamp);
         if (cmp != 0) return cmp;
-        cmp = threadId.CompareTo(otherThreadId);
+        cmp = trackId.CompareTo(otherTrackId);
         if (cmp != 0) return cmp;
         return sequence.CompareTo(otherSequence);
     }
