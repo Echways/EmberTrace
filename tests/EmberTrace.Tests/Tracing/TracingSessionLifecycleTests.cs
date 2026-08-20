@@ -76,7 +76,7 @@ public class TracingSessionLifecycleTests
     [TestMethod]
     public void Dispose_CalledTwice_DoesNotThrow()
     {
-        var ts = new TracingSession();
+        using var ts = new TracingSession();
         ts.Start();
         ts.Dispose();
         ts.Dispose();
