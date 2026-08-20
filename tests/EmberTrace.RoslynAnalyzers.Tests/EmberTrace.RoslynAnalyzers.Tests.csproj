@@ -22,7 +22,7 @@
             Microsoft.CodeAnalysis.CSharp is pulled in transitively from EmberTrace.RoslynAnalyzers.
             We reference it explicitly to access the compilation API in tests.
         -->
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     </ItemGroup>
 
     <ItemGroup>
