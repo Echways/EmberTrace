@@ -1,6 +1,4 @@
-using System.Linq;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -127,7 +125,7 @@ public class EventKindTests
     {
         var ts = Run(s =>
         {
-            long flowId = s.NewFlowId();
+            var flowId = s.NewFlowId();
             s.FlowStart(11, flowId);
         });
         var e = Events(ts).Single(x => x.Kind == TraceEventKind.FlowStart);
@@ -141,7 +139,7 @@ public class EventKindTests
     {
         var ts = Run(s =>
         {
-            long flowId = s.NewFlowId();
+            var flowId = s.NewFlowId();
             s.FlowStart(1, flowId);
             s.FlowStep(1, flowId);
         });
@@ -155,7 +153,7 @@ public class EventKindTests
     {
         var ts = Run(s =>
         {
-            long flowId = s.NewFlowId();
+            var flowId = s.NewFlowId();
             s.FlowStart(1, flowId);
             s.FlowEnd(1, flowId);
         });
@@ -187,7 +185,7 @@ public class EventKindTests
     {
         var ts = Run(s =>
         {
-            long flowId = s.NewFlowId();
+            var flowId = s.NewFlowId();
             s.FlowStart(1, flowId);
             s.FlowStep(1, flowId);
             s.FlowEnd(1, flowId);
@@ -208,7 +206,7 @@ public class EventKindTests
             s.Instant(1);
             s.Counter(2, 99);
             using var _ = s.Scope(3);
-            long flowId = s.NewFlowId();
+            var flowId = s.NewFlowId();
             s.FlowStart(4, flowId);
             s.FlowEnd(4, flowId);
         });
@@ -223,7 +221,7 @@ public class EventKindTests
         Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.FlowEnd));
     }
 
-    private static TraceSession Run(System.Action<TracingSession> action)
+    private static TraceSession Run(Action<TracingSession> action)
     {
         var ts = new TracingSession();
         ts.Start(new SessionOptions { ChunkCapacity = 256 });
@@ -233,7 +231,7 @@ public class EventKindTests
 
     private static TraceEventRecord[] Events(TraceSession session)
     {
-        var list = new System.Collections.Generic.List<TraceEventRecord>();
+        var list = new List<TraceEventRecord>();
         foreach (var e in session.EnumerateEventsSorted())
             list.Add(e);
         return list.ToArray();

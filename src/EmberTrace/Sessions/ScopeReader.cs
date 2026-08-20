@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace EmberTrace.Sessions;
 
 public enum ScopeStepKind : byte
@@ -11,7 +8,8 @@ public enum ScopeStepKind : byte
 
 internal sealed class ScopeFrame
 {
-    public ScopeFrame(int index, ScopeFrame? parent, int id, long asyncScopeId, int trackId, int threadId, long startTimestamp, long startSequence)
+    public ScopeFrame(int index, ScopeFrame? parent, int id, long asyncScopeId, int trackId, int threadId,
+        long startTimestamp, long startSequence)
     {
         Index = index;
         Parent = parent;
@@ -40,7 +38,8 @@ public readonly struct ScopeStep
 {
     private readonly ScopeFrame _frame;
 
-    internal ScopeStep(ScopeStepKind kind, ScopeFrame frame, int endTrackId, int endThreadId, long endTimestamp, bool synthetic)
+    internal ScopeStep(ScopeStepKind kind, ScopeFrame frame, int endTrackId, int endThreadId, long endTimestamp,
+        bool synthetic)
     {
         Kind = kind;
         _frame = frame;
@@ -81,10 +80,10 @@ public readonly struct ScopeStep
 
 public sealed class ScopeReader
 {
-    private readonly IEnumerable<TraceEventRecord> _events;
     private readonly long _endTimestamp;
-    private readonly bool _strict;
+    private readonly IEnumerable<TraceEventRecord> _events;
     private readonly Action<MismatchedEndInfo>? _onMismatchedEnd;
+    private readonly bool _strict;
     private readonly Dictionary<int, int> _tracks = new();
 
     public ScopeReader(TraceSession session, bool strict = false, Action<MismatchedEndInfo>? onMismatchedEnd = null)
@@ -117,8 +116,8 @@ public sealed class ScopeReader
 
     public IEnumerable<ScopeStep> Read()
     {
-        var tracks = new Dictionary<TrackKey, List<ScopeFrame>>(capacity: 8);
-        var asyncFrames = new Dictionary<long, ScopeFrame>(capacity: 8);
+        var tracks = new Dictionary<TrackKey, List<ScopeFrame>>(8);
+        var asyncFrames = new Dictionary<long, ScopeFrame>(8);
         var index = 0;
 
         foreach (var e in _events)
@@ -140,7 +139,7 @@ public sealed class ScopeReader
             var key = new TrackKey(e.TrackId, contextId);
             if (!tracks.TryGetValue(key, out var track))
             {
-                track = new List<ScopeFrame>(capacity: 64);
+                track = new List<ScopeFrame>(64);
                 tracks.Add(key, track);
             }
 
@@ -148,14 +147,15 @@ public sealed class ScopeReader
             {
                 var parent = track.Count > 0 ? track[^1] : context;
 
-                var frame = new ScopeFrame(index++, parent, e.Id, e.AsyncScopeId, e.TrackId, e.ThreadId, e.Timestamp, e.Sequence);
+                var frame = new ScopeFrame(index++, parent, e.Id, e.AsyncScopeId, e.TrackId, e.ThreadId, e.Timestamp,
+                    e.Sequence);
 
                 if (frame.AsyncScopeId != 0)
                     asyncFrames[frame.AsyncScopeId] = frame;
                 else
                     track.Add(frame);
 
-                yield return new ScopeStep(ScopeStepKind.Open, frame, 0, 0, 0, synthetic: false);
+                yield return new ScopeStep(ScopeStepKind.Open, frame, 0, 0, 0, false);
                 continue;
             }
 
@@ -167,7 +167,7 @@ public sealed class ScopeReader
                     continue;
                 }
 
-                yield return new ScopeStep(ScopeStepKind.Close, asyncFrame, e.TrackId, e.ThreadId, e.Timestamp, synthetic: false);
+                yield return new ScopeStep(ScopeStepKind.Close, asyncFrame, e.TrackId, e.ThreadId, e.Timestamp, false);
                 continue;
             }
 
@@ -187,14 +187,12 @@ public sealed class ScopeReader
                     continue;
 
                 var target = -1;
-                for (int i = track.Count - 2; i >= 0; i--)
-                {
+                for (var i = track.Count - 2; i >= 0; i--)
                     if (track[i].Id == e.Id)
                     {
                         target = i;
                         break;
                     }
-                }
 
                 if (target < 0)
                 {
@@ -202,10 +200,10 @@ public sealed class ScopeReader
                     continue;
                 }
 
-                for (int i = track.Count - 1; i > target; i--)
+                for (var i = track.Count - 1; i > target; i--)
                 {
                     UnmatchedBeginCount++;
-                    yield return new ScopeStep(ScopeStepKind.Close, track[i], e.TrackId, e.ThreadId, e.Timestamp, synthetic: true);
+                    yield return new ScopeStep(ScopeStepKind.Close, track[i], e.TrackId, e.ThreadId, e.Timestamp, true);
                 }
 
                 track.RemoveRange(target + 1, track.Count - (target + 1));
@@ -213,23 +211,25 @@ public sealed class ScopeReader
             }
 
             track.RemoveAt(track.Count - 1);
-            yield return new ScopeStep(ScopeStepKind.Close, top, e.TrackId, e.ThreadId, e.Timestamp, synthetic: false);
+            yield return new ScopeStep(ScopeStepKind.Close, top, e.TrackId, e.ThreadId, e.Timestamp, false);
         }
 
         foreach (var kv in tracks)
         {
             var track = kv.Value;
-            for (int i = track.Count - 1; i >= 0; i--)
+            for (var i = track.Count - 1; i >= 0; i--)
             {
                 UnmatchedBeginCount++;
-                yield return new ScopeStep(ScopeStepKind.Close, track[i], track[i].TrackId, track[i].ThreadId, _endTimestamp, synthetic: true);
+                yield return new ScopeStep(ScopeStepKind.Close, track[i], track[i].TrackId, track[i].ThreadId,
+                    _endTimestamp, true);
             }
         }
 
         foreach (var kv in asyncFrames)
         {
             UnmatchedBeginCount++;
-            yield return new ScopeStep(ScopeStepKind.Close, kv.Value, kv.Value.TrackId, kv.Value.ThreadId, _endTimestamp, synthetic: true);
+            yield return new ScopeStep(ScopeStepKind.Close, kv.Value, kv.Value.TrackId, kv.Value.ThreadId,
+                _endTimestamp, true);
         }
     }
 

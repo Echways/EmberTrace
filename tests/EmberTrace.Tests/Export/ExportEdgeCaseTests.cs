@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Export;
 
@@ -21,7 +16,7 @@ public class ExportEdgeCaseTests
         const int count = 5;
 
         var events = new List<TraceEvent>();
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
         {
             events.Add(new TraceEvent(id, 1, i + 1, TraceEventKind.Begin, 0, 0));
             events.Add(new TraceEvent(id, 1, i + 1, TraceEventKind.End, 0, 0));
@@ -53,7 +48,7 @@ public class ExportEdgeCaseTests
         Directory.SetCurrentDirectory(temp.FullName);
         try
         {
-            var result = TraceExport.MarkedCompleteEx(static () => { }, tag: new string('ф', 500_000));
+            var result = TraceExport.MarkedCompleteEx(static () => { }, new string('ф', 500_000));
 
             var fileName = Path.GetFileName(result.SlicePath);
             Assert.IsLessThanOrEqualTo(255, Encoding.UTF8.GetByteCount(fileName));
@@ -62,7 +57,7 @@ public class ExportEdgeCaseTests
         finally
         {
             Directory.SetCurrentDirectory(cwd);
-            temp.Delete(recursive: true);
+            temp.Delete(true);
         }
     }
 
@@ -78,7 +73,8 @@ public class ExportEdgeCaseTests
         try
         {
             Assert.ThrowsExactly<UnauthorizedAccessException>(() =>
-                TraceExport.MarkedCompleteEx("marked", outputPath, static () => { }, MarkedRunningSessionMode.SliceAndResume));
+                TraceExport.MarkedCompleteEx("marked", outputPath, static () => { },
+                    MarkedRunningSessionMode.SliceAndResume));
 
             Assert.IsTrue(Tracer.IsRunning, "the tracer must be resumed even when the slice cannot be written");
             Assert.AreEqual(4242, Tracer.Stop().Options.ChunkCapacity,
@@ -89,7 +85,7 @@ public class ExportEdgeCaseTests
             if (Tracer.IsRunning)
                 Tracer.Stop();
 
-            blocked.Delete(recursive: true);
+            blocked.Delete(true);
         }
     }
 
@@ -114,7 +110,10 @@ public class ExportEdgeCaseTests
         }
     }
 
-    private static void ThrowFromBody() => throw new InvalidOperationException("body failed");
+    private static void ThrowFromBody()
+    {
+        throw new InvalidOperationException("body failed");
+    }
 
     private static TraceSession BuildSession(List<TraceEvent> events)
     {
@@ -124,13 +123,13 @@ public class ExportEdgeCaseTests
 
         return new TraceSession(
             new[] { chunk },
-            startTimestamp: 0,
-            endTimestamp: Timestamp.Frequency,
-            options: new SessionOptions(),
-            threadNames: new Dictionary<int, string>(),
-            droppedEvents: 0,
-            droppedChunks: 0,
-            sampledOutEvents: 0,
-            wasOverflow: false);
+            0,
+            Timestamp.Frequency,
+            new SessionOptions(),
+            new Dictionary<int, string>(),
+            0,
+            0,
+            0,
+            false);
     }
 }

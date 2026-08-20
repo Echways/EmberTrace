@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -14,15 +12,6 @@ internal sealed class ProfilingState
 
     private readonly ConcurrentDictionary<long, ThreadWriter> _writers = new();
     private int _nextTrackId;
-
-    public long Id { get; } = Interlocked.Increment(ref _nextId);
-    public SessionOptions Options { get; }
-    public SessionCollector Collector { get; }
-    public ITraceMetadataProvider Metadata { get; }
-    public CategoryFilter? CategoryFilter { get; }
-    public SamplingPolicy Sampling { get; }
-    public long StartTs { get; }
-    public long EndTs { get; set; }
 
     public ProfilingState(
         SessionOptions options,
@@ -40,10 +29,23 @@ internal sealed class ProfilingState
         StartTs = startTs;
     }
 
+    public long Id { get; } = Interlocked.Increment(ref _nextId);
+    public SessionOptions Options { get; }
+    public SessionCollector Collector { get; }
+    public ITraceMetadataProvider Metadata { get; }
+    public CategoryFilter? CategoryFilter { get; }
+    public SamplingPolicy Sampling { get; }
+    public long StartTs { get; }
+    public long EndTs { get; set; }
+
     public IEnumerable<ThreadWriter> Writers => _writers.Values;
 
-    public ThreadWriter GetWriter() => _writers.GetOrAdd(
-        ThreadIdentity.Current,
-        static (_, state) => new ThreadWriter(state.Collector, state.Sampling, Interlocked.Increment(ref state._nextTrackId)),
-        this);
+    public ThreadWriter GetWriter()
+    {
+        return _writers.GetOrAdd(
+            ThreadIdentity.Current,
+            static (_, state) =>
+                new ThreadWriter(state.Collector, state.Sampling, Interlocked.Increment(ref state._nextTrackId)),
+            this);
+    }
 }

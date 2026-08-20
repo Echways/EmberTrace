@@ -1,9 +1,4 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using EmberTrace;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -23,7 +18,7 @@ public class FlowAndAsyncTests
         try
         {
             var handle = ts.FlowStartNewHandle(traceId);
-            for (int i = 0; i < steps; i++)
+            for (var i = 0; i < steps; i++)
                 handle.Step();
             handle.End();
         }
@@ -62,11 +57,11 @@ public class FlowAndAsyncTests
             var runners = Enumerable.Range(0, tasks)
                 .Select(_ => Task.Run(async () =>
                 {
-                    for (int i = 0; i < iterations; i++)
-                    {
+                    for (var i = 0; i < iterations; i++)
                         await using (ts.ScopeAsync(id))
+                        {
                             await Task.Yield();
-                    }
+                        }
                 }));
 
             await Task.WhenAll(runners);

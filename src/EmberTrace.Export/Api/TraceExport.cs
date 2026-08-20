@@ -1,12 +1,8 @@
-using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using EmberTrace.Export;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -54,7 +50,8 @@ public readonly struct MarkedCompleteResult
             if (e.Timestamp < WindowMinTimestamp || e.Timestamp > WindowMaxTimestamp)
                 continue;
 
-            if (excludeMarkerBeginEnd && e.Id == MarkerId && (e.Kind == TraceEventKind.Begin || e.Kind == TraceEventKind.End))
+            if (excludeMarkerBeginEnd && e.Id == MarkerId &&
+                (e.Kind == TraceEventKind.Begin || e.Kind == TraceEventKind.End))
                 continue;
 
             yield return e;
@@ -75,7 +72,7 @@ public readonly struct MarkedCompleteResult
         TraceExport.WriteChromeComplete(CapturedSession, fs, meta, sortByStartTimestamp, pid, processName);
     }
 
-    static void EnsureDir(string path)
+    private static void EnsureDir(string path)
     {
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
@@ -85,11 +82,11 @@ public readonly struct MarkedCompleteResult
 
 public static class TraceExport
 {
-    const int StackCharLimit = 256;
-    const int MaxFileNameBytes = 255;
-    const int MaxUtf8BytesPerChar = 3;
+    private const int StackCharLimit = 256;
+    private const int MaxFileNameBytes = 255;
+    private const int MaxUtf8BytesPerChar = 3;
 
-    static readonly SearchValues<char> InvalidFileNameChars =
+    private static readonly SearchValues<char> InvalidFileNameChars =
         SearchValues.Create(Path.GetInvalidFileNameChars());
 
     public static void WriteChromeComplete(
@@ -100,7 +97,7 @@ public static class TraceExport
         int pid = 1,
         string processName = "EmberTrace")
     {
-        Export.ChromeTraceExporter.WriteComplete(session, output, meta, sortByStartTimestamp, pid, processName);
+        ChromeTraceExporter.WriteComplete(session, output, meta, sortByStartTimestamp, pid, processName);
     }
 
     public static void WriteChromeBeginEnd(
@@ -111,7 +108,7 @@ public static class TraceExport
         int pid = 1,
         string processName = "EmberTrace")
     {
-        Export.ChromeTraceExporter.WriteBeginEnd(session, output, meta, sortByTimestamp, pid, processName);
+        ChromeTraceExporter.WriteBeginEnd(session, output, meta, sortByTimestamp, pid, processName);
     }
 
     public static TraceSession MarkedComplete(
@@ -136,7 +133,8 @@ public static class TraceExport
         int pid = 1,
         string processName = "EmberTrace")
     {
-        var r = await MarkedCompleteExAsync(name, outputPath, body, running, resumeOptions, pid, processName).ConfigureAwait(false);
+        var r = await MarkedCompleteExAsync(name, outputPath, body, running, resumeOptions, pid, processName)
+            .ConfigureAwait(false);
         return r.CapturedSession;
     }
 
@@ -202,7 +200,9 @@ public static class TraceExport
         try
         {
             using (Tracer.Scope(markerId))
+            {
                 body();
+            }
         }
         catch (Exception ex)
         {
@@ -213,7 +213,8 @@ public static class TraceExport
             session = Tracer.Stop();
         }
 
-        var window = WriteSlice(session, outputPath, markerId, name, pid, processName, resume, resumeOptions, ref error);
+        var window = WriteSlice(session, outputPath, markerId, name, pid, processName, resume, resumeOptions,
+            ref error);
 
         if (error is not null)
             ExceptionDispatchInfo.Capture(error).Throw();
@@ -247,7 +248,9 @@ public static class TraceExport
         try
         {
             await using (Tracer.ScopeAsync(markerId))
+            {
                 await body().ConfigureAwait(false);
+            }
         }
         catch (Exception ex)
         {
@@ -258,7 +261,8 @@ public static class TraceExport
             session = Tracer.Stop();
         }
 
-        var window = WriteSlice(session, outputPath, markerId, name, pid, processName, resume, resumeOptions, ref error);
+        var window = WriteSlice(session, outputPath, markerId, name, pid, processName, resume, resumeOptions,
+            ref error);
 
         if (error is not null)
             ExceptionDispatchInfo.Capture(error).Throw();
@@ -266,7 +270,7 @@ public static class TraceExport
         return new MarkedCompleteResult(name, markerId, outputPath, session, window.MinTs, window.MaxTs);
     }
 
-    static bool RequireSliceable(MarkedRunningSessionMode running)
+    private static bool RequireSliceable(MarkedRunningSessionMode running)
     {
         if (!Tracer.IsRunning)
             return false;
@@ -277,7 +281,7 @@ public static class TraceExport
         return true;
     }
 
-    static (long MinTs, long MaxTs) WriteSlice(
+    private static (long MinTs, long MaxTs) WriteSlice(
         TraceSession session,
         string outputPath,
         int markerId,
@@ -437,7 +441,7 @@ public static class TraceExport
         return MarkedCompleteAsync(name, path, body, running, resumeOptions, pid, processName);
     }
 
-    static string MakeNameFromCaller(string? caller, string? tag)
+    private static string MakeNameFromCaller(string? caller, string? tag)
     {
         var baseName = string.IsNullOrWhiteSpace(caller) ? "Marked" : caller;
         if (string.IsNullOrWhiteSpace(tag))
@@ -446,16 +450,20 @@ public static class TraceExport
         return $"{baseName}_{SanitizeTag(tag)}";
     }
 
-    static string SanitizeTag(string tag) =>
-        MapChars(tag, static c => char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_');
-
-    static ITraceMetadataProvider CreateOverlayMeta(ITraceMetadataProvider baseMeta, int markerId, string name) =>
-        new OverlayTraceMetadataProvider(baseMeta, markerId, name);
-
-    static (long MinTs, long MaxTs) FindMarkerWindow(TraceSession session, int markerId)
+    private static string SanitizeTag(string tag)
     {
-        long min = long.MaxValue;
-        long max = long.MinValue;
+        return MapChars(tag, static c => char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_');
+    }
+
+    private static ITraceMetadataProvider CreateOverlayMeta(ITraceMetadataProvider baseMeta, int markerId, string name)
+    {
+        return new OverlayTraceMetadataProvider(baseMeta, markerId, name);
+    }
+
+    private static (long MinTs, long MaxTs) FindMarkerWindow(TraceSession session, int markerId)
+    {
+        var min = long.MaxValue;
+        var max = long.MinValue;
 
         foreach (var e in session.EnumerateEvents())
         {
@@ -469,10 +477,8 @@ public static class TraceExport
             }
 
             if (e.Kind == TraceEventKind.End)
-            {
-                if (e.Timestamp > max) max = e.Timestamp;
-                continue;
-            }
+                if (e.Timestamp > max)
+                    max = e.Timestamp;
         }
 
         if (min == long.MaxValue || max == long.MinValue || max < min)
@@ -481,7 +487,7 @@ public static class TraceExport
         return (min, max);
     }
 
-    static void WriteChromeCompleteSlice(
+    private static void WriteChromeCompleteSlice(
         TraceSession session,
         Stream output,
         ITraceMetadataProvider meta,
@@ -503,7 +509,7 @@ public static class TraceExport
 
         WriteProcessName(json, pid, processName);
 
-        var events = new List<TraceEventRecord>(capacity: 4096);
+        var events = new List<TraceEventRecord>(4096);
         foreach (var e in session.EnumerateEvents())
         {
             if (e.Timestamp < minTs || e.Timestamp > maxTs)
@@ -515,10 +521,11 @@ public static class TraceExport
             events.Add(e);
         }
 
-        events.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
+        events.Sort(static (a, b) =>
+            CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
 
         var threadByTrack = new Dictionary<int, int>();
-        for (int i = 0; i < events.Count; i++)
+        for (var i = 0; i < events.Count; i++)
             threadByTrack.TryAdd(events[i].TrackId, events[i].ThreadId);
 
         foreach (var track in threadByTrack)
@@ -530,7 +537,8 @@ public static class TraceExport
         flows.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.Tid, a.Sequence, b.Timestamp, b.Tid, b.Sequence));
 
         var markers = CollectInstantCounters(events);
-        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
+        markers.Sort(static (a, b) =>
+            CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
 
         var fi = 0;
         var mi = 0;
@@ -555,21 +563,24 @@ public static class TraceExport
             }
         }
 
-        var complete = new List<CompleteSpan>(capacity: events.Count / 2);
+        var complete = new List<CompleteSpan>(events.Count / 2);
         var asyncSpans = new List<AsyncSpan>();
         ScopeCollector.CollectComplete(new ScopeReader(events, maxTs), minTs, complete, asyncSpans);
 
-        complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.TrackId, a.Sequence, b.StartTs, b.TrackId, b.Sequence));
-        asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
+        complete.Sort(static (a, b) =>
+            CompareEventOrder(a.StartTs, a.TrackId, a.Sequence, b.StartTs, b.TrackId, b.Sequence));
+        asyncSpans.Sort(static (a, b) =>
+            CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
 
-        for (int i = 0; i < asyncSpans.Count; i++)
+        for (var i = 0; i < asyncSpans.Count; i++)
         {
             var span = asyncSpans[i];
-            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, minTs, freq, pid, "b");
+            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, minTs, freq, pid,
+                "b");
             WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, minTs, freq, pid, "e");
         }
 
-        for (int i = 0; i < complete.Count; i++)
+        for (var i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, minTs, freq, pid);
 
         json.WriteEndArray();
@@ -577,11 +588,11 @@ public static class TraceExport
         json.Flush();
     }
 
-    static List<FlowEv> CollectFlows(List<TraceEventRecord> events)
+    private static List<FlowEv> CollectFlows(List<TraceEventRecord> events)
     {
         var list = new List<FlowEv>();
 
-        for (int i = 0; i < events.Count; i++)
+        for (var i = 0; i < events.Count; i++)
         {
             var e = events[i];
             if (e.FlowId == 0)
@@ -604,10 +615,10 @@ public static class TraceExport
         return list;
     }
 
-    static List<TraceEventRecord> CollectInstantCounters(List<TraceEventRecord> events)
+    private static List<TraceEventRecord> CollectInstantCounters(List<TraceEventRecord> events)
     {
         var list = new List<TraceEventRecord>();
-        for (int i = 0; i < events.Count; i++)
+        for (var i = 0; i < events.Count; i++)
         {
             var e = events[i];
             if (e.Kind == TraceEventKind.Instant || e.Kind == TraceEventKind.Counter)
@@ -617,7 +628,7 @@ public static class TraceExport
         return list;
     }
 
-    static void WriteSyntheticTopLevel(
+    private static void WriteSyntheticTopLevel(
         Utf8JsonWriter json,
         int pid,
         long minTs,
@@ -643,7 +654,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteCompleteEvent(
+    private static void WriteCompleteEvent(
         Utf8JsonWriter json,
         in CompleteSpan e,
         ITraceMetadataProvider meta,
@@ -673,7 +684,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteAsyncPhase(
+    private static void WriteAsyncPhase(
         Utf8JsonWriter json,
         int id,
         long asyncScopeId,
@@ -698,7 +709,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteFlowEvent(
+    private static void WriteFlowEvent(
         Utf8JsonWriter json,
         in FlowEv e,
         ITraceMetadataProvider meta,
@@ -724,7 +735,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteInstantEvent(
+    private static void WriteInstantEvent(
         Utf8JsonWriter json,
         in TraceEventRecord e,
         ITraceMetadataProvider meta,
@@ -746,7 +757,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteCounterEvent(
+    private static void WriteCounterEvent(
         Utf8JsonWriter json,
         in TraceEventRecord e,
         ITraceMetadataProvider meta,
@@ -771,7 +782,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteProcessName(Utf8JsonWriter json, int pid, string name)
+    private static void WriteProcessName(Utf8JsonWriter json, int pid, string name)
     {
         json.WriteStartObject();
         json.WriteString("name", "process_name");
@@ -785,7 +796,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static void WriteThreadName(Utf8JsonWriter json, int pid, int tid, string name)
+    private static void WriteThreadName(Utf8JsonWriter json, int pid, int tid, string name)
     {
         json.WriteStartObject();
         json.WriteString("name", "thread_name");
@@ -799,7 +810,7 @@ public static class TraceExport
         json.WriteEndObject();
     }
 
-    static string ResolveThreadName(TraceSession session, int threadId)
+    private static string ResolveThreadName(TraceSession session, int threadId)
     {
         if (session.ThreadNames.TryGetValue(threadId, out var name) && !string.IsNullOrWhiteSpace(name))
             return name;
@@ -807,7 +818,7 @@ public static class TraceExport
         return $"Thread {threadId}";
     }
 
-    static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
+    private static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
     {
         if (meta.TryGet(id, out var m))
         {
@@ -820,21 +831,21 @@ public static class TraceExport
         category = "";
     }
 
-    static void EnsureDir(string path)
+    private static void EnsureDir(string path)
     {
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
     }
 
-    static string DefaultTracePath(string name)
+    private static string DefaultTracePath(string name)
     {
         var suffix = $"_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";
         var safe = TruncateUtf8(SafeFileName(name), MaxFileNameBytes - suffix.Length);
         return Path.Combine("traces", safe + suffix);
     }
 
-    static string SafeFileName(string name)
+    private static string SafeFileName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
             return "trace";
@@ -842,16 +853,16 @@ public static class TraceExport
         return MapChars(name, static c => InvalidFileNameChars.Contains(c) || c == ' ' ? '_' : c);
     }
 
-    static string MapChars(string value, Func<char, char> map)
+    private static string MapChars(string value, Func<char, char> map)
     {
         char[]? rented = null;
         var buffer = value.Length <= StackCharLimit
             ? stackalloc char[StackCharLimit]
-            : (rented = ArrayPool<char>.Shared.Rent(value.Length));
+            : rented = ArrayPool<char>.Shared.Rent(value.Length);
 
         try
         {
-            for (int i = 0; i < value.Length; i++)
+            for (var i = 0; i < value.Length; i++)
                 buffer[i] = map(value[i]);
 
             return new string(buffer[..value.Length]);
@@ -863,7 +874,7 @@ public static class TraceExport
         }
     }
 
-    static string TruncateUtf8(string value, int maxBytes)
+    private static string TruncateUtf8(string value, int maxBytes)
     {
         if (maxBytes <= 0)
             return string.Empty;
@@ -872,11 +883,12 @@ public static class TraceExport
             return value;
 
         Span<byte> bytes = stackalloc byte[maxBytes];
-        Encoding.UTF8.GetEncoder().Convert(value, bytes, flush: true, out var charsUsed, out _, out _);
+        Encoding.UTF8.GetEncoder().Convert(value, bytes, true, out var charsUsed, out _, out _);
         return charsUsed >= value.Length ? value : value[..charsUsed];
     }
 
-    static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp, int otherTrackId, long otherSequence)
+    private static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp,
+        int otherTrackId, long otherSequence)
     {
         var cmp = timestamp.CompareTo(otherTimestamp);
         if (cmp != 0) return cmp;
@@ -885,7 +897,7 @@ public static class TraceExport
         return sequence.CompareTo(otherSequence);
     }
 
-    sealed class OverlayTraceMetadataProvider : ITraceMetadataProvider
+    private sealed class OverlayTraceMetadataProvider : ITraceMetadataProvider
     {
         private readonly ITraceMetadataProvider _base;
         private readonly int _id;
@@ -910,7 +922,7 @@ public static class TraceExport
         }
     }
 
-    readonly struct FlowEv
+    private readonly struct FlowEv
     {
         public readonly int Id;
         public readonly int Tid;

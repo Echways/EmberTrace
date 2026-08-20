@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-
 namespace EmberTrace.Metadata;
 
 public readonly record struct TraceMeta(int Id, string Name, string? Category);

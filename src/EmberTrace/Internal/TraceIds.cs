@@ -1,5 +1,3 @@
-using System;
-
 namespace EmberTrace.Internal;
 
 internal static class TraceIds
@@ -13,7 +11,7 @@ internal static class TraceIds
             const uint offset = 2166136261;
             const uint prime = 16777619;
 
-            uint h = offset;
+            var h = offset;
             foreach (var c in name)
             {
                 h ^= c;
@@ -25,6 +23,8 @@ internal static class TraceIds
         }
     }
 
-    public static int Category(string? category) =>
-        string.IsNullOrWhiteSpace(category) ? 0 : Stable(category);
+    public static int Category(string? category)
+    {
+        return string.IsNullOrWhiteSpace(category) ? 0 : Stable(category);
+    }
 }

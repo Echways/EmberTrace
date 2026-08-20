@@ -1,13 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using EmberTrace;
 using EmberTrace.Abstractions.Attributes;
-using EmberTrace.Flow;
 using EmberTrace.Metadata;
-using EmberTrace.ReportText;
 using EmberTrace.Sessions;
 
 [assembly: TraceId(Ids.App, "App", "App")]
@@ -87,14 +80,10 @@ static async Task RunScenarios(string[] args, List<Scenario> scenarios)
 static string? ReadArgValue(string[] args, string longName, string shortName)
 {
     for (var i = 0; i < args.Length; i++)
-    {
         if (string.Equals(args[i], longName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(args[i], shortName, StringComparison.OrdinalIgnoreCase))
-        {
             if (i + 1 < args.Length)
                 return args[i + 1];
-        }
-    }
 
     return null;
 }
@@ -107,17 +96,27 @@ static Task RunApiTracerPerfetto(string outDir)
     using (Tracer.Scope(Ids.App))
     {
         using (Tracer.Scope(Ids.Warmup))
+        {
             CpuSpin(160_000);
+        }
 
         using (Tracer.Scope(Ids.Load))
+        {
             CpuSpin(120_000);
+        }
 
         var flowId = Tracer.FlowStartNew(Ids.JobFlow);
         using (Tracer.Scope(Ids.Parse))
+        {
             SortWork(10_000);
+        }
+
         Tracer.FlowStep(Ids.JobFlow, flowId);
         using (Tracer.Scope(Ids.Render))
+        {
             CpuSpin(140_000);
+        }
+
         Tracer.FlowEnd(Ids.JobFlow, flowId);
     }
 
@@ -226,7 +225,7 @@ static async Task RunAnalysisSlice(string outDir)
     var processed = session.Process();
     var meta = Tracer.CreateMetadata();
 
-    var reportText = TraceText.Write(processed, meta: meta, topHotspots: 12, maxDepth: 6);
+    var reportText = TraceText.Write(processed, meta, 12, 6);
     var reportPath = Path.Combine(outDir, "analysis-slice.txt");
     File.WriteAllText(reportPath, reportText);
 
@@ -281,7 +280,9 @@ static async Task RunGettingStartedFirstTrace(string outDir)
     Tracer.Start(options);
 
     using (Tracer.Scope(Ids.App))
+    {
         CpuSpin(70_000);
+    }
 
     await IoDelay(20);
 
@@ -293,7 +294,7 @@ static async Task RunGettingStartedFirstTrace(string outDir)
     ExportChromeComplete(session, tracePath, meta);
 
     var reportPath = Path.Combine(outDir, "getting-started-first-trace.txt");
-    var reportText = TraceText.Write(processed, meta: meta, topHotspots: 8, maxDepth: 4);
+    var reportText = TraceText.Write(processed, meta, 8, 4);
     File.WriteAllText(reportPath, reportText);
 
     Console.WriteLine("Saved: " + tracePath);
@@ -319,25 +320,19 @@ static Task CopyGeneratorOutput(string projectDir, string outDir)
 
     var exactName = "EmberTrace.GeneratedTraceMetadataProvider.g.cs";
     foreach (var file in Directory.EnumerateFiles(objDir, exactName, SearchOption.AllDirectories))
-    {
         if (LooksLikeGeneratorOutput(file))
         {
             sourcePath = file;
             break;
         }
-    }
 
     if (sourcePath == null)
-    {
         foreach (var file in Directory.EnumerateFiles(objDir, "*.g.cs", SearchOption.AllDirectories))
-        {
             if (LooksLikeGeneratorOutput(file))
             {
                 sourcePath = file;
                 break;
             }
-        }
-    }
 
     if (sourcePath == null)
     {
@@ -346,7 +341,7 @@ static Task CopyGeneratorOutput(string projectDir, string outDir)
     }
 
     var destPath = Path.Combine(outDir, "generator-generated-code.cs");
-    File.Copy(sourcePath, destPath, overwrite: true);
+    File.Copy(sourcePath, destPath, true);
     Console.WriteLine("Saved: " + destPath);
     return Task.CompletedTask;
 }
@@ -365,8 +360,8 @@ static Task RunTroubleshootingCommon(string outDir)
     var session = Tracer.Stop();
     var processed = session.Process();
 
-    var withoutMeta = TraceText.Write(processed, meta: null, topHotspots: 6, maxDepth: 4);
-    var withMeta = TraceText.Write(processed, meta: Tracer.CreateMetadata(), topHotspots: 6, maxDepth: 4);
+    var withoutMeta = TraceText.Write(processed, null, 6, 4);
+    var withMeta = TraceText.Write(processed, Tracer.CreateMetadata(), 6, 4);
 
     var path = Path.Combine(outDir, "troubleshooting-common.txt");
     var text = "== Without metadata ==" + Environment.NewLine +
@@ -393,14 +388,14 @@ static void ExportChromeComplete(TraceSession session, string path, ITraceMetada
 {
     EnsureDir(path);
     using var fs = File.Create(path);
-    TraceExport.WriteChromeComplete(session, fs, meta: meta);
+    TraceExport.WriteChromeComplete(session, fs, meta);
 }
 
 static void ExportChromeBeginEnd(TraceSession session, string path, ITraceMetadataProvider meta)
 {
     EnsureDir(path);
     using var fs = File.Create(path);
-    TraceExport.WriteChromeBeginEnd(session, fs, meta: meta);
+    TraceExport.WriteChromeBeginEnd(session, fs, meta);
 }
 
 static SessionOptions DefaultSessionOptions()
@@ -441,7 +436,7 @@ static int[] MakeData(int n)
 {
     var rnd = new Random(123);
     var a = new int[n];
-    for (int i = 0; i < n; i++)
+    for (var i = 0; i < n; i++)
         a[i] = rnd.Next();
     return a;
 }
@@ -498,9 +493,9 @@ static string FindUpwards(string startDir, string fileName)
     return string.Empty;
 }
 
-record Scenario(string Name, string Description, Func<Task> Run);
+internal record Scenario(string Name, string Description, Func<Task> Run);
 
-static class Ids
+internal static class Ids
 {
     public const int App = 1000;
     public const int Warmup = 1010;

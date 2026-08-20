@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
@@ -31,8 +30,8 @@ public static class ActivityBridge
             const ulong offset = 14695981039346656037;
             const ulong prime = 1099511628211;
 
-            ulong hash = offset;
-            for (int i = 0; i < traceId.Length; i++)
+            var hash = offset;
+            for (var i = 0; i < traceId.Length; i++)
             {
                 hash ^= traceId[i];
                 hash *= prime;
@@ -48,9 +47,9 @@ public static class ActivityBridge
 
     private sealed class ActivityAccess
     {
+        private readonly bool _available;
         private readonly PropertyInfo? _currentProperty;
         private readonly PropertyInfo? _traceIdProperty;
-        private readonly bool _available;
 
         public ActivityAccess()
         {

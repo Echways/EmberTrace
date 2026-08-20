@@ -16,7 +16,7 @@ internal sealed class TextTable
     public void AddRow(params string[] cols)
     {
         var row = new string[_widths.Length];
-        for (int i = 0; i < row.Length; i++)
+        for (var i = 0; i < row.Length; i++)
         {
             var s = i < cols.Length ? cols[i] : "";
             row[i] = s ?? "";
@@ -30,17 +30,17 @@ internal sealed class TextTable
     public void AddSeparator(char c = '-')
     {
         var parts = new string[_widths.Length];
-        for (int i = 0; i < parts.Length; i++)
+        for (var i = 0; i < parts.Length; i++)
             parts[i] = new string(c, Math.Max(1, _widths[i]));
         _rows.Add(parts);
     }
 
     public void WriteTo(StringBuilder sb, int gap = 2)
     {
-        for (int r = 0; r < _rows.Count; r++)
+        for (var r = 0; r < _rows.Count; r++)
         {
             var row = _rows[r];
-            for (int i = 0; i < row.Length; i++)
+            for (var i = 0; i < row.Length; i++)
             {
                 if (i > 0)
                     sb.Append(' ', gap);

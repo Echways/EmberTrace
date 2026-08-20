@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using EmberTrace;
 using EmberTrace.Abstractions.Attributes;
 
@@ -32,7 +29,7 @@ static int[] MakeData(int n, int seed)
 {
     var r = new Random(seed);
     var a = new int[n];
-    for (int i = 0; i < a.Length; i++)
+    for (var i = 0; i < a.Length; i++)
         a[i] = r.Next();
     return a;
 }
@@ -63,13 +60,11 @@ static void Worker(int workerId, int iterations)
     using var s = Tracer.Scope(Ids.Worker);
 
     var sw = Stopwatch.StartNew();
-    for (int i = 0; i < iterations; i++)
-    {
+    for (var i = 0; i < iterations; i++)
         if ((i & 1) == 0)
-            CpuWork(fibN: 20, sortN: 15_000, seed: workerId * 1000 + i);
+            CpuWork(20, 15_000, workerId * 1000 + i);
         else
-            SimulatedIo(ms: 5);
-    }
+            SimulatedIo(5);
 
     sw.Stop();
 }
@@ -81,11 +76,11 @@ using (var app = Tracer.Scope(Ids.App))
     using (var warmup = Tracer.Scope(Ids.Warmup))
     {
         Busy(200_000);
-        SortWork(5_000, seed: 123);
+        SortWork(5_000, 123);
     }
 
-    var t1 = Task.Run(() => Worker(workerId: 1, iterations: 8));
-    var t2 = Task.Run(() => Worker(workerId: 2, iterations: 8));
+    var t1 = Task.Run(() => Worker(1, 8));
+    var t2 = Task.Run(() => Worker(2, 8));
     Task.WaitAll(t1, t2);
 }
 
@@ -93,14 +88,14 @@ var session = Tracer.Stop();
 var processed = session.Process();
 
 var meta = Tracer.CreateMetadata();
-Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 12, maxDepth: 4));
+Console.WriteLine(TraceText.Write(processed, meta, 12, 4));
 
 var path = Path.Combine(AppContext.BaseDirectory, "embertrace_complete.json");
 using var fs = File.Create(path);
-TraceExport.WriteChromeComplete(session, fs, meta: meta);
+TraceExport.WriteChromeComplete(session, fs, meta);
 Console.WriteLine(path);
 
-static class Ids
+internal static class Ids
 {
     public const int App = 1000;
     public const int Warmup = 1100;

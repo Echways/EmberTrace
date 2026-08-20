@@ -21,11 +21,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="EmberTrace.Tests" />
+        <InternalsVisibleTo Include="EmberTrace.Tests"/>
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
     </ItemGroup>
 
 </Project>

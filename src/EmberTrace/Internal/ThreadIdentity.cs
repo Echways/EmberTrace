@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace EmberTrace.Internal;
 
 internal static class ThreadIdentity

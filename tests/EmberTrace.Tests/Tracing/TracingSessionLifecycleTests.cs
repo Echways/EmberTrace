@@ -1,5 +1,4 @@
-using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -98,7 +97,9 @@ public class TracingSessionLifecycleTests
                 throw new InvalidOperationException("simulated");
             }
         }
-        catch (InvalidOperationException) { }
+        catch (InvalidOperationException)
+        {
+        }
 
         Assert.IsFalse(ts.IsRunning);
         Assert.IsNotNull(ts.LastSession);
@@ -108,9 +109,9 @@ public class TracingSessionLifecycleTests
     private sealed class TraceSessionCapture
     {
         public int Count { get; private set; }
-        public EmberTrace.Sessions.TraceSession? Session { get; private set; }
+        public TraceSession? Session { get; private set; }
 
-        public void Accept(EmberTrace.Sessions.TraceSession session)
+        public void Accept(TraceSession session)
         {
             Count++;
             Session = session;

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
 using EmberTrace.Internal.Time;
 using EmberTrace.Sessions;
 
@@ -25,17 +23,16 @@ internal readonly struct SamplingPolicy
 
 internal sealed class ThreadWriter
 {
-    private SessionCollector? _collector;
-
     private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
+    private readonly SamplingPolicy _sampling;
     private readonly int _trackId;
     private Chunk? _chunk;
-    private int _writesInFlight;
-    private readonly SamplingPolicy _sampling;
-    private long _sequence;
-    private long _rateWindowStart;
+    private SessionCollector? _collector;
     private int _rateWindowCount;
+    private long _rateWindowStart;
+    private long _sequence;
     private TicketBlock[]? _ticketBlocks;
+    private int _writesInFlight;
 
     public ThreadWriter(SessionCollector collector, SamplingPolicy sampling, int trackId)
     {

@@ -1,9 +1,5 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using EmberTrace.Metadata;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Metadata;
 
@@ -22,7 +18,8 @@ public class TraceMetadataTests
         try
         {
             var snapshot = TraceMetadata.CreateDefault();
-            Assert.AreSame(snapshot, TraceMetadata.CreateDefault(), "repeated resolves must reuse the flattened snapshot");
+            Assert.AreSame(snapshot, TraceMetadata.CreateDefault(),
+                "repeated resolves must reuse the flattened snapshot");
 
             var other = new EnumerableProvider((Second, "Second"));
             TraceMetadata.Register(other);
@@ -120,6 +117,16 @@ public class TraceMetadataTests
 
         public int Lookups { get; private set; }
 
+        public IEnumerator<TraceMeta> GetEnumerator()
+        {
+            return ((IEnumerable<TraceMeta>)_entries).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         public bool TryGet(int id, out TraceMeta metadata)
         {
             Lookups++;
@@ -132,10 +139,6 @@ public class TraceMetadataTests
             metadata = default;
             return false;
         }
-
-        public IEnumerator<TraceMeta> GetEnumerator() => ((IEnumerable<TraceMeta>)_entries).GetEnumerator();
-
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private sealed class OpaqueProvider(int id, string name) : ITraceMetadataProvider

@@ -1,12 +1,5 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using EmberTrace;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -28,7 +21,7 @@ public class TracerConcurrencyTests
             var tasks = Enumerable.Range(0, threads)
                 .Select(_ => Task.Run(() =>
                 {
-                    for (int i = 0; i < iterations; i++)
+                    for (var i = 0; i < iterations; i++)
                     {
                         using var _ = ts.Scope(id);
                     }
@@ -47,7 +40,7 @@ public class TracerConcurrencyTests
     [TestMethod]
     public void Stop_WhileWritersAreHot_QuiescesAndKeepsEventsIntact()
     {
-        for (int round = 0; round < 20; round++)
+        for (var round = 0; round < 20; round++)
         {
             var ts = new TracingSession();
             ts.Start(new SessionOptions { ChunkCapacity = 512 });
@@ -56,7 +49,7 @@ public class TracerConcurrencyTests
             var writers = Enumerable.Range(0, 8)
                 .Select(_ => Task.Factory.StartNew(() =>
                 {
-                    int id = 0;
+                    var id = 0;
                     while (!stop.IsCancellationRequested)
                     {
                         id = (id + 1) & 0x3F;
@@ -107,7 +100,8 @@ public class TracerConcurrencyTests
         });
 
         Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(10)), "the overflow handler must still be invoked");
-        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)), "a blocking overflow handler must not stall the tracing thread");
+        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)),
+            "a blocking overflow handler must not stall the tracing thread");
 
         release.Set();
         Assert.AreEqual(1, ts.Stop().EventCount);
@@ -134,11 +128,12 @@ public class TracerConcurrencyTests
 
         var writer = Task.Run(() =>
         {
-            for (int i = 0; i < 16; i++)
+            for (var i = 0; i < 16; i++)
                 ts.Instant(7);
         });
 
-        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)), "Stop() called from the overflow handler must not deadlock");
+        Assert.IsTrue(writer.Wait(TimeSpan.FromSeconds(10)),
+            "Stop() called from the overflow handler must not deadlock");
         Assert.IsTrue(fired.Wait(TimeSpan.FromSeconds(10)));
         Assert.IsNotNull(stopped);
     }
@@ -202,7 +197,7 @@ public class TracerConcurrencyTests
         var runners = Enumerable.Range(0, tasks)
             .Select(_ => Task.Run(() =>
             {
-                for (int i = 0; i < perTask; i++)
+                for (var i = 0; i < perTask; i++)
                     ids.Add(ts.NewFlowId());
             }));
 

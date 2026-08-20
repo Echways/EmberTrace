@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -21,7 +18,7 @@ public class InterleavedSessionsTests
         second.Start(new SessionOptions { ChunkCapacity = 1024 });
 
         const int iterations = 500;
-        for (int i = 0; i < iterations; i++)
+        for (var i = 0; i < iterations; i++)
         {
             first.Instant(FirstId);
             second.Instant(SecondId);
@@ -57,11 +54,12 @@ public class InterleavedSessionsTests
         second.Start(new SessionOptions { ChunkCapacity = 1024 });
 
         var before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < iterations; i++)
+        for (var i = 0; i < iterations; i++)
         {
             first.Instant(FirstId);
             second.Instant(SecondId);
         }
+
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.AreEqual(iterations, first.Stop().EventCount);

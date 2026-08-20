@@ -5,5 +5,5 @@
         <CopyLocalLockFileAssemblies Condition="'$(CopyLocalLockFileAssemblies)' == ''">false</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
-    <Target Name="EmberTrace_ValidateDirectoryBuildFiles" BeforeTargets="PrepareForBuild" />
+    <Target Name="EmberTrace_ValidateDirectoryBuildFiles" BeforeTargets="PrepareForBuild"/>
 </Project>

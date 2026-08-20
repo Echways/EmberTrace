@@ -1,6 +1,5 @@
-using System;
-using System.Collections.Generic;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Internal.Time;
 using EmberTrace.Metadata;
 
 namespace EmberTrace.Sessions;
@@ -45,7 +44,7 @@ public sealed class TraceSession
 
     public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
 
-    public long TimestampFrequency => EmberTrace.Internal.Time.Timestamp.Frequency;
+    public long TimestampFrequency => Timestamp.Frequency;
 
     public double DurationMs => (EndTimestamp - StartTimestamp) * 1000.0 / TimestampFrequency;
 
@@ -54,14 +53,21 @@ public sealed class TraceSession
         get
         {
             long total = 0;
-            for (int i = 0; i < _chunks.Count; i++)
+            for (var i = 0; i < _chunks.Count; i++)
                 total += _chunks[i].Count;
             return total;
         }
     }
 
-    public TraceEventEnumerable EnumerateEvents() => new(_chunks);
-    public SortedTraceEventEnumerable EnumerateEventsSorted() => new(_chunks);
+    public TraceEventEnumerable EnumerateEvents()
+    {
+        return new TraceEventEnumerable(_chunks);
+    }
+
+    public SortedTraceEventEnumerable EnumerateEventsSorted()
+    {
+        return new SortedTraceEventEnumerable(_chunks);
+    }
 
     public readonly struct TraceEventEnumerable
     {
@@ -72,7 +78,10 @@ public sealed class TraceSession
             _chunks = chunks;
         }
 
-        public Enumerator GetEnumerator() => new(_chunks);
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator(_chunks);
+        }
 
         public struct Enumerator
         {
@@ -137,7 +146,10 @@ public sealed class TraceSession
             _chunks = chunks;
         }
 
-        public Enumerator GetEnumerator() => new(_chunks);
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator(_chunks);
+        }
 
         public struct Enumerator
         {
@@ -149,7 +161,7 @@ public sealed class TraceSession
                 _queue = new PriorityQueue<Cursor, EventKey>(chunks.Count);
                 _current = default;
 
-                for (int i = 0; i < chunks.Count; i++)
+                for (var i = 0; i < chunks.Count; i++)
                 {
                     var chunk = chunks[i];
                     if (chunk.Count == 0)

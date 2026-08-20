@@ -3,7 +3,9 @@
 # EmberTrace
 
 **EmberTrace** is a fast in-process tracer/profiler for .NET with minimal overhead on the hot path:
-- **Allocation-free Begin/End** with a lock-free hot path (thread-local buffers; shared session state is touched only on chunk rotation and when a limit is configured)
+
+- **Allocation-free Begin/End** with a lock-free hot path (thread-local buffers; shared session state is touched only on
+  chunk rotation and when a limit is configured)
 - **Flows** for links between threads and `async/await`
 - **Offline analysis** after stopping a session (aggregations + reports)
 - **Export to Chrome Trace** (for `chrome://tracing` / Perfetto)
@@ -25,7 +27,8 @@ If you install packages selectively:
 - `EmberTrace.ReportText` - text report (`TraceText.Write(...)`)
 - `EmberTrace.Export` - Chrome Trace export (`TraceExport.*`)
 - `EmberTrace.OpenTelemetry` - export to OpenTelemetry (`Activity` spans)
-- `EmberTrace.RoslynAnalyzers` - analyzers and code fixes for correct usage (fixes run in IDE and are included in the package)
+- `EmberTrace.RoslynAnalyzers` - analyzers and code fixes for correct usage (fixes run in IDE and are included in the
+  package)
 
 ## Quick Start
 
@@ -66,6 +69,7 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
 4) Open `out/trace.json`:
+
 - `chrome://tracing` (Chrome)
 - Perfetto (web UI) - convenient for large traces
 

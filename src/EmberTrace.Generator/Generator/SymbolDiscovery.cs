@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace EmberTrace.Generator.Generator;
@@ -27,14 +26,20 @@ internal static class SymbolDiscovery
         return builder.ToImmutable();
     }
 
-    internal static TraceItem? FromNamedField(GeneratorAttributeSyntaxContext context) => FromField(context);
+    internal static TraceItem? FromNamedField(GeneratorAttributeSyntaxContext context)
+    {
+        return FromField(context);
+    }
 
     internal static TraceItem? FromCategorizedField(GeneratorAttributeSyntaxContext context)
-        => StringArgumentOf(context.TargetSymbol, TraceNameAttribute) is null ? FromField(context) : null;
+    {
+        return StringArgumentOf(context.TargetSymbol, TraceNameAttribute) is null ? FromField(context) : null;
+    }
 
     private static TraceItem FromField(GeneratorAttributeSyntaxContext context)
     {
-        var location = LocationInfo.From(context.Attributes[0].ApplicationSyntaxReference?.GetSyntax() ?? context.TargetNode);
+        var location =
+            LocationInfo.From(context.Attributes[0].ApplicationSyntaxReference?.GetSyntax() ?? context.TargetNode);
 
         if (context.TargetSymbol is not IFieldSymbol { HasConstantValue: true, ConstantValue: int id } field)
             return TraceItem.Malformed(location);
@@ -52,9 +57,7 @@ internal static class SymbolDiscovery
                      attribute.AttributeClass?.ToDisplayString() == attributeFullName
                      && attribute.ConstructorArguments.Length == 1
                      && attribute.ConstructorArguments[0].Value is string))
-        {
             return (string)attribute.ConstructorArguments[0].Value!;
-        }
 
         return null;
     }

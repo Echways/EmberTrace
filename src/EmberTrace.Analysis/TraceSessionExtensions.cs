@@ -1,90 +1,17 @@
-using System;
-using System.Collections.Generic;
-using EmberTrace.Sessions;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Analysis.Stats;
+using EmberTrace.Sessions;
 
 namespace EmberTrace;
 
 public static class TraceSessionExtensions
 {
-    private sealed class Agg
-    {
-        public long Count;
-        public double TotalMs;
-        public double MinMs = double.PositiveInfinity;
-        public double MaxMs = 0;
-
-        public void Add(double ms)
-        {
-            Count++;
-            TotalMs += ms;
-            if (ms < MinMs) MinMs = ms;
-            if (ms > MaxMs) MaxMs = ms;
-        }
-    }
-
-    private sealed class MutableNode
-    {
-        public int Id;
-        public long Count;
-        public long InclusiveTicks;
-        public long ExclusiveTicks;
-        public Dictionary<int, MutableNode>? Children;
-
-        public MutableNode(int id)
-        {
-            Id = id;
-        }
-
-        public MutableNode GetOrAddChild(int id)
-        {
-            var dict = Children ??= new Dictionary<int, MutableNode>();
-            if (!dict.TryGetValue(id, out var n))
-            {
-                n = new MutableNode(id);
-                dict.Add(id, n);
-            }
-            return n;
-        }
-    }
-
-    private sealed class TreeFrame
-    {
-        public TreeFrame(MutableNode node)
-        {
-            Node = node;
-        }
-
-        public MutableNode Node { get; }
-        public long ChildTicks { get; set; }
-    }
-
-    private sealed class HotAgg
-    {
-        public long Count;
-        public long InclusiveTicks;
-        public long ExclusiveTicks;
-    }
-
-    private readonly struct TickConverter
-    {
-        private readonly long _frequency;
-
-        public TickConverter(long frequency)
-        {
-            _frequency = frequency;
-        }
-
-        public double ToMs(long ticks) => ticks * 1000.0 / _frequency;
-    }
-
     public static TraceStats Analyze(this TraceSession session, bool strict = false)
     {
         if (session is null) throw new ArgumentNullException(nameof(session));
 
         var freq = session.TimestampFrequency;
-        var perId = new Dictionary<int, Agg>(capacity: 256);
+        var perId = new Dictionary<int, Agg>(256);
         var reader = new ScopeReader(session, strict, session.Options.OnMismatchedEnd);
 
         foreach (var step in reader.Read())
@@ -144,8 +71,8 @@ public static class TraceSessionExtensions
 
         var conv = new TickConverter(session.TimestampFrequency);
 
-        var roots = new Dictionary<int, MutableNode>(capacity: 8);
-        var hotspots = new Dictionary<int, HotAgg>(capacity: 256);
+        var roots = new Dictionary<int, MutableNode>(8);
+        var hotspots = new Dictionary<int, HotAgg>(256);
         var reader = new ScopeReader(session, strict, session.Options.OnMismatchedEnd);
 
         foreach (var step in reader.Read())
@@ -192,14 +119,12 @@ public static class TraceSessionExtensions
 
         var threadList = new List<ThreadTrace>(roots.Count);
         foreach (var kv in roots)
-        {
             threadList.Add(new ThreadTrace
             {
                 TrackId = kv.Key,
                 ThreadId = reader.Tracks.TryGetValue(kv.Key, out var threadId) ? threadId : kv.Key,
                 Root = Freeze(kv.Value, conv)
             });
-        }
 
         threadList.Sort((a, b) => a.TrackId.CompareTo(b.TrackId));
 
@@ -220,17 +145,15 @@ public static class TraceSessionExtensions
         var globalFrozen = Freeze(globalRoot, conv);
 
         if (!groupByThread)
-        {
             threadList = new List<ThreadTrace>
             {
-                new ThreadTrace
+                new()
                 {
                     TrackId = 0,
                     ThreadId = 0,
                     Root = globalFrozen
                 }
             };
-        }
 
         var hotList = new List<HotspotRow>(hotspots.Count);
         foreach (var kv in hotspots)
@@ -284,7 +207,7 @@ public static class TraceSessionExtensions
         if (session is null) throw new ArgumentNullException(nameof(session));
 
         var freq = session.TimestampFrequency;
-        var flows = new Dictionary<long, List<FlowEvent>>(capacity: 16);
+        var flows = new Dictionary<long, List<FlowEvent>>(16);
 
         foreach (var e in session.EnumerateEventsSorted())
         {
@@ -328,7 +251,7 @@ public static class TraceSessionExtensions
                 continue;
 
             var steps = new List<FlowStepInfo>(endIndex - startIndex);
-            for (int i = startIndex; i < endIndex; i++)
+            for (var i = startIndex; i < endIndex; i++)
             {
                 var current = list[i];
                 var next = list[i + 1];
@@ -404,6 +327,81 @@ public static class TraceSessionExtensions
             var child = kv.Value;
             var targetChild = target.GetOrAddChild(child.Id);
             MergeInto(targetChild, child);
+        }
+    }
+
+    private sealed class Agg
+    {
+        public long Count;
+        public double MaxMs;
+        public double MinMs = double.PositiveInfinity;
+        public double TotalMs;
+
+        public void Add(double ms)
+        {
+            Count++;
+            TotalMs += ms;
+            if (ms < MinMs) MinMs = ms;
+            if (ms > MaxMs) MaxMs = ms;
+        }
+    }
+
+    private sealed class MutableNode
+    {
+        public readonly int Id;
+        public Dictionary<int, MutableNode>? Children;
+        public long Count;
+        public long ExclusiveTicks;
+        public long InclusiveTicks;
+
+        public MutableNode(int id)
+        {
+            Id = id;
+        }
+
+        public MutableNode GetOrAddChild(int id)
+        {
+            var dict = Children ??= new Dictionary<int, MutableNode>();
+            if (!dict.TryGetValue(id, out var n))
+            {
+                n = new MutableNode(id);
+                dict.Add(id, n);
+            }
+
+            return n;
+        }
+    }
+
+    private sealed class TreeFrame
+    {
+        public TreeFrame(MutableNode node)
+        {
+            Node = node;
+        }
+
+        public MutableNode Node { get; }
+        public long ChildTicks { get; set; }
+    }
+
+    private sealed class HotAgg
+    {
+        public long Count;
+        public long ExclusiveTicks;
+        public long InclusiveTicks;
+    }
+
+    private readonly struct TickConverter
+    {
+        private readonly long _frequency;
+
+        public TickConverter(long frequency)
+        {
+            _frequency = frequency;
+        }
+
+        public double ToMs(long ticks)
+        {
+            return ticks * 1000.0 / _frequency;
         }
     }
 

@@ -8,10 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj" />
+        <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet" />
+        <PackageReference Include="BenchmarkDotNet"/>
     </ItemGroup>
 </Project>

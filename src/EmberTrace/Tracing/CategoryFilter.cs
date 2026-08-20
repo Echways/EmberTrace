@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using EmberTrace.Internal;
 using EmberTrace.Metadata;
 
@@ -7,10 +6,10 @@ namespace EmberTrace.Tracing;
 
 internal sealed class CategoryFilter
 {
-    private readonly ITraceMetadataProvider _meta;
-    private readonly HashSet<int>? _enabled;
     private readonly HashSet<int>? _disabled;
+    private readonly HashSet<int>? _enabled;
     private readonly ConcurrentDictionary<int, int> _idToCategoryId = new();
+    private readonly ITraceMetadataProvider _meta;
 
     public CategoryFilter(ITraceMetadataProvider meta, int[]? enabled, int[]? disabled)
     {

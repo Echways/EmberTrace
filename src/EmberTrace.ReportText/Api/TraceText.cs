@@ -1,5 +1,6 @@
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
+using EmberTrace.ReportText;
 
 namespace EmberTrace;
 
@@ -13,6 +14,6 @@ public static class TraceText
         string? categoryFilter = null,
         double minPercent = 0)
     {
-        return ReportText.TextReportWriter.Write(trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent);
+        return TextReportWriter.Write(trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent);
     }
 }

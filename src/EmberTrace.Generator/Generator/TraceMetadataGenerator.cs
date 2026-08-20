@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -38,11 +37,14 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
         IncrementalGeneratorInitializationContext context,
         string attributeFullName,
         Func<GeneratorAttributeSyntaxContext, TraceItem?> read)
-        => context.SyntaxProvider
-            .ForAttributeWithMetadataName(attributeFullName, static (_, _) => true, (attributeContext, _) => read(attributeContext))
+    {
+        return context.SyntaxProvider
+            .ForAttributeWithMetadataName(attributeFullName, static (_, _) => true,
+                (attributeContext, _) => read(attributeContext))
             .Where(static item => item.HasValue)
             .Select(static (item, _) => item!.Value)
             .Collect();
+    }
 
     private static void Emit(
         SourceProductionContext spc,
@@ -68,6 +70,7 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
 
         spc.AddSource(
             "TraceIds.g.cs",
-            SourceText.From(SourceEmitter.RenderTraceIds(IdComputation.ResolveConstants(fromAssembly, spc)), Encoding.UTF8));
+            SourceText.From(SourceEmitter.RenderTraceIds(IdComputation.ResolveConstants(fromAssembly, spc)),
+                Encoding.UTF8));
     }
 }

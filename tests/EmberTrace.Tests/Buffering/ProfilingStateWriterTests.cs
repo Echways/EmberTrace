@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Buffering;
 
@@ -27,7 +22,7 @@ public class ProfilingStateWriterTests
 
         var first = state.GetWriter();
 
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
             Assert.AreSame(first, state.GetWriter());
 
         Assert.HasCount(1, state.Writers.ToArray());
@@ -54,7 +49,7 @@ public class ProfilingStateWriterTests
         var observed = await Task.WhenAll(Enumerable.Range(0, tasks).Select(_idx => Task.Run(() =>
         {
             var writer = state.GetWriter();
-            for (int i = 0; i < callsPerTask; i++)
+            for (var i = 0; i < callsPerTask; i++)
                 Assert.AreSame(writer, state.GetWriter());
 
             return (Thread: Environment.CurrentManagedThreadId, Writer: writer);

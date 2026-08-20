@@ -11,14 +11,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="MSTest.Sdk" />
-        <PackageReference Include="MSTest.TestFramework" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="MSTest.Sdk"/>
+        <PackageReference Include="MSTest.TestFramework"/>
         <PackageReference Include="MSTest.TestAdapter">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -26,11 +26,11 @@
             Reference EmberTrace and the attributes so generated code and test snippets compile,
             and the generator as a plain assembly so it can be driven directly.
         -->
-        <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj" />
-        <ProjectReference Include="../../src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj" />
+        <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj"/>
+        <ProjectReference Include="../../src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj"/>
         <ProjectReference Include="../../src/EmberTrace.Generator/EmberTrace.Generator.csproj"
                           ReferenceOutputAssembly="true"
-                          OutputItemType="Content" />
+                          OutputItemType="Content"/>
     </ItemGroup>
 
 </Project>

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using EmberTrace.Internal;
 
 namespace EmberTrace.Sessions;
@@ -10,8 +8,10 @@ public sealed class SessionOptions
     public long MaxTotalEvents { get; init; } = 0;
     public int MaxTotalChunks { get; init; } = 0;
     public OverflowPolicy OverflowPolicy { get; init; } = OverflowPolicy.DropNew;
+
     public bool EnableRuntimeMetadata { get; init; } =
         RuntimeConfig.GetBool("EmberTrace.EnableRuntimeMetadata", false);
+
     public int[]? EnabledCategoryIds { get; init; }
     public int[]? DisabledCategoryIds { get; init; }
     public int SampleEveryNGlobal { get; init; } = 0;

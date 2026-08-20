@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
@@ -14,12 +13,10 @@ internal static class TraceCatalog
         var builder = ImmutableArray.CreateBuilder<TraceItem>();
 
         foreach (var item in items)
-        {
             if (item.Name is null)
                 spc.ReportDiagnostic(Diagnostic.Create(malformed, item.Origin));
             else
                 builder.Add(item);
-        }
 
         builder.Sort(TraceItem.Ordering);
         return builder.ToImmutable();

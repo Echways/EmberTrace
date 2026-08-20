@@ -1,8 +1,5 @@
 using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
@@ -22,7 +19,10 @@ public sealed class UsageCodeFixProvider : CodeFixProvider
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create(ScopeNotDisposedId, AsyncScopeNotAwaitedId);
 
-    public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+    public override FixAllProvider GetFixAllProvider()
+    {
+        return WellKnownFixAllProviders.BatchFixer;
+    }
 
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
@@ -42,7 +42,10 @@ public sealed class UsageCodeFixProvider : CodeFixProvider
         {
             case EqualsValueClauseSyntax
             {
-                Parent: VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax { Parent: LocalDeclarationStatementSyntax declaration } }
+                Parent: VariableDeclaratorSyntax
+                {
+                    Parent: VariableDeclarationSyntax { Parent: LocalDeclarationStatementSyntax declaration }
+                }
             }:
                 Register(
                     context,
@@ -56,13 +59,17 @@ public sealed class UsageCodeFixProvider : CodeFixProvider
                     context,
                     diagnostic,
                     $"Wrap the rest of the block in '{keyword}'",
-                    _ => Task.FromResult(WrapRestOfBlock(context.Document, root, block, statement, invocation, isAsync)));
+                    _ => Task.FromResult(WrapRestOfBlock(context.Document, root, block, statement, invocation,
+                        isAsync)));
                 break;
         }
     }
 
-    private static void Register(CodeFixContext context, Diagnostic diagnostic, string title, Func<CancellationToken, Task<Document>> createChangedDocument)
-        => context.RegisterCodeFix(CodeAction.Create(title, createChangedDocument, equivalenceKey: title), diagnostic);
+    private static void Register(CodeFixContext context, Diagnostic diagnostic, string title,
+        Func<CancellationToken, Task<Document>> createChangedDocument)
+    {
+        context.RegisterCodeFix(CodeAction.Create(title, createChangedDocument, title), diagnostic);
+    }
 
     private static Document AddUsingKeyword(
         Document document,
@@ -75,7 +82,8 @@ public sealed class UsageCodeFixProvider : CodeFixProvider
             .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword).WithTrailingTrivia(SyntaxFactory.Space));
 
         if (isAsync)
-            updated = updated.WithAwaitKeyword(SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+            updated = updated.WithAwaitKeyword(SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
+                .WithTrailingTrivia(SyntaxFactory.Space));
 
         updated = updated.WithLeadingTrivia(declaration.GetLeadingTrivia());
 
@@ -96,8 +104,8 @@ public sealed class UsageCodeFixProvider : CodeFixProvider
                 isAsync ? SyntaxFactory.Token(SyntaxKind.AwaitKeyword) : default,
                 SyntaxFactory.Token(SyntaxKind.UsingKeyword),
                 SyntaxFactory.Token(SyntaxKind.OpenParenToken),
-                declaration: null,
-                expression: invocation.WithoutTrivia(),
+                null,
+                invocation.WithoutTrivia(),
                 SyntaxFactory.Token(SyntaxKind.CloseParenToken),
                 SyntaxFactory.Block(block.Statements.Skip(index + 1)))
             .WithLeadingTrivia(statement.GetLeadingTrivia())

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using EmberTrace.Metadata;
 
 namespace EmberTrace.Analysis.Model;

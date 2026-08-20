@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
@@ -17,7 +16,7 @@ internal static class IdComputation
         var sb = new StringBuilder(name.Length);
         var newToken = true;
 
-        for (int i = 0; i < name.Length; i++)
+        for (var i = 0; i < name.Length; i++)
         {
             var c = name[i];
             if (c <= 127 && char.IsLetterOrDigit(c))
@@ -47,14 +46,13 @@ internal static class IdComputation
         var candidate = sb.ToString();
         if (SyntaxFacts.GetKeywordKind(candidate) != SyntaxKind.None
             || SyntaxFacts.GetContextualKeywordKind(candidate) != SyntaxKind.None)
-        {
             candidate = "_" + candidate;
-        }
 
         return candidate;
     }
 
-    internal static ImmutableArray<TraceConstant> ResolveConstants(ImmutableArray<TraceItem> items, SourceProductionContext spc)
+    internal static ImmutableArray<TraceConstant> ResolveConstants(ImmutableArray<TraceItem> items,
+        SourceProductionContext spc)
     {
         var builder = ImmutableArray.CreateBuilder<TraceConstant>(items.Length);
         var owners = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -69,7 +67,8 @@ internal static class IdComputation
                 name = normalized + "_" + suffix.ToString(CultureInfo.InvariantCulture);
 
             if (owners.TryGetValue(normalized, out var owner))
-                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConflictingConstantName, item.Origin, owner, item.Name, normalized, name));
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConflictingConstantName, item.Origin, owner,
+                    item.Name, normalized, name));
             else
                 owners.Add(normalized, item.Name!);
 
