@@ -1,0 +1,173 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOLUTION: EmberTrace.slnx
+  CONFIGURATION: Release
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  verify:
+    name: Verify tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+      dry_run: ${{ steps.check.outputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: check
+        run: |
+          set -euo pipefail
+          declared=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' build/Directory.Build.props | head -n1)
+          [ -n "$declared" ] || { echo "::error::No <Version> in build/Directory.Build.props"; exit 1; }
+
+          dry_run='${{ inputs.dry_run }}'
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            if [ "${GITHUB_REF_NAME#v}" != "$declared" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match <Version>$declared</Version>"
+              exit 1
+            fi
+            dry_run=${dry_run:-false}
+          else
+            dry_run=${dry_run:-true}
+          fi
+
+          case "$declared" in *-*) prerelease=true ;; *) prerelease=false ;; esac
+
+          {
+            echo "version=$declared"
+            echo "prerelease=$prerelease"
+            echo "dry_run=$dry_run"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Release $declared"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`$declared\` |"
+            echo "| Pre-release | $prerelease |"
+            echo "| Dry run | $dry_run |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ci:
+    name: CI
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  pack:
+    name: Pack ${{ needs.verify.outputs.version }}
+    needs: [verify, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - run: |
+          dotnet pack "$SOLUTION" -c "$CONFIGURATION" --no-restore \
+            -p:UseLocalEmberTrace=true \
+            -p:ContinuousIntegrationBuild=true \
+            -o artifacts/packages
+
+      - run: |
+          python3 .github/scripts/nupkg_check.py \
+            --version "${{ needs.verify.outputs.version }}" artifacts/packages
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-packages
+          path: artifacts/packages
+          retention-days: 90
+          if-no-files-found: error
+
+  publish:
+    name: Publish to NuGet.org
+    needs: [verify, pack]
+    if: needs.verify.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/EmberTrace
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          restore: 'false'
+          cache: 'false'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts/packages
+
+      - env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NUGET_API_KEY:-}" ]; then
+            echo "::error::Secret NUGET_API_KEY is not set on the 'nuget' environment"
+            exit 1
+          fi
+          dotnet nuget push 'artifacts/packages/*.nupkg' \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+  github-release:
+    name: GitHub Release
+    needs: [verify, pack, publish]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts/packages
+
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$PRERELEASE" = true ]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            --title "EmberTrace $VERSION" \
+            --generate-notes \
+            "${flags[@]}" \
+            artifacts/packages/*.nupkg \
+            artifacts/packages/*.snupkg

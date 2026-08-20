@@ -2,51 +2,327 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SOLUTION: EmberTrace.slnx
+  CONFIGURATION: Release
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  COVERAGE_MIN_LINE: '65'
+  COVERAGE_MIN_BRANCH: '55'
 
 jobs:
-  build-test:
+  format:
+    name: Format
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Restore
-        run: |
-          dotnet nuget locals all --clear
-          dotnet restore EmberTrace.slnx -p:RestorePackagesWithLockFile=true -p:RestoreLockedMode=false -p:RestoreForceEvaluate=true -p:UseLocalEmberTrace=true
-
-      - name: Install dotnet-format
-        run: dotnet tool install -g dotnet-format
-
-      - name: Lint (dotnet format)
-        run: dotnet format --verify-no-changes
+  build:
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux
+          - os: windows-latest
+            label: windows
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
 
       - name: Build
-        run: dotnet build --no-restore -c Release -p:UseLocalEmberTrace=true
+        shell: bash
+        run: |
+          dotnet build "$SOLUTION" -c "$CONFIGURATION" --no-restore -warnaserror \
+            -p:UseLocalEmberTrace=true \
+            -p:ContinuousIntegrationBuild=true \
+            -bl:artifacts/binlog/build-${{ matrix.label }}.binlog
 
-      - name: Test-Main
-        run: dotnet test tests/EmberTrace.Tests/EmberTrace.Tests.csproj --no-build -c Release -p:UseLocalEmberTrace=true
+      - name: Stage test binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for project in EmberTrace.Tests EmberTrace.RoslynAnalyzers.Tests; do
+            mkdir -p "artifacts/tests/$project"
+            cp -R "tests/$project/bin/$CONFIGURATION/net10.0/." "artifacts/tests/$project/"
+          done
 
-      - name: Test-Roslyn
-        run: dotnet test tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj --no-build -c Release -p:UseLocalEmberTrace=true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: test-bin-${{ matrix.label }}
+          path: artifacts/tests
+          retention-days: 3
+          if-no-files-found: error
 
-      - name: Benchmarks
-        run: dotnet run --project benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj -c Release -p:UseLocalEmberTrace=true -- --filter *ScopeBenchmarks* --exporters json --artifacts BenchmarkDotNet.Artifacts
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: binlog-${{ matrix.label }}
+          path: artifacts/binlog
+          retention-days: 7
+          if-no-files-found: ignore
 
-      - name: Perf gate
-        run: python3 benchmarks/compare_benchmarks.py benchmarks/baseline.json BenchmarkDotNet.Artifacts
+  test:
+    name: Test ${{ matrix.suite.name }} (${{ matrix.label }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        suite:
+          - name: Tracing
+            assembly: EmberTrace.Tests
+            filter: FullyQualifiedName~EmberTrace.Tests.Tracing
+          - name: Buffering
+            assembly: EmberTrace.Tests
+            filter: FullyQualifiedName~EmberTrace.Tests.Buffering
+          - name: Export
+            assembly: EmberTrace.Tests
+            filter: FullyQualifiedName~EmberTrace.Tests.Export
+          - name: Analysis
+            assembly: EmberTrace.Tests
+            filter: FullyQualifiedName~EmberTrace.Tests.Analysis
+          - name: ReportText
+            assembly: EmberTrace.Tests
+            filter: FullyQualifiedName~EmberTrace.Tests.ReportText
+          - name: Robustness
+            assembly: EmberTrace.Tests
+            filter: FullyQualifiedName~EmberTrace.Tests.Robustness
+          - name: Analyzers
+            assembly: EmberTrace.RoslynAnalyzers.Tests
+            filter: ''
+        include:
+          - os: ubuntu-latest
+            label: linux
+          - os: windows-latest
+            label: windows
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          restore: 'false'
+          cache: 'false'
 
-      - name: Publish NativeAOT sample
-        run: dotnet publish samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj -c Release -p:PublishAot=true -p:UseLocalEmberTrace=true
+      - uses: actions/download-artifact@v8
+        with:
+          name: test-bin-${{ matrix.label }}
+          path: artifacts/tests
 
-      - name: Run DocScreenshots
-        run: dotnet run --project samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj -c Release -p:UseLocalEmberTrace=true
+      - name: Run
+        shell: bash
+        working-directory: artifacts/tests/${{ matrix.suite.assembly }}
+        run: |
+          args=(
+            "${{ matrix.suite.assembly }}.dll"
+            --logger "trx;LogFileName=${{ matrix.suite.name }}-${{ matrix.label }}.trx"
+            --results-directory "$GITHUB_WORKSPACE/artifacts/trx"
+            --blame-hang --blame-hang-timeout 5m --blame-hang-dump-type none
+          )
+          filter='${{ matrix.suite.filter }}'
+          if [ -n "$filter" ]; then
+            args+=(--filter "$filter")
+          fi
+          dotnet test "${args[@]}" -- RunConfiguration.TreatNoTestsAsError=true
+
+      - name: Summarise
+        if: always()
+        shell: bash
+        run: |
+          python3 .github/scripts/trx_summary.py \
+            --title "${{ matrix.suite.name }} (${{ matrix.label }})" \
+            --fail-on-error artifacts/trx
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trx-${{ matrix.suite.name }}-${{ matrix.label }}
+          path: artifacts/trx
+          retention-days: 7
+          if-no-files-found: warn
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - name: Test with coverage
+        run: |
+          dotnet test "$SOLUTION" -c "$CONFIGURATION" --no-restore \
+            -p:UseLocalEmberTrace=true \
+            --settings build/coverage.runsettings \
+            --collect "Code Coverage" \
+            --results-directory artifacts/coverage
+
+      - name: HTML report
+        continue-on-error: true
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator -reports:'artifacts/coverage/**/*.cobertura.xml' \
+            -targetdir:artifacts/coverage-report -reporttypes:Html -title:EmberTrace
+
+      - name: Gate
+        run: |
+          python3 .github/scripts/coverage_gate.py \
+            --min-line "$COVERAGE_MIN_LINE" --min-branch "$COVERAGE_MIN_BRANCH" \
+            artifacts/coverage
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            artifacts/coverage
+            artifacts/coverage-report
+          retention-days: 14
+          if-no-files-found: warn
+
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - name: Pack
+        run: |
+          dotnet pack "$SOLUTION" -c "$CONFIGURATION" --no-restore \
+            -p:UseLocalEmberTrace=true \
+            -p:ContinuousIntegrationBuild=true \
+            -o artifacts/packages
+
+      - name: Validate
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' build/Directory.Build.props | head -n1)
+          python3 .github/scripts/nupkg_check.py --version "$version" artifacts/packages
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: artifacts/packages
+          retention-days: 14
+          if-no-files-found: error
+
+  native-aot:
+    name: Native AOT (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux
+            binary: EmberTrace.NativeAot
+          - os: windows-latest
+            label: windows
+            binary: EmberTrace.NativeAot.exe
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          restore: 'false'
+
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang zlib1g-dev
+
+      - name: Publish
+        shell: bash
+        run: |
+          dotnet publish samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj \
+            -c "$CONFIGURATION" -warnaserror \
+            -p:PublishAot=true \
+            -p:UseLocalEmberTrace=true \
+            -p:TrimmerSingleWarn=false \
+            -o artifacts/aot
+
+      - name: Run
+        shell: bash
+        run: ./artifacts/aot/${{ matrix.binary }}
+
+  samples:
+    name: Samples
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - name: Run samples
+        run: |
+          set -euo pipefail
+          for sample in EmberTrace.BasicTracing EmberTrace.ParallelWorkers EmberTrace.DocScreenshots; do
+            echo "::group::$sample"
+            dotnet run --project "samples/$sample/$sample.csproj" \
+              -c "$CONFIGURATION" --no-restore -p:UseLocalEmberTrace=true
+            echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: doc-assets
+          path: samples/EmberTrace.DocScreenshots/out
+          retention-days: 7
+          if-no-files-found: warn
+
+  perf:
+    name: Perf
+    uses: ./.github/workflows/benchmarks.yml
+    with:
+      job: ${{ github.event_name == 'pull_request' && 'short' || 'default' }}
+
+  ci:
+    name: CI
+    if: always()
+    needs: [format, build, test, coverage, pack, native-aot, samples, perf]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+
+          needs = json.loads(os.environ["NEEDS"])
+          bad = {n: d["result"] for n, d in needs.items() if d["result"] not in ("success", "skipped")}
+
+          rows = ["## " + ("CI failed" if bad else "CI passed"), "", "| Job | Result |", "|---|---|"]
+          rows += [f"| `{n}` | {d['result']} |" for n, d in sorted(needs.items())]
+          report = "\n".join(rows) + "\n"
+
+          print(report)
+          if path := os.environ.get("GITHUB_STEP_SUMMARY"):
+              with open(path, "a", encoding="utf-8") as handle:
+                  handle.write(report)
+
+          for name, result in bad.items():
+              print(f"::error title=CI::{name} -> {result}")
+          sys.exit(1 if bad else 0)
+          PY
