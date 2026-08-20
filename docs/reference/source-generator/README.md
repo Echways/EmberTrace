@@ -9,12 +9,16 @@ use assembly attributes and the source generator.
 
 `EmberTrace.Generator`:
 
-1) Scans the project for `[assembly: TraceId(id, name, category)]`
+1) Scans the project for `[assembly: TraceId(id, name, category)]` and for `const int` fields
+   marked with `[TraceName]` / `[TraceCategory]`
 2) Generates a metadata provider (`ITraceMetadataProvider`)
 3) **Automatically registers** it via `ModuleInitializer`, so `Tracer.CreateMetadata()`
    starts returning names/categories without manual initialization.
 4) Optionally generates `TraceIds.g.cs` with `const int` values for each TraceId
 5) Emits diagnostics for attribute errors
+
+An assembly that declares no trace metadata gets no generated file at all - no empty provider and no
+module initializer.
 
 ## TraceId attribute
 
@@ -30,6 +34,29 @@ Signature:
 - `id` (`int`) - event identifier
 - `name` (`string`) - human-readable name
 - `category` (`string?`) - optional (for grouping)
+
+## Naming ids you already declare
+
+If the ids already live in your code as constants, annotate them instead of repeating them at assembly
+level. `[TraceName]` and `[TraceCategory]` apply to `const int` fields; without `[TraceName]` the field
+name is used:
+
+```csharp
+using EmberTrace.Abstractions.Attributes;
+
+static class Ids
+{
+    [TraceName("CPU work")]
+    [TraceCategory("CPU")]
+    public const int Cpu = 2100;
+
+    [TraceCategory("IO")]
+    public const int IoWait = 2200;
+}
+```
+
+These fields feed the metadata provider only - they are constants already, so they are never re-emitted
+into `TraceIds.g.cs`.
 
 ## Setup
 
@@ -48,13 +75,19 @@ Add to the project:
 </PropertyGroup>
 ```
 
-The generator creates `TraceIds.g.cs` with `const int` fields. Names are normalized,
-and collisions get a suffix.
+The generator creates `TraceIds.g.cs` with `const int` fields. Names are normalized, and collisions get
+a suffix. Entries are ordered by `id`, so adding an attribute above an existing one never renames a
+constant that your code already uses.
 
 ### Diagnostics
 
-- Error when the same `id` is declared more than once
-- Warning when `name` or `category` are empty
+- **ETG001** (error) - the same `id` is declared more than once
+- **ETG002** (warning) - `name` is empty
+- **ETG003** (warning) - `category` is empty
+- **ETG004** (warning) - `TraceId` arguments are not a constant `int` id and `string` name, so the
+  attribute is skipped; the rest of the assembly still generates
+- **ETG005** (warning) - `[TraceName]` / `[TraceCategory]` sit on a field that is not `const int`
+- **ETG006** (warning) - two names normalize to the same constant name; the later one gets a suffix
 
 ## The global registry
 

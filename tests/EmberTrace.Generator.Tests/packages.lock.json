@@ -12,20 +12,6 @@
           "Microsoft.CodeAnalysis.Common": "[4.10.0]"
         }
       },
-      "Microsoft.CodeAnalysis.CSharp.Workspaces": {
-        "type": "Direct",
-        "requested": "[4.10.0, )",
-        "resolved": "4.10.0",
-        "contentHash": "s8qbD2i3zdol8QNcrCVw9URW71DUdg1UF0XCxxIaQoYbdpcKVy2DG127560psiqLEKxAEWA/DOFwL9CY2qGq1g==",
-        "dependencies": {
-          "Humanizer.Core": "2.14.1",
-          "Microsoft.CodeAnalysis.Analyzers": "3.3.4",
-          "Microsoft.CodeAnalysis.CSharp": "[4.10.0]",
-          "Microsoft.CodeAnalysis.Common": "[4.10.0]",
-          "Microsoft.CodeAnalysis.Workspaces.Common": "[4.10.0]",
-          "System.Composition": "8.0.0"
-        }
-      },
       "Microsoft.NET.Test.Sdk": {
         "type": "Direct",
         "requested": "[17.11.1, )",
@@ -61,11 +47,6 @@
         "dependencies": {
           "MSTest.Analyzers": "4.0.2"
         }
-      },
-      "Humanizer.Core": {
-        "type": "Transitive",
-        "resolved": "2.14.1",
-        "contentHash": "lQKvtaTDOXnoVJ20ibTuSIOf2i0uO0MPbDhd1jm238I+U/2ZnRENj0cktKZhtchBMtCUSRQ5v4xBCUbKNmyVMw=="
       },
       "Microsoft.CodeAnalysis.Common": {
         "type": "Transitive",
@@ -151,56 +132,13 @@
         "resolved": "13.0.1",
         "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
       },
-      "System.Composition": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "E9oO9olNNxA39J8CxQwf7ceIPm+j/B/PhYpyK9M4LhN/OLLRw6u5fNInkhVqaWueMB9iXxYqnwqwgz+W91loIA==",
-        "dependencies": {
-          "System.Composition.AttributedModel": "8.0.0",
-          "System.Composition.Convention": "8.0.0",
-          "System.Composition.Hosting": "8.0.0",
-          "System.Composition.Runtime": "8.0.0",
-          "System.Composition.TypedParts": "8.0.0"
-        }
-      },
-      "System.Composition.Convention": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "UuVkc1B3vQU/LzEbWLMZ1aYVssv4rpShzf8wPEyrUqoGNqdYKREmB8bXR73heOMKkwS6ZnPz3PjGODT2MenukQ==",
-        "dependencies": {
-          "System.Composition.AttributedModel": "8.0.0"
-        }
-      },
-      "System.Composition.Hosting": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "qwbONqoxlazxcbiohvb3t1JWZgKIKcRdXS5uEeLbo5wtuBupIbAvdC3PYTAeBCZrZeERvrtAbhYHuuS43Zr1bQ==",
-        "dependencies": {
-          "System.Composition.Runtime": "8.0.0"
-        }
-      },
-      "System.Composition.Runtime": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "G+kRyB5/6+3ucRRQz+DF4uSHGqpkK8Q4ilVdbt4zvxpmvLVZNmSkyFAQpJLcbOyVF85aomJx0m+TGMDVlwx7ZQ=="
-      },
-      "System.Composition.TypedParts": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "DsSklhuA+Dsgo3ZZrar8hjBFvq1wa1grrkNCTt+6SoX3vq0Vy+HXJnVXrU/nNH1BjlGH684A7h4hJQHZd/u5mA==",
-        "dependencies": {
-          "System.Composition.AttributedModel": "8.0.0",
-          "System.Composition.Hosting": "8.0.0",
-          "System.Composition.Runtime": "8.0.0"
-        }
-      },
       "embertrace": {
         "type": "Project"
       },
-      "embertrace.roslynanalyzers": {
+      "embertrace.abstractions": {
         "type": "Project"
       },
-      "embertrace.roslynanalyzers.codefixes": {
+      "embertrace.generator": {
         "type": "Project"
       },
       "Microsoft.ApplicationInsights": {
@@ -214,24 +152,6 @@
         "requested": "[3.3.4, )",
         "resolved": "3.3.4",
         "contentHash": "AxkxcPR+rheX0SmvpLVIGLhOUXAKG56a64kV9VQZ4y9gR9ZmPXnqZvHJnmwLSwzrEP6junUF11vuc+aqo5r68g=="
-      },
-      "Microsoft.CodeAnalysis.Workspaces.Common": {
-        "type": "CentralTransitive",
-        "requested": "[4.10.0, )",
-        "resolved": "4.10.0",
-        "contentHash": "lSMNGNeROSbxvbgzJyQfJpLJM0BFRrSgxYs4BZuZvpL8TuyUorEYa/HCJDcclhSRhr76LGiTT5lfLu5QFoFF6A==",
-        "dependencies": {
-          "Humanizer.Core": "2.14.1",
-          "Microsoft.CodeAnalysis.Analyzers": "3.3.4",
-          "Microsoft.CodeAnalysis.Common": "[4.10.0]",
-          "System.Composition": "8.0.0"
-        }
-      },
-      "System.Composition.AttributedModel": {
-        "type": "CentralTransitive",
-        "requested": "[8.0.0, )",
-        "resolved": "8.0.0",
-        "contentHash": "NyElSuvmBMYdn2iPG0n29i7Igu0bq99izOP3MAtEwskY3OP9jqsavvVmPn9lesVaj/KT/o/QkNjA43dOJTsDQw=="
       }
     }
   }

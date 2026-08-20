@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for project in EmberTrace.Tests EmberTrace.RoslynAnalyzers.Tests; do
+          for project in EmberTrace.Tests EmberTrace.RoslynAnalyzers.Tests EmberTrace.Generator.Tests; do
             mkdir -p "artifacts/tests/$project"
             cp -R "tests/$project/bin/$CONFIGURATION/net10.0/." "artifacts/tests/$project/"
           done
@@ -113,6 +113,9 @@ jobs:
             filter: FullyQualifiedName~EmberTrace.Tests.Robustness
           - name: Analyzers
             assembly: EmberTrace.RoslynAnalyzers.Tests
+            filter: ''
+          - name: Generator
+            assembly: EmberTrace.Generator.Tests
             filter: ''
         include:
           - os: ubuntu-latest

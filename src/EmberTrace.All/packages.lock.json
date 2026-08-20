@@ -1,60 +1,39 @@
 {
-  "version": 1,
+  "version": 2,
   "dependencies": {
     "net10.0": {
-      "EmberTrace": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "lxpsKj6bBZ2argtfrYg61pq67oyuBgf19vY35w8qA7hNXXESHAaxc5eXTWOe4xWJzyZC4+zgIS2mMLlJpcceQw=="
+      "embertrace": {
+        "type": "Project"
       },
-      "EmberTrace.Abstractions": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "ZMRKXLrGk7EO+FoGhtQTM5YAvVW0mgpCENp2iXOFSlSDRBWIjgVY4WfwSUny3rS0It/18QmoT78nlSkxVzSP/Q=="
+      "embertrace.abstractions": {
+        "type": "Project"
       },
-      "EmberTrace.Analysis": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "NgpQlp020bek4jovge5QvUcmHwLgfldgVrTHaIG/Dk/LCR0q4S1ozYtiIzJPm9bfaqHQ0Q3YCPZmsUwLxTpPlA==",
+      "embertrace.analysis": {
+        "type": "Project",
         "dependencies": {
-          "EmberTrace": "0.2.2"
+          "EmberTrace": "[0.2.2, )"
         }
       },
-      "EmberTrace.Export": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "80iB5lwGCblaNuSngq/IRoWyGvG/tiRuj+b0o3jaOyOCpEbNhDRjnFx2qrN9a2ec66Jaddu8AsH0HEUIz4xymw==",
+      "embertrace.export": {
+        "type": "Project",
         "dependencies": {
-          "EmberTrace": "0.2.2"
+          "EmberTrace": "[0.2.2, )"
         }
       },
-      "EmberTrace.Generator": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "jFfR8Ed8hb/WqZG5+W/BeJQvleCMjgYrV+ULH/BdEUHvUc4aoc11mxiLGXvsD1ib4zRGFp/raUrOlnNQh2f5lg=="
+      "embertrace.generator": {
+        "type": "Project"
       },
-      "EmberTrace.OpenTelemetry": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "yXnstqjsG/w9oDr1YDjV/y8qTX0J2D4WokVAcqxq1MG9R+ysh56TZ5fD1Gi3U590/SkyJtWjZwiO0KakZZAr6A==",
+      "embertrace.opentelemetry": {
+        "type": "Project",
         "dependencies": {
-          "EmberTrace": "0.2.2"
+          "EmberTrace": "[0.2.2, )"
         }
       },
-      "EmberTrace.ReportText": {
-        "type": "Direct",
-        "requested": "[0.2.2, )",
-        "resolved": "0.2.2",
-        "contentHash": "TWaqalMwjH1OqxfCo2yygx0QJdLCHfb90GopBpJKa4lKWlFxkgaRKU14j/8ojUiGPweYb5TtMPIQPJlXtkHJnQ==",
+      "embertrace.reporttext": {
+        "type": "Project",
         "dependencies": {
-          "EmberTrace": "0.2.2",
-          "EmberTrace.Analysis": "0.2.2"
+          "EmberTrace": "[0.2.2, )",
+          "EmberTrace.Analysis": "[0.2.2, )"
         }
       }
     }

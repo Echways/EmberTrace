@@ -9,14 +9,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-        <PackageReference Include="MSTest.Sdk" Version="4.0.2" />
-        <PackageReference Include="MSTest.TestFramework" Version="4.0.2" />
-        <PackageReference Include="MSTest.TestAdapter" Version="4.0.2">
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="MSTest.Sdk" />
+        <PackageReference Include="MSTest.TestFramework" />
+        <PackageReference Include="MSTest.TestAdapter">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.ApplicationInsights" Version="3.1.2" />
+        <PackageReference Include="Microsoft.ApplicationInsights" />
     </ItemGroup>
 
     <ItemGroup>

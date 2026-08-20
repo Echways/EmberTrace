@@ -93,6 +93,73 @@ public class UsageAnalyzersTests
     }
 
     [TestMethod]
+    public async Task ETA001_ScopeInsideUnrelatedUsingBlock_ReportsWarningEach()
+    {
+        const string code = """
+            using EmberTrace;
+            using System.IO;
+            class C
+            {
+                void M()
+                {
+                    using (var f = new MemoryStream())
+                    {
+                        var scope = Tracer.Scope(1);
+                        var other = Tracer.Scope(2);
+                    }
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId, count: 2);
+    }
+
+    [TestMethod]
+    public async Task ETA001_ScopeAsUsingStatementDeclaration_NoDiagnostic()
+    {
+        const string code = """
+            using EmberTrace;
+            class C
+            {
+                void M()
+                {
+                    using (var scope = Tracer.Scope(1)) { }
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertNoDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId);
+    }
+
+    [TestMethod]
+    public async Task ETA002_ScopeAsyncInsideUnrelatedUsingBlock_ReportsWarning()
+    {
+        const string code = """
+            using EmberTrace;
+            using System.IO;
+            using System.Threading.Tasks;
+            class C
+            {
+                async Task M()
+                {
+                    await using (var f = new MemoryStream())
+                    {
+                        var scope = Tracer.ScopeAsync(1);
+                    }
+                }
+            }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(code);
+
+        AssertDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId, count: 1);
+    }
+
+    [TestMethod]
     public async Task ETA002_ScopeAsyncWithoutAwaitUsing_ReportsWarning()
     {
         const string code = """

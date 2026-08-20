@@ -36,13 +36,13 @@
     </ItemGroup>
 
     <ItemGroup Condition="'$(UseLocalEmberTrace)'!='true'">
-        <PackageReference Include="EmberTrace"              Version="$(Version)" />
-        <PackageReference Include="EmberTrace.Abstractions" Version="$(Version)" />
-        <PackageReference Include="EmberTrace.Generator"    Version="$(Version)" />
-        <PackageReference Include="EmberTrace.Analysis"     Version="$(Version)" />
-        <PackageReference Include="EmberTrace.Export"       Version="$(Version)" />
-        <PackageReference Include="EmberTrace.ReportText"   Version="$(Version)" />
-        <PackageReference Include="EmberTrace.OpenTelemetry" Version="$(Version)" />
+        <PackageReference Include="EmberTrace" />
+        <PackageReference Include="EmberTrace.Abstractions" />
+        <PackageReference Include="EmberTrace.Generator" />
+        <PackageReference Include="EmberTrace.Analysis" />
+        <PackageReference Include="EmberTrace.Export" />
+        <PackageReference Include="EmberTrace.ReportText" />
+        <PackageReference Include="EmberTrace.OpenTelemetry" />
     </ItemGroup>
 
 

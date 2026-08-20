@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Globalization;
 using System.Text;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace EmberTrace.Generator.Generator;
@@ -9,7 +12,7 @@ internal static class IdComputation
     internal static string NormalizeConstName(string name, int id)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return "TraceId_" + id.ToString();
+            return "TraceId_" + id.ToString(CultureInfo.InvariantCulture);
 
         var sb = new StringBuilder(name.Length);
         var newToken = true;
@@ -36,7 +39,7 @@ internal static class IdComputation
         }
 
         if (sb.Length == 0)
-            return "TraceId_" + id.ToString();
+            return "TraceId_" + id.ToString(CultureInfo.InvariantCulture);
 
         if (char.IsDigit(sb[0]))
             sb.Insert(0, '_');
@@ -51,23 +54,28 @@ internal static class IdComputation
         return candidate;
     }
 
-    internal static string EnsureUniqueName(string baseName, HashSet<string> used, Dictionary<string, int> counters)
+    internal static ImmutableArray<TraceConstant> ResolveConstants(ImmutableArray<TraceItem> items, SourceProductionContext spc)
     {
-        if (used.Add(baseName))
+        var builder = ImmutableArray.CreateBuilder<TraceConstant>(items.Length);
+        var owners = new Dictionary<string, string>(StringComparer.Ordinal);
+        var used = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var item in items)
         {
-            counters[baseName] = 1;
-            return baseName;
+            var normalized = NormalizeConstName(item.Name!, item.Id);
+
+            var name = normalized;
+            for (var suffix = 2; !used.Add(name); suffix++)
+                name = normalized + "_" + suffix.ToString(CultureInfo.InvariantCulture);
+
+            if (owners.TryGetValue(normalized, out var owner))
+                spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.ConflictingConstantName, item.Origin, owner, item.Name, normalized, name));
+            else
+                owners.Add(normalized, item.Name!);
+
+            builder.Add(new TraceConstant(name, item.Id));
         }
 
-        var i = counters.TryGetValue(baseName, out var current) ? current : 1;
-        string candidate;
-        do
-        {
-            i++;
-            candidate = baseName + "_" + i.ToString();
-        } while (!used.Add(candidate));
-
-        counters[baseName] = i;
-        return candidate;
+        return builder.ToImmutable();
     }
 }
