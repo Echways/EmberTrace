@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using EmberTrace.Metadata;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -122,11 +123,8 @@ public class TraceMetadataTests
         public bool TryGet(int id, out TraceMeta metadata)
         {
             Lookups++;
-            foreach (var entry in _entries)
+            foreach (var entry in _entries.Where(entry => entry.Id == id))
             {
-                if (entry.Id != id)
-                    continue;
-
                 metadata = entry;
                 return true;
             }
