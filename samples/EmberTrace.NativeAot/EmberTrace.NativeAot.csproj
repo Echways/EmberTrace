@@ -8,6 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj" />
+        <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj"/>
     </ItemGroup>
 </Project>

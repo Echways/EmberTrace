@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using System.Text.Json;
 using EmberTrace.Metadata;
@@ -36,25 +33,21 @@ internal static class ChromeTraceExporter
 
         var tracks = CollectTracks(session);
         WriteProcessName(json, pid, processName);
-        for (int i = 0; i < tracks.Count; i++)
+        for (var i = 0; i < tracks.Count; i++)
             WriteThreadName(json, pid, tracks[i].Key, ResolveThreadName(session, tracks[i].Value));
 
         if (sortByTimestamp)
-        {
             foreach (var e in session.EnumerateEventsSorted())
             {
                 if (e.Timestamp < start) continue;
                 WriteEventBeginEnd(json, e, meta, start, freq, pid);
             }
-        }
         else
-        {
             foreach (var e in session.EnumerateEvents())
             {
                 if (e.Timestamp < start) continue;
                 WriteEventBeginEnd(json, e, meta, start, freq, pid);
             }
-        }
 
         json.WriteEndArray();
         json.WriteEndObject();
@@ -77,18 +70,21 @@ internal static class ChromeTraceExporter
         var start = session.StartTimestamp;
         var freq = session.TimestampFrequency;
 
-        var complete = new List<CompleteSpan>(capacity: checked((int)Math.Min(int.MaxValue, session.EventCount / 2)));
+        var complete = new List<CompleteSpan>(checked((int)Math.Min(int.MaxValue, session.EventCount / 2)));
         var asyncSpans = new List<AsyncSpan>();
         ScopeCollector.CollectComplete(new ScopeReader(session), start, complete, asyncSpans);
 
         if (sortByStartTimestamp)
         {
-            complete.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.TrackId, a.Sequence, b.StartTs, b.TrackId, b.Sequence));
-            asyncSpans.Sort(static (a, b) => CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
+            complete.Sort(static (a, b) =>
+                CompareEventOrder(a.StartTs, a.TrackId, a.Sequence, b.StartTs, b.TrackId, b.Sequence));
+            asyncSpans.Sort(static (a, b) =>
+                CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
         }
 
         var markers = CollectFlows(session, start);
-        markers.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
+        markers.Sort(static (a, b) =>
+            CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
 
         using var json = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = false });
 
@@ -97,12 +93,12 @@ internal static class ChromeTraceExporter
         json.WritePropertyName("traceEvents");
         json.WriteStartArray();
 
-        var tracks = CollectTracks(session, includeSynthetic: true);
+        var tracks = CollectTracks(session, true);
         WriteProcessName(json, pid, processName);
-        for (int i = 0; i < tracks.Count; i++)
+        for (var i = 0; i < tracks.Count; i++)
             WriteThreadName(json, pid, tracks[i].Key, ResolveThreadName(session, tracks[i].Value));
 
-        for (int i = 0; i < markers.Count; i++)
+        for (var i = 0; i < markers.Count; i++)
         {
             var e = markers[i];
             switch (e.Kind)
@@ -121,10 +117,10 @@ internal static class ChromeTraceExporter
             }
         }
 
-        for (int i = 0; i < asyncSpans.Count; i++)
+        for (var i = 0; i < asyncSpans.Count; i++)
             WriteAsyncSpan(json, asyncSpans[i], meta, start, freq, pid);
 
-        for (int i = 0; i < complete.Count; i++)
+        for (var i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, start, freq, pid);
 
         json.WriteEndArray();
@@ -139,7 +135,7 @@ internal static class ChromeTraceExporter
         int pid = 1,
         string processName = "EmberTrace")
     {
-        using var ms = new MemoryStream(capacity: 256 * 1024);
+        using var ms = new MemoryStream(256 * 1024);
         WriteBeginEnd(session, ms, meta, sortByTimestamp, pid, processName);
         return Encoding.UTF8.GetString(ms.ToArray());
     }
@@ -151,7 +147,7 @@ internal static class ChromeTraceExporter
         int pid = 1,
         string processName = "EmberTrace")
     {
-        using var ms = new MemoryStream(capacity: 256 * 1024);
+        using var ms = new MemoryStream(256 * 1024);
         WriteComplete(session, ms, meta, sortByStartTimestamp, pid, processName);
         return Encoding.UTF8.GetString(ms.ToArray());
     }
@@ -172,14 +168,16 @@ internal static class ChromeTraceExporter
 
     private static List<TraceEventRecord> CollectFlows(TraceSession session, long start)
     {
-        var list = new List<TraceEventRecord>(capacity: 256);
+        var list = new List<TraceEventRecord>(256);
         foreach (var e in session.EnumerateEvents())
         {
             if (e.Timestamp < start) continue;
-            if (e.Kind == TraceEventKind.FlowStart || e.Kind == TraceEventKind.FlowStep || e.Kind == TraceEventKind.FlowEnd
+            if (e.Kind == TraceEventKind.FlowStart || e.Kind == TraceEventKind.FlowStep ||
+                e.Kind == TraceEventKind.FlowEnd
                 || e.Kind == TraceEventKind.Instant || e.Kind == TraceEventKind.Counter)
                 list.Add(e);
         }
+
         return list;
     }
 
@@ -195,15 +193,15 @@ internal static class ChromeTraceExporter
         {
             case TraceEventKind.Begin:
                 if (e.AsyncScopeId != 0)
-                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.TrackId, e.Timestamp, meta, start, freq, pid, phase: "b");
+                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.TrackId, e.Timestamp, meta, start, freq, pid, "b");
                 else
-                    WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'B');
+                    WriteBeginEndEvent(json, e, meta, start, freq, pid, 'B');
                 break;
             case TraceEventKind.End:
                 if (e.AsyncScopeId != 0)
-                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.TrackId, e.Timestamp, meta, start, freq, pid, phase: "e");
+                    WriteAsyncPhase(json, e.Id, e.AsyncScopeId, e.TrackId, e.Timestamp, meta, start, freq, pid, "e");
                 else
-                    WriteBeginEndEvent(json, e, meta, start, freq, pid, phase: 'E');
+                    WriteBeginEndEvent(json, e, meta, start, freq, pid, 'E');
                 break;
             case TraceEventKind.FlowStart:
             case TraceEventKind.FlowStep:
@@ -269,8 +267,8 @@ internal static class ChromeTraceExporter
         long freq,
         int pid)
     {
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, start, freq, pid, phase: "b");
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, start, freq, pid, phase: "e");
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, start, freq, pid, "b");
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, start, freq, pid, "e");
     }
 
     private static void WriteAsyncPhase(
@@ -408,7 +406,8 @@ internal static class ChromeTraceExporter
         return $"Thread {threadId}";
     }
 
-    private static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp, int otherTrackId, long otherSequence)
+    private static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp,
+        int otherTrackId, long otherSequence)
     {
         var cmp = timestamp.CompareTo(otherTimestamp);
         if (cmp != 0) return cmp;

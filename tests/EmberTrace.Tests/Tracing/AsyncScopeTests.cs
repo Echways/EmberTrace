@@ -1,10 +1,5 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -23,11 +18,11 @@ public class AsyncScopeTests
         TraceSession session;
         try
         {
-            for (int i = 0; i < iterations; i++)
-            {
+            for (var i = 0; i < iterations; i++)
                 await using (ts.ScopeAsync(id))
+                {
                     await Task.Delay(5);
-            }
+                }
         }
         finally
         {
@@ -60,11 +55,11 @@ public class AsyncScopeTests
         {
             await Task.WhenAll(Enumerable.Range(0, chains).Select(_ => Task.Run(async () =>
             {
-                for (int i = 0; i < iterations; i++)
-                {
+                for (var i = 0; i < iterations; i++)
                     await using (ts.ScopeAsync(id))
+                    {
                         await Task.Delay(5);
-                }
+                    }
             })));
         }
         finally
@@ -99,7 +94,9 @@ public class AsyncScopeTests
             {
                 await Task.Delay(5);
                 using (ts.Scope(inner))
+                {
                     Thread.Sleep(1);
+                }
             }
         }
         finally
@@ -132,7 +129,9 @@ public class AsyncScopeTests
             {
                 await Task.Delay(5);
                 await using (ts.ScopeAsync(inner))
+                {
                     await Task.Delay(5);
+                }
             }
         }
         finally
@@ -170,7 +169,9 @@ public class AsyncScopeTests
                 await Task.WhenAll(Enumerable.Range(0, workers).Select(_ => Task.Run(() =>
                 {
                     using (ts.Scope(child))
+                    {
                         Thread.Sleep(5);
+                    }
                 })));
             }
         }
@@ -207,7 +208,9 @@ public class AsyncScopeTests
             {
                 await Task.Delay(5);
                 using (ts.Scope(syncId))
+                {
                     Thread.Sleep(1);
+                }
             }
         }
         finally
@@ -251,10 +254,8 @@ public class AsyncScopeTests
     private static CallTreeNode Child(CallTreeNode node, int id)
     {
         foreach (var c in node.Children)
-        {
             if (c.Id == id)
                 return c;
-        }
 
         Assert.Fail($"node {id} is not a child of {node.Id}");
         return default!;

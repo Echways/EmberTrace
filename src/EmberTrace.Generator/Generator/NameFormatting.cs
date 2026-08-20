@@ -4,10 +4,15 @@ namespace EmberTrace.Generator.Generator;
 
 internal static class NameFormatting
 {
-    internal static string Escape(string s) => "@\"" + s.Replace("\"", "\"\"") + "\"";
+    internal static string Escape(string s)
+    {
+        return "@\"" + s.Replace("\"", "\"\"") + "\"";
+    }
 
     internal static bool GetBoolOption(AnalyzerConfigOptions options, string key)
-        => options.TryGetValue(key, out var value)
-           && bool.TryParse(value, out var enabled)
-           && enabled;
+    {
+        return options.TryGetValue(key, out var value)
+               && bool.TryParse(value, out var enabled)
+               && enabled;
+    }
 }

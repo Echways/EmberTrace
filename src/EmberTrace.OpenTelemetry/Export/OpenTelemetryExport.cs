@@ -1,6 +1,4 @@
-using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Diagnostics;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -27,7 +25,7 @@ public static class OpenTelemetryExport
         meta ??= session.Metadata;
 
         var baseUtc = options.BaseUtc ?? DateTimeOffset.UtcNow - TimeSpan.FromSeconds(session.DurationMs / 1000.0);
-        var spans = new List<Activity>(capacity: (int)Math.Min(int.MaxValue, session.EventCount / 2));
+        var spans = new List<Activity>((int)Math.Min(int.MaxValue, session.EventCount / 2));
         var live = new Dictionary<int, List<Activity>>();
         var reader = new ScopeReader(session);
 
@@ -109,7 +107,7 @@ public static class OpenTelemetryExport
         if (onSpan is null) throw new ArgumentNullException(nameof(onSpan));
 
         var spans = CreateSpans(session, meta, options);
-        for (int i = 0; i < spans.Count; i++)
+        for (var i = 0; i < spans.Count; i++)
             onSpan(spans[i]);
     }
 
@@ -131,7 +129,7 @@ public static class OpenTelemetryExport
     {
         if (!live.TryGetValue(trackId, out var stack))
         {
-            stack = new List<Activity>(capacity: 64);
+            stack = new List<Activity>(64);
             live.Add(trackId, stack);
         }
 
@@ -193,7 +191,7 @@ public static class OpenTelemetryExport
             const ulong offset = 14695981039346656037;
             const ulong prime = 1099511628211;
 
-            ulong hash = offset;
+            var hash = offset;
             hash = (hash ^ (ulong)flowId) * prime;
             hash = (hash ^ (ulong)id) * prime;
             hash = (hash ^ (ulong)timestamp) * prime;

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Export;
@@ -36,7 +34,8 @@ internal readonly struct AsyncSpan
     public readonly long EndTs;
     public readonly long Sequence;
 
-    public AsyncSpan(int id, long asyncScopeId, int startTrackId, int endTrackId, long startTs, long endTs, long sequence)
+    public AsyncSpan(int id, long asyncScopeId, int startTrackId, int endTrackId, long startTs, long endTs,
+        long sequence)
     {
         Id = id;
         AsyncScopeId = asyncScopeId;

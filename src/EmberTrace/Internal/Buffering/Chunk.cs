@@ -10,6 +10,8 @@ internal sealed class Chunk
         Events = new TraceEvent[capacity];
     }
 
+    public bool IsFull => Count >= Events.Length;
+
     public bool TryWrite(in TraceEvent e)
     {
         var i = Count;
@@ -20,8 +22,6 @@ internal sealed class Chunk
         Volatile.Write(ref Count, i + 1);
         return true;
     }
-
-    public bool IsFull => Count >= Events.Length;
 
     public void Reset()
     {

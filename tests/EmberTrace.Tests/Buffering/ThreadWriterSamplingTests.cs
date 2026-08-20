@@ -1,9 +1,5 @@
-using System;
-using System.Linq;
-using System.Threading;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Buffering;
 
@@ -21,7 +17,7 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions { SampleEveryNGlobal = everyN, ChunkCapacity = 1024 });
 
-        for (int i = 0; i < totalEvents; i++)
+        for (var i = 0; i < totalEvents; i++)
             ts.Instant(42);
 
         var session = ts.Stop();
@@ -38,7 +34,7 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions { SampleEveryNGlobal = 0, ChunkCapacity = 64 });
 
-        for (int i = 0; i < 20; i++)
+        for (var i = 0; i < 20; i++)
             ts.Instant(1);
 
         var session = ts.Stop();
@@ -53,7 +49,7 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions
         {
-            SampleEveryNById = new System.Collections.Generic.Dictionary<int, int>
+            SampleEveryNById = new Dictionary<int, int>
             {
                 [1] = 2,
                 [2] = 3
@@ -62,9 +58,9 @@ public class ThreadWriterSamplingTests
             ChunkCapacity = 512
         });
 
-        for (int i = 0; i < 5; i++) ts.Instant(1);
-        for (int i = 0; i < 5; i++) ts.Instant(2);
-        for (int i = 0; i < 5; i++) ts.Instant(3);
+        for (var i = 0; i < 5; i++) ts.Instant(1);
+        for (var i = 0; i < 5; i++) ts.Instant(2);
+        for (var i = 0; i < 5; i++) ts.Instant(3);
 
         var session = ts.Stop();
         var events = ToArray(session);
@@ -80,12 +76,12 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions
         {
-            SampleEveryNById = new System.Collections.Generic.Dictionary<int, int> { [999] = 2 },
+            SampleEveryNById = new Dictionary<int, int> { [999] = 2 },
             SampleEveryNGlobal = 3,
             ChunkCapacity = 512
         });
 
-        for (int i = 0; i < 9; i++)
+        for (var i = 0; i < 9; i++)
             ts.Instant(1);
 
         var session = ts.Stop();
@@ -102,12 +98,12 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions { MaxEventsPerSecond = rateLimit, ChunkCapacity = 1024 });
 
-        for (int i = 0; i < rateLimit; i++)
+        for (var i = 0; i < rateLimit; i++)
             ts.Instant(1);
 
         var session = ts.Stop();
 
-        Assert.AreEqual((long)rateLimit, session.EventCount,
+        Assert.AreEqual(rateLimit, session.EventCount,
             $"All {rateLimit} events within rate limit should be accepted");
         Assert.AreEqual(0L, session.DroppedEvents);
     }
@@ -120,12 +116,12 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions { MaxEventsPerSecond = rateLimit, ChunkCapacity = 1024 });
 
-        for (int i = 0; i < rateLimit + 5; i++)
+        for (var i = 0; i < rateLimit + 5; i++)
             ts.Instant(1);
 
         var session = ts.Stop();
 
-        Assert.AreEqual((long)rateLimit, session.EventCount,
+        Assert.AreEqual(rateLimit, session.EventCount,
             $"Only {rateLimit} events should pass the rate gate");
         Assert.AreEqual(5L, session.DroppedEvents, "Excess events must be counted as dropped");
     }
@@ -138,20 +134,20 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions { MaxEventsPerSecond = rateLimit, ChunkCapacity = 1024 });
 
-        for (int i = 0; i < rateLimit; i++)
+        for (var i = 0; i < rateLimit; i++)
             ts.Instant(1);
 
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
             ts.Instant(1);
 
         Thread.Sleep(1100);
 
-        for (int i = 0; i < rateLimit; i++)
+        for (var i = 0; i < rateLimit; i++)
             ts.Instant(1);
 
         var session = ts.Stop();
 
-        Assert.AreEqual((long)(rateLimit * 2), session.EventCount,
+        Assert.AreEqual(rateLimit * 2, session.EventCount,
             "Two full windows should each contribute rateLimit events");
         Assert.AreEqual(2L, session.DroppedEvents,
             "Only the 2 excess events from the first window should be dropped");
@@ -170,12 +166,12 @@ public class ThreadWriterSamplingTests
             ChunkCapacity = 1024
         });
 
-        for (int i = 0; i < rateLimit + 5; i++)
+        for (var i = 0; i < rateLimit + 5; i++)
             ts.Instant(1);
 
         var session = ts.Stop();
 
-        Assert.AreEqual((long)rateLimit, session.EventCount);
+        Assert.AreEqual(rateLimit, session.EventCount);
         Assert.IsTrue(session.WasOverflow);
     }
 
@@ -185,12 +181,12 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions
         {
-            SampleEveryNById = new System.Collections.Generic.Dictionary<int, int> { [10] = 4 },
+            SampleEveryNById = new Dictionary<int, int> { [10] = 4 },
             SampleEveryNGlobal = 2,
             ChunkCapacity = 512
         });
 
-        for (int i = 0; i < 12; i++)
+        for (var i = 0; i < 12; i++)
             ts.Instant(10);
 
         var session = ts.Stop();
@@ -212,7 +208,7 @@ public class ThreadWriterSamplingTests
 
         var session = ts.Stop();
 
-        Assert.AreEqual((long)(threads / everyN), session.EventCount,
+        Assert.AreEqual(threads / everyN, session.EventCount,
             "Short-lived threads must share one global ticket sequence, not each keep their first event");
     }
 
@@ -228,7 +224,7 @@ public class ThreadWriterSamplingTests
 
         RunOnThreads(threads, () =>
         {
-            for (int i = 0; i < perThread; i++)
+            for (var i = 0; i < perThread; i++)
                 ts.Instant(42);
         });
 
@@ -251,7 +247,7 @@ public class ThreadWriterSamplingTests
         var ts = new TracingSession();
         ts.Start(new SessionOptions
         {
-            SampleEveryNById = new System.Collections.Generic.Dictionary<int, int> { [7] = everyN },
+            SampleEveryNById = new Dictionary<int, int> { [7] = everyN },
             ChunkCapacity = 1024
         });
 
@@ -259,13 +255,13 @@ public class ThreadWriterSamplingTests
 
         var session = ts.Stop();
 
-        Assert.AreEqual((long)(threads / everyN), session.EventCount);
+        Assert.AreEqual(threads / everyN, session.EventCount);
     }
 
     private static void RunOnThreads(int count, Action body)
     {
         var threads = new Thread[count];
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
         {
             threads[i] = new Thread(() => body()) { IsBackground = true };
             threads[i].Start();
@@ -277,7 +273,7 @@ public class ThreadWriterSamplingTests
 
     private static TraceEventRecord[] ToArray(TraceSession session)
     {
-        var list = new System.Collections.Generic.List<TraceEventRecord>();
+        var list = new List<TraceEventRecord>();
         foreach (var e in session.EnumerateEvents())
             list.Add(e);
         return list.ToArray();

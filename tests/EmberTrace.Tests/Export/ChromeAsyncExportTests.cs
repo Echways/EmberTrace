@@ -1,11 +1,5 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Export;
 
@@ -28,7 +22,9 @@ public class ChromeAsyncExportTests
             {
                 await Task.Delay(5);
                 using (ts.Scope(inner))
+                {
                     Thread.Sleep(1);
+                }
             }
         }
         finally
@@ -72,7 +68,9 @@ public class ChromeAsyncExportTests
         try
         {
             await using (ts.ScopeAsync(id))
+            {
                 await Task.Delay(5);
+            }
         }
         finally
         {
@@ -96,10 +94,8 @@ public class ChromeAsyncExportTests
     {
         var list = new List<JsonElement>();
         foreach (var e in events)
-        {
             if (e.TryGetProperty("ph", out var ph) && ph.GetString() == phase)
                 list.Add(e);
-        }
 
         return list;
     }

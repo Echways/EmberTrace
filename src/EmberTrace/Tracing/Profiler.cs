@@ -1,11 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
+using EmberTrace.Flow;
 using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
-using EmberTrace.Flow;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
@@ -13,13 +10,12 @@ namespace EmberTrace.Tracing;
 
 internal sealed class Profiler
 {
-    private int _enabled;
-    private ProfilingState? _state;
-    private ITraceMetadataProvider? _metadata;
-    private long _nextFlowId;
-
     [ThreadStatic] private static long _cachedSessionId;
     [ThreadStatic] private static ThreadWriter? _cachedWriter;
+    private int _enabled;
+    private ITraceMetadataProvider? _metadata;
+    private long _nextFlowId;
+    private ProfilingState? _state;
 
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
@@ -58,7 +54,8 @@ internal sealed class Profiler
         _state = null;
 
         if (state is null)
-            return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false, Metadata);
+            return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0,
+                0, 0, false, Metadata);
 
         state.EndTs = Timestamp.Now();
 
@@ -70,7 +67,7 @@ internal sealed class Profiler
 
         var chunks = collector.Chunks;
         var snapshot = new Chunk[chunks.Count];
-        for (int i = 0; i < chunks.Count; i++)
+        for (var i = 0; i < chunks.Count; i++)
         {
             var source = chunks[i];
             var copy = new Chunk(source.Count);
@@ -95,12 +92,15 @@ internal sealed class Profiler
 
     public Scope Scope(int id)
     {
-        if (!IsRunning) return new Scope(id, null, active: false);
+        if (!IsRunning) return new Scope(id, null, false);
         Write(id, TraceEventKind.Begin, 0, AsyncScopeContext.Current);
-        return new Scope(id, this, active: true);
+        return new Scope(id, this, true);
     }
 
-    internal void EndScope(int id) => EndImpl(id);
+    internal void EndScope(int id)
+    {
+        EndImpl(id);
+    }
 
     private void EndImpl(int id)
     {
@@ -169,11 +169,11 @@ internal sealed class Profiler
     public FlowScope Flow(int id)
     {
         if (!IsRunning)
-            return new FlowScope(id, 0, active: false, this);
+            return new FlowScope(id, 0, false, this);
 
         var flowId = NewFlowId();
         FlowStart(id, flowId);
-        return new FlowScope(id, flowId, active: true, this);
+        return new FlowScope(id, flowId, true, this);
     }
 
     public FlowHandle FlowStartNewHandle(int id)

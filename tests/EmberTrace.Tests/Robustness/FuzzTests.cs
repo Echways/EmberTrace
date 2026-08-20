@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
-using EmberTrace.Export;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Robustness;
 
@@ -15,11 +10,11 @@ public class FuzzTests
     [TestMethod]
     public void Randomized_BeginEnd_DoesNotThrow_And_ExportsValidJson()
     {
-        var events = GenerateRandomEvents(seed: 1337, threads: 4, totalEvents: 600);
+        var events = GenerateRandomEvents(1337, 4, 600);
         var session = CreateSession(events);
 
-        var stats = session.Analyze(strict: false);
-        var processed = session.Process(strict: false, groupByThread: false);
+        var stats = session.Analyze(false);
+        var processed = session.Process(false, false);
 
         Assert.IsGreaterThanOrEqualTo(0, stats.UnmatchedBeginCount);
         Assert.IsGreaterThanOrEqualTo(0, stats.UnmatchedEndCount);
@@ -48,12 +43,12 @@ public class FuzzTests
         var stacks = new List<int>[threads];
         var sequences = new long[threads];
 
-        for (int i = 0; i < threads; i++)
-            stacks[i] = new List<int>(capacity: 64);
+        for (var i = 0; i < threads; i++)
+            stacks[i] = new List<int>(64);
 
         long timestamp = 0;
 
-        for (int i = 0; i < totalEvents; i++)
+        for (var i = 0; i < totalEvents; i++)
         {
             var threadIndex = rng.Next(threads);
             var threadId = threadIndex + 1;
@@ -95,7 +90,7 @@ public class FuzzTests
     {
         var capacity = Math.Max(1, events.Count);
         var chunk = new Chunk(capacity);
-        for (int i = 0; i < events.Count; i++)
+        for (var i = 0; i < events.Count; i++)
             chunk.Events[i] = events[i];
         chunk.Count = events.Count;
 
@@ -103,6 +98,6 @@ public class FuzzTests
         var start = events.Count > 0 ? events[0].Timestamp : 0;
         var end = events.Count > 0 ? events[^1].Timestamp : start;
 
-        return new TraceSession(new[] { chunk }, start, end, options, new Dictionary<int, string>(), 0, 0, 0, wasOverflow: false);
+        return new TraceSession(new[] { chunk }, start, end, options, new Dictionary<int, string>(), 0, 0, 0, false);
     }
 }

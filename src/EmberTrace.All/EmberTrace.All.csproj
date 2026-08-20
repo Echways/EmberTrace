@@ -13,7 +13,7 @@
         <PackageTags>tracing;profiling;chrome-trace;analysis;dotnet</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
-        
+
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <IncludeSymbols>false</IncludeSymbols>
         <IncludeReferencedProjects>false</IncludeReferencedProjects>
@@ -23,31 +23,31 @@
         <UseLocalEmberTrace>false</UseLocalEmberTrace>
     </PropertyGroup>
     <ItemGroup>
-        <None Include="_._" Pack="true" PackagePath="lib/net10.0/" />
+        <None Include="_._" Pack="true" PackagePath="lib/net10.0/"/>
     </ItemGroup>
 
     <ItemGroup Condition="'$(UseLocalEmberTrace)'=='true'">
-        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
-        <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" />
-        <ProjectReference Include="..\EmberTrace.Generator\EmberTrace.Generator.csproj" />
-        <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj" />
-        <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj" />
-        <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj" />
-        <ProjectReference Include="..\EmberTrace.OpenTelemetry\EmberTrace.OpenTelemetry.csproj" />
+        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Generator\EmberTrace.Generator.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj"/>
+        <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj"/>
+        <ProjectReference Include="..\EmberTrace.OpenTelemetry\EmberTrace.OpenTelemetry.csproj"/>
     </ItemGroup>
 
     <ItemGroup Condition="'$(UseLocalEmberTrace)'!='true'">
-        <PackageReference Include="EmberTrace" />
-        <PackageReference Include="EmberTrace.Abstractions" />
-        <PackageReference Include="EmberTrace.Generator" />
-        <PackageReference Include="EmberTrace.Analysis" />
-        <PackageReference Include="EmberTrace.Export" />
-        <PackageReference Include="EmberTrace.ReportText" />
-        <PackageReference Include="EmberTrace.OpenTelemetry" />
+        <PackageReference Include="EmberTrace"/>
+        <PackageReference Include="EmberTrace.Abstractions"/>
+        <PackageReference Include="EmberTrace.Generator"/>
+        <PackageReference Include="EmberTrace.Analysis"/>
+        <PackageReference Include="EmberTrace.Export"/>
+        <PackageReference Include="EmberTrace.ReportText"/>
+        <PackageReference Include="EmberTrace.OpenTelemetry"/>
     </ItemGroup>
 
 
     <ItemGroup>
-        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
     </ItemGroup>
 </Project>

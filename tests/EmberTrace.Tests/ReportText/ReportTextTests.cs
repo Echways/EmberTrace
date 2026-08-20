@@ -1,8 +1,5 @@
-using EmberTrace;
 using EmberTrace.Metadata;
-using EmberTrace.ReportText;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.ReportText;
 
@@ -20,8 +17,13 @@ public class ReportTextTests
         TraceSession session;
         try
         {
-            using (ts.Scope(ioId)) { }
-            using (ts.Scope(cpuId)) { }
+            using (ts.Scope(ioId))
+            {
+            }
+
+            using (ts.Scope(cpuId))
+            {
+            }
         }
         finally
         {

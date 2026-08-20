@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace EmberTrace.Analysis.Model;
 
 public sealed class CallTreeNode

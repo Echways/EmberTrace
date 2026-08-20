@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using EmberTrace;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Benchmarks;
@@ -40,12 +36,10 @@ public class ScopeBenchmarks
     [Benchmark]
     public void Scope_BeginEnd_SingleThread()
     {
-        for (int i = 0; i < Operations; i++)
-        {
+        for (var i = 0; i < Operations; i++)
             using (Tracer.Scope(_id))
             {
             }
-        }
     }
 
     [Benchmark]

@@ -5,10 +5,10 @@
 
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-        
+
         <IsRoslynComponent>true</IsRoslynComponent>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-        
+
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
 
@@ -28,20 +28,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all"/>
     </ItemGroup>
 
     <ItemGroup Condition="'$(UseLocalEmberTrace)'=='true'">
-        <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" PrivateAssets="all" />
+        <ProjectReference Include="..\EmberTrace.Abstractions\EmberTrace.Abstractions.csproj" PrivateAssets="all"/>
     </ItemGroup>
     <ItemGroup Condition="'$(UseLocalEmberTrace)'!='true'">
-        <PackageReference Include="EmberTrace.Abstractions" PrivateAssets="all" />
+        <PackageReference Include="EmberTrace.Abstractions" PrivateAssets="all"/>
     </ItemGroup>
 
 
     <ItemGroup>
-        <None Include="..\..\README.md" Pack="true" PackagePath="" />
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
     </ItemGroup>
     <PropertyGroup>
         <IncludeBuildOutput>true</IncludeBuildOutput>

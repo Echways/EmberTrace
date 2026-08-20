@@ -1,33 +1,35 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
-using System.Linq;
 using EmberTrace.Abstractions.Attributes;
 using EmberTrace.Generator.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Generator.Tests;
 
 [TestClass]
 public class TraceMetadataGeneratorTests
 {
+    private static readonly CSharpParseOptions ParseOptions =
+        CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
+
+    private static readonly IReadOnlyList<MetadataReference> References = BuildReferences();
+
     [TestMethod]
     public void AssemblyAttributes_ProduceMetadataProvider()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(2000, "Worker", "Workers")]
-            [assembly: TraceId(1000, "App", "App")]
-            """);
+                         using EmberTrace.Abstractions.Attributes;
+                         [assembly: TraceId(2000, "Worker", "Workers")]
+                         [assembly: TraceId(1000, "App", "App")]
+                         """);
 
         var provider = result.Source("EmberTrace.GeneratedTraceMetadataProvider.g.cs");
 
-        StringAssert.Contains(provider, @"[1000] = new global::EmberTrace.Metadata.TraceMeta(1000, @""App"", @""App"")");
-        StringAssert.Contains(provider, @"[2000] = new global::EmberTrace.Metadata.TraceMeta(2000, @""Worker"", @""Workers"")");
+        StringAssert.Contains(provider,
+            @"[1000] = new global::EmberTrace.Metadata.TraceMeta(1000, @""App"", @""App"")");
+        StringAssert.Contains(provider,
+            @"[2000] = new global::EmberTrace.Metadata.TraceMeta(2000, @""Worker"", @""Workers"")");
     }
 
     [TestMethod]
@@ -35,27 +37,28 @@ public class TraceMetadataGeneratorTests
     {
         var result = Run("class C { }");
 
-        Assert.IsEmpty(result.Sources, "An assembly without trace metadata must not carry a provider or module initializer");
+        Assert.IsEmpty(result.Sources,
+            "An assembly without trace metadata must not carry a provider or module initializer");
     }
 
     [TestMethod]
     public void ConstantNames_AreOrderedByIdNotByDeclaration()
     {
         const string declaredAscending = """
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(1, "Io Wait")]
-            [assembly: TraceId(2, "Cpu")]
-            """;
+                                         using EmberTrace.Abstractions.Attributes;
+                                         [assembly: TraceId(1, "Io Wait")]
+                                         [assembly: TraceId(2, "Cpu")]
+                                         """;
 
         const string declaredDescending = """
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(2, "Cpu")]
-            [assembly: TraceId(1, "Io Wait")]
-            """;
+                                          using EmberTrace.Abstractions.Attributes;
+                                          [assembly: TraceId(2, "Cpu")]
+                                          [assembly: TraceId(1, "Io Wait")]
+                                          """;
 
         Assert.AreEqual(
-            Run(declaredAscending, generateTraceIds: true).Source("TraceIds.g.cs"),
-            Run(declaredDescending, generateTraceIds: true).Source("TraceIds.g.cs"),
+            Run(declaredAscending, true).Source("TraceIds.g.cs"),
+            Run(declaredDescending, true).Source("TraceIds.g.cs"),
             "Declaration order must not rename generated constants");
     }
 
@@ -63,10 +66,10 @@ public class TraceMetadataGeneratorTests
     public void ClashingNormalizedNames_ReportETG006AndKeepLowestIdUnsuffixed()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(1, "Io Wait")]
-            [assembly: TraceId(2, "Io-Wait")]
-            """, generateTraceIds: true);
+                         using EmberTrace.Abstractions.Attributes;
+                         [assembly: TraceId(1, "Io Wait")]
+                         [assembly: TraceId(2, "Io-Wait")]
+                         """, true);
 
         var traceIds = result.Source("TraceIds.g.cs");
 
@@ -79,10 +82,10 @@ public class TraceMetadataGeneratorTests
     public void MalformedArgument_ReportsETG004AndKeepsGenerating()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId("x", "Broken")]
-            [assembly: TraceId(1000, "App")]
-            """);
+                         using EmberTrace.Abstractions.Attributes;
+                         [assembly: TraceId("x", "Broken")]
+                         [assembly: TraceId(1000, "App")]
+                         """);
 
         Assert.HasCount(1, result.Diagnostics.Where(d => d.Id == "ETG004").ToArray());
         StringAssert.Contains(result.Source("EmberTrace.GeneratedTraceMetadataProvider.g.cs"), "[1000] =");
@@ -92,10 +95,10 @@ public class TraceMetadataGeneratorTests
     public void DuplicateId_ReportsETG001()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(7, "First")]
-            [assembly: TraceId(7, "Second")]
-            """);
+                         using EmberTrace.Abstractions.Attributes;
+                         [assembly: TraceId(7, "First")]
+                         [assembly: TraceId(7, "Second")]
+                         """);
 
         Assert.HasCount(1, result.Diagnostics.Where(d => d.Id == "ETG001").ToArray());
     }
@@ -104,21 +107,22 @@ public class TraceMetadataGeneratorTests
     public void ConstFieldAttributes_ContributeMetadata()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            static class Ids
-            {
-                [TraceName("Cpu Work")]
-                [TraceCategory("CPU")]
-                public const int Cpu = 10;
+                         using EmberTrace.Abstractions.Attributes;
+                         static class Ids
+                         {
+                             [TraceName("Cpu Work")]
+                             [TraceCategory("CPU")]
+                             public const int Cpu = 10;
 
-                [TraceCategory("IO")]
-                public const int IoWait = 20;
-            }
-            """);
+                             [TraceCategory("IO")]
+                             public const int IoWait = 20;
+                         }
+                         """);
 
         var provider = result.Source("EmberTrace.GeneratedTraceMetadataProvider.g.cs");
 
-        StringAssert.Contains(provider, @"[10] = new global::EmberTrace.Metadata.TraceMeta(10, @""Cpu Work"", @""CPU"")");
+        StringAssert.Contains(provider,
+            @"[10] = new global::EmberTrace.Metadata.TraceMeta(10, @""Cpu Work"", @""CPU"")");
         StringAssert.Contains(provider, @"[20] = new global::EmberTrace.Metadata.TraceMeta(20, @""IoWait"", @""IO"")");
     }
 
@@ -126,13 +130,13 @@ public class TraceMetadataGeneratorTests
     public void ConstFieldAttributes_DoNotProduceTraceIdConstants()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            static class Ids
-            {
-                [TraceName("Cpu Work")]
-                public const int Cpu = 10;
-            }
-            """, generateTraceIds: true);
+                         using EmberTrace.Abstractions.Attributes;
+                         static class Ids
+                         {
+                             [TraceName("Cpu Work")]
+                             public const int Cpu = 10;
+                         }
+                         """, true);
 
         Assert.IsFalse(result.Sources.ContainsKey("TraceIds.g.cs"), "Fields already are the constants");
     }
@@ -141,13 +145,13 @@ public class TraceMetadataGeneratorTests
     public void NonConstantField_ReportsETG005()
     {
         var result = Run("""
-            using EmberTrace.Abstractions.Attributes;
-            static class Ids
-            {
-                [TraceName("Cpu Work")]
-                public static int Cpu = 10;
-            }
-            """);
+                         using EmberTrace.Abstractions.Attributes;
+                         static class Ids
+                         {
+                             [TraceName("Cpu Work")]
+                             public static int Cpu = 10;
+                         }
+                         """);
 
         Assert.HasCount(1, result.Diagnostics.Where(d => d.Id == "ETG005").ToArray());
     }
@@ -156,12 +160,12 @@ public class TraceMetadataGeneratorTests
     public void EditingUnrelatedFile_KeepsGeneratorOutputCached()
     {
         const string attributes = """
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(1000, "App", "App")]
-            """;
+                                  using EmberTrace.Abstractions.Attributes;
+                                  [assembly: TraceId(1000, "App", "App")]
+                                  """;
 
         var compilation = Compile(attributes, "class Unrelated { }");
-        var driver = Driver(generateTraceIds: false).RunGenerators(compilation);
+        var driver = Driver(false).RunGenerators(compilation);
 
         var edited = compilation.ReplaceSyntaxTree(
             compilation.SyntaxTrees.Last(),
@@ -175,32 +179,31 @@ public class TraceMetadataGeneratorTests
     public void EditingTraceIdDeclarations_RegeneratesOutput()
     {
         var compilation = Compile("""
-            using EmberTrace.Abstractions.Attributes;
-            [assembly: TraceId(1000, "App", "App")]
-            """);
+                                  using EmberTrace.Abstractions.Attributes;
+                                  [assembly: TraceId(1000, "App", "App")]
+                                  """);
 
-        var driver = Driver(generateTraceIds: false).RunGenerators(compilation);
+        var driver = Driver(false).RunGenerators(compilation);
 
         var edited = compilation.ReplaceSyntaxTree(
             compilation.SyntaxTrees[0],
             CSharpSyntaxTree.ParseText("""
-                using EmberTrace.Abstractions.Attributes;
-                [assembly: TraceId(1000, "Application", "App")]
-                """, ParseOptions));
+                                       using EmberTrace.Abstractions.Attributes;
+                                       [assembly: TraceId(1000, "Application", "App")]
+                                       """, ParseOptions));
 
         Assert.Contains(IncrementalStepRunReason.Modified, OutputStepReasons(driver.RunGenerators(edited)));
     }
 
     private static IReadOnlyList<IncrementalStepRunReason> OutputStepReasons(GeneratorDriver driver)
-        => driver.GetRunResult()
+    {
+        return driver.GetRunResult()
             .Results[0]
             .TrackedOutputSteps.SelectMany(kvp => kvp.Value)
             .SelectMany(step => step.Outputs)
             .Select(output => output.Reason)
             .ToArray();
-
-    private static readonly CSharpParseOptions ParseOptions =
-        CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
+    }
 
     private static GeneratorOutput Run(string code, bool generateTraceIds = false)
     {
@@ -212,20 +215,22 @@ public class TraceMetadataGeneratorTests
     }
 
     private static GeneratorDriver Driver(bool generateTraceIds)
-        => CSharpGeneratorDriver.Create(
-            generators: [new TraceMetadataGenerator().AsSourceGenerator()],
+    {
+        return CSharpGeneratorDriver.Create(
+            [new TraceMetadataGenerator().AsSourceGenerator()],
             optionsProvider: new TestOptionsProvider(generateTraceIds),
             parseOptions: ParseOptions,
-            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, true));
+    }
 
     private static CSharpCompilation Compile(params string[] sources)
-        => CSharpCompilation.Create(
+    {
+        return CSharpCompilation.Create(
             "TestAssembly",
             sources.Select(source => CSharpSyntaxTree.ParseText(source, ParseOptions)),
             References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-    private static readonly IReadOnlyList<MetadataReference> References = BuildReferences();
+    }
 
     private static IReadOnlyList<MetadataReference> BuildReferences()
     {
@@ -235,22 +240,21 @@ public class TraceMetadataGeneratorTests
         };
 
         if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa)
-        {
             foreach (var path in tpa.Split(Path.PathSeparator))
-            {
                 if (File.Exists(path))
                     refs.Add(MetadataReference.CreateFromFile(path));
-            }
-        }
 
         return refs;
     }
 
-    private sealed record GeneratorOutput(IReadOnlyDictionary<string, string> Sources, ImmutableArray<Diagnostic> Diagnostics)
+    private sealed record GeneratorOutput(
+        IReadOnlyDictionary<string, string> Sources,
+        ImmutableArray<Diagnostic> Diagnostics)
     {
         internal string Source(string hintName)
         {
-            Assert.IsTrue(Sources.ContainsKey(hintName), $"Expected generated source '{hintName}', got [{string.Join(", ", Sources.Keys)}]");
+            Assert.IsTrue(Sources.ContainsKey(hintName),
+                $"Expected generated source '{hintName}', got [{string.Join(", ", Sources.Keys)}]");
             return Sources[hintName];
         }
     }
@@ -259,9 +263,15 @@ public class TraceMetadataGeneratorTests
     {
         public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(generateTraceIds);
 
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
+        {
+            return GlobalOptions;
+        }
 
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
+        {
+            return GlobalOptions;
+        }
 
         private sealed class Options(bool generateTraceIds) : AnalyzerConfigOptions
         {

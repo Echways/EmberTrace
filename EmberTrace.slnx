@@ -1,28 +1,28 @@
 <Solution>
-  <Folder Name="/samples/">
-    <Project Path="samples/EmberTrace.BasicTracing/EmberTrace.BasicTracing.csproj" />
-    <Project Path="samples/EmberTrace.ParallelWorkers/EmberTrace.ParallelWorkers.csproj" />
-    <Project Path="samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj" />
-    <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj" />
-  </Folder>
-  <Folder Name="/benchmarks/">
-    <Project Path="benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj" />
-  </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj" />
-    <Project Path="src/EmberTrace.Generator/EmberTrace.Generator.csproj" />
-    <Project Path="src/EmberTrace/EmberTrace.csproj" />
-    <Project Path="src/EmberTrace.Analysis/EmberTrace.Analysis.csproj" />
-    <Project Path="src/EmberTrace.Export/EmberTrace.Export.csproj" />
-    <Project Path="src/EmberTrace.ReportText/EmberTrace.ReportText.csproj" />
-    <Project Path="src/EmberTrace.All/EmberTrace.All.csproj" />
-    <Project Path="src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj" />
-    <Project Path="src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj" />
-    <Project Path="src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/EmberTrace.Tests/EmberTrace.Tests.csproj" />
-    <Project Path="tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj" />
-    <Project Path="tests/EmberTrace.Generator.Tests/EmberTrace.Generator.Tests.csproj" />
-  </Folder>
+    <Folder Name="/samples/">
+        <Project Path="samples/EmberTrace.BasicTracing/EmberTrace.BasicTracing.csproj"/>
+        <Project Path="samples/EmberTrace.ParallelWorkers/EmberTrace.ParallelWorkers.csproj"/>
+        <Project Path="samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj"/>
+        <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj"/>
+    </Folder>
+    <Folder Name="/benchmarks/">
+        <Project Path="benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj"/>
+    </Folder>
+    <Folder Name="/src/">
+        <Project Path="src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj"/>
+        <Project Path="src/EmberTrace.Generator/EmberTrace.Generator.csproj"/>
+        <Project Path="src/EmberTrace/EmberTrace.csproj"/>
+        <Project Path="src/EmberTrace.Analysis/EmberTrace.Analysis.csproj"/>
+        <Project Path="src/EmberTrace.Export/EmberTrace.Export.csproj"/>
+        <Project Path="src/EmberTrace.ReportText/EmberTrace.ReportText.csproj"/>
+        <Project Path="src/EmberTrace.All/EmberTrace.All.csproj"/>
+        <Project Path="src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj"/>
+        <Project Path="src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj"/>
+        <Project Path="src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj"/>
+    </Folder>
+    <Folder Name="/tests/">
+        <Project Path="tests/EmberTrace.Tests/EmberTrace.Tests.csproj"/>
+        <Project Path="tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj"/>
+        <Project Path="tests/EmberTrace.Generator.Tests/EmberTrace.Generator.Tests.csproj"/>
+    </Folder>
 </Solution>

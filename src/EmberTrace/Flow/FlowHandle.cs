@@ -1,38 +1,37 @@
-using System.Threading;
 using EmberTrace.Tracing;
 
 namespace EmberTrace.Flow;
 
 public sealed class FlowHandle
 {
-    private readonly int _id;
-    private readonly long _flowId;
     private readonly Profiler _profiler;
     private int _ended;
 
-    public int Id => _id;
-    public long FlowId => _flowId;
-    public bool IsValid => _flowId != 0;
-
     internal FlowHandle(int id, long flowId, Profiler profiler)
     {
-        _id = id;
-        _flowId = flowId;
+        Id = id;
+        FlowId = flowId;
         _profiler = profiler;
     }
+
+    public int Id { get; }
+
+    public long FlowId { get; }
+
+    public bool IsValid => FlowId != 0;
 
     public void Step()
     {
         if (!IsValid) return;
         if (Volatile.Read(ref _ended) != 0) return;
-        _profiler.FlowStep(_id, _flowId);
+        _profiler.FlowStep(Id, FlowId);
     }
 
     public bool TryEnd()
     {
         if (!IsValid) return false;
         if (Interlocked.Exchange(ref _ended, 1) != 0) return false;
-        _profiler.FlowEnd(_id, _flowId);
+        _profiler.FlowEnd(Id, FlowId);
         return true;
     }
 

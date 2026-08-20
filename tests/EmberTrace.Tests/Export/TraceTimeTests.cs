@@ -1,5 +1,4 @@
 using EmberTrace.Export;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Export;
 

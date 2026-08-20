@@ -1,17 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.RoslynAnalyzers.Tests;
 
@@ -22,15 +15,15 @@ public class UsageCodeFixProviderTests
     public async Task ETA001_LocalDeclaration_GetsUsingKeyword()
     {
         const string code = """
-            using EmberTrace;
-            class C
-            {
-                void M()
-                {
-                    var scope = Tracer.Scope(1);
-                }
-            }
-            """;
+                            using EmberTrace;
+                            class C
+                            {
+                                void M()
+                                {
+                                    var scope = Tracer.Scope(1);
+                                }
+                            }
+                            """;
 
         var fixedCode = await ApplyFixAsync(code, UsageAnalyzers.ScopeNotDisposedId);
 
@@ -41,16 +34,16 @@ public class UsageCodeFixProviderTests
     public async Task ETA002_LocalDeclaration_GetsAwaitUsingKeyword()
     {
         const string code = """
-            using EmberTrace;
-            using System.Threading.Tasks;
-            class C
-            {
-                async Task M()
-                {
-                    var scope = Tracer.ScopeAsync(1);
-                }
-            }
-            """;
+                            using EmberTrace;
+                            using System.Threading.Tasks;
+                            class C
+                            {
+                                async Task M()
+                                {
+                                    var scope = Tracer.ScopeAsync(1);
+                                }
+                            }
+                            """;
 
         var fixedCode = await ApplyFixAsync(code, UsageAnalyzers.AsyncScopeNotAwaitedId);
 
@@ -61,16 +54,16 @@ public class UsageCodeFixProviderTests
     public async Task ETA002_UsingDeclaration_GainsAwaitOnly()
     {
         const string code = """
-            using EmberTrace;
-            using System.Threading.Tasks;
-            class C
-            {
-                async Task M()
-                {
-                    using var scope = Tracer.ScopeAsync(1);
-                }
-            }
-            """;
+                            using EmberTrace;
+                            using System.Threading.Tasks;
+                            class C
+                            {
+                                async Task M()
+                                {
+                                    using var scope = Tracer.ScopeAsync(1);
+                                }
+                            }
+                            """;
 
         var fixedCode = await ApplyFixAsync(code, UsageAnalyzers.AsyncScopeNotAwaitedId);
 
@@ -81,43 +74,46 @@ public class UsageCodeFixProviderTests
     public async Task ETA001_BareInvocation_WrapsRestOfBlock()
     {
         const string code = """
-            using EmberTrace;
-            using System;
-            class C
-            {
-                void M()
-                {
-                    Console.WriteLine("before");
-                    Tracer.Scope(1);
-                    Console.WriteLine("inside");
-                    Console.WriteLine("also inside");
-                }
-            }
-            """;
+                            using EmberTrace;
+                            using System;
+                            class C
+                            {
+                                void M()
+                                {
+                                    Console.WriteLine("before");
+                                    Tracer.Scope(1);
+                                    Console.WriteLine("inside");
+                                    Console.WriteLine("also inside");
+                                }
+                            }
+                            """;
 
         var fixedCode = await ApplyFixAsync(code, UsageAnalyzers.ScopeNotDisposedId);
 
         StringAssert.Contains(fixedCode, "using (Tracer.Scope(1))");
 
         var usingIndex = fixedCode.IndexOf("using (Tracer.Scope(1))", StringComparison.Ordinal);
-        Assert.IsLessThan(usingIndex, fixedCode.IndexOf("\"before\"", StringComparison.Ordinal), "Preceding statements stay outside the scope");
-        Assert.IsGreaterThan(usingIndex, fixedCode.IndexOf("\"inside\"", StringComparison.Ordinal), "Following statements move inside the scope");
-        Assert.IsGreaterThan(usingIndex, fixedCode.IndexOf("\"also inside\"", StringComparison.Ordinal), "Every following statement moves inside the scope");
+        Assert.IsLessThan(usingIndex, fixedCode.IndexOf("\"before\"", StringComparison.Ordinal),
+            "Preceding statements stay outside the scope");
+        Assert.IsGreaterThan(usingIndex, fixedCode.IndexOf("\"inside\"", StringComparison.Ordinal),
+            "Following statements move inside the scope");
+        Assert.IsGreaterThan(usingIndex, fixedCode.IndexOf("\"also inside\"", StringComparison.Ordinal),
+            "Every following statement moves inside the scope");
     }
 
     [TestMethod]
     public async Task ETA001_BareInvocation_KeepsCodeCompilable()
     {
         const string code = """
-            using EmberTrace;
-            class C
-            {
-                void M()
-                {
-                    Tracer.Scope(1);
-                }
-            }
-            """;
+                            using EmberTrace;
+                            class C
+                            {
+                                void M()
+                                {
+                                    Tracer.Scope(1);
+                                }
+                            }
+                            """;
 
         var fixedCode = await ApplyFixAsync(code, UsageAnalyzers.ScopeNotDisposedId);
 
@@ -170,13 +166,9 @@ public class UsageCodeFixProviderTests
         };
 
         if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa)
-        {
             foreach (var path in tpa.Split(Path.PathSeparator))
-            {
                 if (File.Exists(path))
                     refs.Add(MetadataReference.CreateFromFile(path));
-            }
-        }
 
         return refs;
     }

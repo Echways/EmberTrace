@@ -1,8 +1,5 @@
-using System;
 using System.Diagnostics;
-using System.Threading;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
 using EmberTrace.Flow;
 using EmberTrace.Internal;
 using EmberTrace.Metadata;
@@ -11,12 +8,11 @@ using EmberTrace.Tracing;
 
 namespace EmberTrace;
 
-public static partial class Tracer
+public static class Tracer
 {
-    internal static readonly Profiler Default = new();
-
     private const string DefaultCategory = "Default";
     private const int DefaultMaxTrackedNames = 16_384;
+    internal static readonly Profiler Default = new();
 
     internal static readonly RuntimeMetadataProvider Names = new(DefaultMaxTrackedNames);
 
@@ -24,56 +20,6 @@ public static partial class Tracer
         (int)RuntimeConfig.GetEnum("EmberTrace.IdCollisionMode", TracerIdCollisionMode.Warn);
 
     public static bool IsRunning => Default.IsRunning;
-
-    public static void Start(SessionOptions? options = null) => Default.Start(options);
-
-    public static TraceSession Stop() => Default.Stop();
-
-    public static Scope Scope(int id) => Default.Scope(id);
-
-    public static AsyncScope ScopeAsync(int id) => new AsyncScope(id, Default);
-
-    public static long NewFlowId() => Default.NewFlowId();
-
-    public static long FlowStartNew(int id) => Default.FlowStartNew(id);
-
-    public static FlowScope Flow(int id) => Default.Flow(id);
-
-    public static void FlowStart(int id, long flowId) => Default.FlowStart(id, flowId);
-
-    public static void FlowStep(int id, long flowId) => Default.FlowStep(id, flowId);
-
-    public static void FlowEnd(int id, long flowId) => Default.FlowEnd(id, flowId);
-
-    [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
-    public static long FlowFromActivityCurrent(int id)
-    {
-        if (!IsRunning)
-            return 0;
-
-        if (!EmberTrace.ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
-            return 0;
-
-        if (flowId == 0)
-            return 0;
-
-        Default.FlowStart(id, flowId);
-        Default.FlowStep(id, flowId);
-        Default.FlowEnd(id, flowId);
-        return flowId;
-    }
-
-    public static void Instant(int id) => Default.Instant(id);
-
-    public static void Counter(int id, long value) => Default.Counter(id, value);
-
-    public static FlowHandle FlowStartNewHandle(int id) => Default.FlowStartNewHandle(id);
-
-    public static void FlowEnd(FlowHandle handle) => handle.End();
-
-    public static void FlowStep(FlowHandle handle) => handle.Step();
-
-    public static ITraceMetadataProvider CreateMetadata() => Default.Metadata;
 
     public static TracerIdCollisionMode IdCollisionMode
     {
@@ -89,6 +35,104 @@ public static partial class Tracer
         set => Names.MaxEntries = value;
     }
 
+    public static void Start(SessionOptions? options = null)
+    {
+        Default.Start(options);
+    }
+
+    public static TraceSession Stop()
+    {
+        return Default.Stop();
+    }
+
+    public static Scope Scope(int id)
+    {
+        return Default.Scope(id);
+    }
+
+    public static AsyncScope ScopeAsync(int id)
+    {
+        return new AsyncScope(id, Default);
+    }
+
+    public static long NewFlowId()
+    {
+        return Default.NewFlowId();
+    }
+
+    public static long FlowStartNew(int id)
+    {
+        return Default.FlowStartNew(id);
+    }
+
+    public static FlowScope Flow(int id)
+    {
+        return Default.Flow(id);
+    }
+
+    public static void FlowStart(int id, long flowId)
+    {
+        Default.FlowStart(id, flowId);
+    }
+
+    public static void FlowStep(int id, long flowId)
+    {
+        Default.FlowStep(id, flowId);
+    }
+
+    public static void FlowEnd(int id, long flowId)
+    {
+        Default.FlowEnd(id, flowId);
+    }
+
+    [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
+    public static long FlowFromActivityCurrent(int id)
+    {
+        if (!IsRunning)
+            return 0;
+
+        if (!ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
+            return 0;
+
+        if (flowId == 0)
+            return 0;
+
+        Default.FlowStart(id, flowId);
+        Default.FlowStep(id, flowId);
+        Default.FlowEnd(id, flowId);
+        return flowId;
+    }
+
+    public static void Instant(int id)
+    {
+        Default.Instant(id);
+    }
+
+    public static void Counter(int id, long value)
+    {
+        Default.Counter(id, value);
+    }
+
+    public static FlowHandle FlowStartNewHandle(int id)
+    {
+        return Default.FlowStartNewHandle(id);
+    }
+
+    public static void FlowEnd(FlowHandle handle)
+    {
+        handle.End();
+    }
+
+    public static void FlowStep(FlowHandle handle)
+    {
+        handle.Step();
+    }
+
+    public static ITraceMetadataProvider CreateMetadata()
+    {
+        return Default.Metadata;
+    }
+
     public static int Id(string name)
     {
         var id = TraceIds.Stable(name);
@@ -99,7 +143,10 @@ public static partial class Tracer
         return id;
     }
 
-    public static int CategoryId(string category) => TraceIds.Category(category);
+    public static int CategoryId(string category)
+    {
+        return TraceIds.Category(category);
+    }
 
     private static void HandleIdCollision(int id, string existingName, string newName)
     {
@@ -125,8 +172,10 @@ public readonly struct TracerIdCollision(int id, string existingName, string new
     public string ExistingName { get; } = existingName;
     public string NewName { get; } = newName;
 
-    public override string ToString() =>
-        $"Tracer.Id collision: '{ExistingName}' and '{NewName}' map to {Id}.";
+    public override string ToString()
+    {
+        return $"Tracer.Id collision: '{ExistingName}' and '{NewName}' map to {Id}.";
+    }
 }
 
 public enum TracerIdCollisionMode

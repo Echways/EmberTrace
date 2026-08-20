@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
@@ -57,11 +54,11 @@ internal static class TextReportWriter
         var list = trace.HotspotsByInclusiveDesc;
         var n = Math.Min(top, list.Count);
 
-        for (int i = 0; i < n; i++)
+        for (var i = 0; i < n; i++)
         {
             var r = list[i];
-            var exclPct = trace.DurationMs <= 0 ? 0 : (r.ExclusiveMs / trace.DurationMs) * 100.0;
-            var inclPct = trace.DurationMs <= 0 ? 0 : (r.InclusiveMs / trace.DurationMs) * 100.0;
+            var exclPct = trace.DurationMs <= 0 ? 0 : r.ExclusiveMs / trace.DurationMs * 100.0;
+            var inclPct = trace.DurationMs <= 0 ? 0 : r.InclusiveMs / trace.DurationMs * 100.0;
 
             Resolve(meta, r.Id, out var name, out var cat);
             if (!MatchesCategory(categoryFilter, cat))
@@ -92,7 +89,7 @@ internal static class TextReportWriter
     {
         sb.AppendLine("Call trees");
 
-        for (int i = 0; i < trace.Threads.Count; i++)
+        for (var i = 0; i < trace.Threads.Count; i++)
         {
             var th = trace.Threads[i];
             sb.AppendLine();
@@ -101,8 +98,8 @@ internal static class TextReportWriter
             var t = new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms");
             t.AddSeparator();
 
-            for (int c = 0; c < th.Root.Children.Count; c++)
-                WriteNode(t, th.Root.Children[c], meta, depth: 0, maxDepth, trace.DurationMs, categoryFilter, minPercent);
+            for (var c = 0; c < th.Root.Children.Count; c++)
+                WriteNode(t, th.Root.Children[c], meta, 0, maxDepth, trace.DurationMs, categoryFilter, minPercent);
 
             t.WriteTo(sb);
         }
@@ -126,7 +123,7 @@ internal static class TextReportWriter
 
         if (minPercent > 0 && totalMs > 0)
         {
-            var inclPct = (node.InclusiveMs / totalMs) * 100.0;
+            var inclPct = node.InclusiveMs / totalMs * 100.0;
             if (inclPct < minPercent)
                 return;
         }
@@ -142,7 +139,7 @@ internal static class TextReportWriter
         if (depth + 1 >= maxDepth)
             return;
 
-        for (int i = 0; i < node.Children.Count; i++)
+        for (var i = 0; i < node.Children.Count; i++)
             WriteNode(t, node.Children[i], meta, depth + 1, maxDepth, totalMs, categoryFilter, minPercent);
     }
 
@@ -157,7 +154,7 @@ internal static class TextReportWriter
 
         var byCat = new Dictionary<string, (long Count, double InclMs, double ExclMs)>(StringComparer.Ordinal);
 
-        for (int i = 0; i < trace.HotspotsByInclusiveDesc.Count; i++)
+        for (var i = 0; i < trace.HotspotsByInclusiveDesc.Count; i++)
         {
             var r = trace.HotspotsByInclusiveDesc[i];
             Resolve(meta, r.Id, out _, out var cat);
@@ -183,7 +180,7 @@ internal static class TextReportWriter
         {
             var cat = kv.Key;
             var agg = kv.Value;
-            var exclPct = trace.DurationMs <= 0 ? 0 : (agg.ExclMs / trace.DurationMs) * 100.0;
+            var exclPct = trace.DurationMs <= 0 ? 0 : agg.ExclMs / trace.DurationMs * 100.0;
             t.AddRow(
                 cat,
                 agg.Count.ToString(),

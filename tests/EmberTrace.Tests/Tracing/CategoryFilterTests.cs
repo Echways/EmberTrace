@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 using EmberTrace.Tracing;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -26,14 +24,14 @@ public class CategoryFilterTests
     [TestMethod]
     public void IsActive_BothNull_ReturnsFalse()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: null, disabled: null);
+        var filter = new CategoryFilter(BuildMeta(), null, null);
         Assert.IsFalse(filter.IsActive);
     }
 
     [TestMethod]
     public void Allows_NoFilter_AlwaysReturnsTrue()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: null, disabled: null);
+        var filter = new CategoryFilter(BuildMeta(), null, null);
 
         Assert.IsTrue(filter.Allows(1));
         Assert.IsTrue(filter.Allows(2));
@@ -44,7 +42,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_EnabledList_PermitsOnlyMatchingCategories()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: [CatNetwork], disabled: null);
+        var filter = new CategoryFilter(BuildMeta(), [CatNetwork], null);
 
         Assert.IsTrue(filter.Allows(1), "id=1 has category Network → allowed");
         Assert.IsFalse(filter.Allows(2), "id=2 has category Rendering → not in enabled list");
@@ -54,7 +52,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_EnabledList_MultipleCategories_AllowsAny()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: [CatNetwork, CatAudio], disabled: null);
+        var filter = new CategoryFilter(BuildMeta(), [CatNetwork, CatAudio], null);
 
         Assert.IsTrue(filter.Allows(1), "Network → allowed");
         Assert.IsFalse(filter.Allows(2), "Rendering → not allowed");
@@ -64,7 +62,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_EnabledList_IdWithNoCategory_MapsToCategoryZero_NotAllowed()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: [CatNetwork], disabled: null);
+        var filter = new CategoryFilter(BuildMeta(), [CatNetwork], null);
 
         Assert.IsFalse(filter.Allows(4));
     }
@@ -72,7 +70,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_EnabledList_CompletelyUnknownId_NotAllowed()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: [CatNetwork], disabled: null);
+        var filter = new CategoryFilter(BuildMeta(), [CatNetwork], null);
 
         Assert.IsFalse(filter.Allows(9999));
     }
@@ -80,7 +78,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_DisabledList_BlocksOnlyMatchingCategories()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: null, disabled: [CatRendering]);
+        var filter = new CategoryFilter(BuildMeta(), null, [CatRendering]);
 
         Assert.IsTrue(filter.Allows(1), "Network → not disabled");
         Assert.IsFalse(filter.Allows(2), "Rendering → disabled");
@@ -90,7 +88,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_DisabledList_IdWithNoCategory_IsNotBlocked()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: null, disabled: [CatRendering]);
+        var filter = new CategoryFilter(BuildMeta(), null, [CatRendering]);
 
         Assert.IsTrue(filter.Allows(4));
     }
@@ -98,7 +96,7 @@ public class CategoryFilterTests
     [TestMethod]
     public void Allows_DisabledList_UnknownId_IsAllowed()
     {
-        var filter = new CategoryFilter(BuildMeta(), enabled: null, disabled: [CatRendering]);
+        var filter = new CategoryFilter(BuildMeta(), null, [CatRendering]);
 
         Assert.IsTrue(filter.Allows(9999));
     }
@@ -109,9 +107,9 @@ public class CategoryFilterTests
         var counter = new CountingMetadataProvider();
         counter.Add(1, "Fetch", "Network");
 
-        var filter = new CategoryFilter(counter, enabled: [CatNetwork], disabled: null);
+        var filter = new CategoryFilter(counter, [CatNetwork], null);
 
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
             filter.Allows(1);
 
         Assert.AreEqual(1, counter.CallCount,
@@ -122,8 +120,8 @@ public class CategoryFilterTests
     public void Allows_EnabledSetPresent_DisabledSetIsIgnored()
     {
         var filter = new CategoryFilter(BuildMeta(),
-            enabled: [CatNetwork],
-            disabled: [CatNetwork]);
+            [CatNetwork],
+            [CatNetwork]);
 
         Assert.IsTrue(filter.Allows(1), "Enabled set should take precedence");
     }
@@ -148,9 +146,9 @@ public class CategoryFilterTests
         ts.Stop();
 
         var meta = BuildMeta();
-        var directFilter = new CategoryFilter(meta, enabled: [Tracer.CategoryId("Network")], disabled: null);
+        var directFilter = new CategoryFilter(meta, [Tracer.CategoryId("Network")], null);
 
-        bool result = directFilter.Allows(category == "Network" ? 1 : category == "Rendering" ? 2 : 3);
+        var result = directFilter.Allows(category == "Network" ? 1 : category == "Rendering" ? 2 : 3);
         Assert.AreEqual(expected, result);
     }
 
@@ -159,13 +157,15 @@ public class CategoryFilterTests
         private readonly Dictionary<int, TraceMeta> _map = new();
         public int CallCount { get; private set; }
 
-        public void Add(int id, string name, string? category = null) =>
-            _map[id] = new TraceMeta(id, name, category);
-
         public bool TryGet(int id, out TraceMeta metadata)
         {
             CallCount++;
             return _map.TryGetValue(id, out metadata);
+        }
+
+        public void Add(int id, string name, string? category = null)
+        {
+            _map[id] = new TraceMeta(id, name, category);
         }
     }
 }

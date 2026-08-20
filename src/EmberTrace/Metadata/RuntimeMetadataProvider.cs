@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
 
 namespace EmberTrace.Metadata;
 
@@ -21,7 +19,10 @@ internal sealed class RuntimeMetadataProvider : ITraceMetadataProvider
         set => Volatile.Write(ref _maxEntries, value < 0 ? 0 : value);
     }
 
-    public bool TryGet(int id, out TraceMeta metadata) => _entries.TryGetValue(id, out metadata);
+    public bool TryGet(int id, out TraceMeta metadata)
+    {
+        return _entries.TryGetValue(id, out metadata);
+    }
 
     public bool TryRegister(int id, string name, string category, out string owner)
     {

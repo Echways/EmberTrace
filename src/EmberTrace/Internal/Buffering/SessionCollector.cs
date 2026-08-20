@@ -1,40 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Internal.Buffering;
 
 internal sealed class SessionCollector
 {
+    private readonly HashSet<Chunk> _active = new();
     private readonly List<Chunk> _chunks = new();
     private readonly Queue<Chunk> _inactive = new();
-    private readonly HashSet<Chunk> _active = new();
-    private readonly Dictionary<int, string> _threadNames = new();
-    private readonly object _sync = new();
+    private readonly int _maxTotalChunks;
+    private readonly long _maxTotalEvents;
+    private readonly Action<OverflowInfo>? _onOverflow;
+    private readonly OverflowPolicy _policy;
 
     private readonly ChunkPool _pool;
-    private readonly OverflowPolicy _policy;
-    private readonly long _maxTotalEvents;
-    private readonly int _maxTotalChunks;
-    private readonly Action<OverflowInfo>? _onOverflow;
-
-    private long _totalEvents;
-    private int _totalChunks;
-    private long _droppedEvents;
-    private long _droppedChunks;
-    private long _sampledOutEvents;
+    private readonly object _sync = new();
+    private readonly Dictionary<int, string> _threadNames = new();
 
     private int _closed;
+    private long _droppedChunks;
+    private long _droppedEvents;
     private int _overflowed;
+    private long _sampledOutEvents;
+    private int _totalChunks;
 
-    public bool IsClosed => Volatile.Read(ref _closed) == 1;
-    public bool WasOverflow => Volatile.Read(ref _overflowed) == 1;
-    public long DroppedEvents => Interlocked.Read(ref _droppedEvents);
-    public long DroppedChunks => Interlocked.Read(ref _droppedChunks);
-    public long SampledOutEvents => Interlocked.Read(ref _sampledOutEvents);
-
-    public void Close() => Interlocked.Exchange(ref _closed, 1);
+    private long _totalEvents;
 
     public SessionCollector(SessionOptions options, ChunkPool pool, int chunkCapacity)
     {
@@ -49,6 +38,39 @@ internal sealed class SessionCollector
             var chunks = (_maxTotalEvents + chunkCapacity - 1) / chunkCapacity;
             _maxTotalChunks = chunks > int.MaxValue ? int.MaxValue : (int)Math.Max(1, chunks);
         }
+    }
+
+    public bool IsClosed => Volatile.Read(ref _closed) == 1;
+    public bool WasOverflow => Volatile.Read(ref _overflowed) == 1;
+    public long DroppedEvents => Interlocked.Read(ref _droppedEvents);
+    public long DroppedChunks => Interlocked.Read(ref _droppedChunks);
+    public long SampledOutEvents => Interlocked.Read(ref _sampledOutEvents);
+
+    public IReadOnlyList<Chunk> Chunks
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _chunks.ToArray();
+            }
+        }
+    }
+
+    public IReadOnlyDictionary<int, string> ThreadNames
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return new Dictionary<int, string>(_threadNames);
+            }
+        }
+    }
+
+    public void Close()
+    {
+        Interlocked.Exchange(ref _closed, 1);
     }
 
     public bool TryAcceptEvent()
@@ -84,6 +106,7 @@ internal sealed class SessionCollector
                     MarkOverflow(OverflowReason.MaxTotalEvents);
                     return false;
                 }
+
                 return true;
             default:
                 Interlocked.Decrement(ref _totalEvents);
@@ -149,7 +172,7 @@ internal sealed class SessionCollector
                 if (TryDropOldestChunk(out var dropped) && dropped is not null)
                 {
                     chunk = dropped;
-                    RegisterChunk(chunk, incrementTotalChunks: false);
+                    RegisterChunk(chunk, false);
                     return true;
                 }
 
@@ -167,7 +190,7 @@ internal sealed class SessionCollector
         }
 
         chunk = _pool.Rent();
-        RegisterChunk(chunk, incrementTotalChunks: true);
+        RegisterChunk(chunk, true);
         return true;
     }
 
@@ -277,39 +300,7 @@ internal sealed class SessionCollector
 
         ThreadPool.UnsafeQueueUserWorkItem(
             new OverflowNotification(handler, new OverflowInfo(reason, _policy)),
-            preferLocal: false);
-    }
-
-    private sealed class OverflowNotification(Action<OverflowInfo> handler, OverflowInfo info) : IThreadPoolWorkItem
-    {
-        public void Execute()
-        {
-            try
-            {
-                handler(info);
-            }
-            catch
-            {
-            }
-        }
-    }
-
-    public IReadOnlyList<Chunk> Chunks
-    {
-        get
-        {
-            lock (_sync)
-                return _chunks.ToArray();
-        }
-    }
-
-    public IReadOnlyDictionary<int, string> ThreadNames
-    {
-        get
-        {
-            lock (_sync)
-                return new Dictionary<int, string>(_threadNames);
-        }
+            false);
     }
 
     public void Clear()
@@ -327,6 +318,20 @@ internal sealed class SessionCollector
             Volatile.Write(ref _droppedEvents, 0L);
             Volatile.Write(ref _droppedChunks, 0L);
             Volatile.Write(ref _sampledOutEvents, 0L);
+        }
+    }
+
+    private sealed class OverflowNotification(Action<OverflowInfo> handler, OverflowInfo info) : IThreadPoolWorkItem
+    {
+        public void Execute()
+        {
+            try
+            {
+                handler(info);
+            }
+            catch
+            {
+            }
         }
     }
 }

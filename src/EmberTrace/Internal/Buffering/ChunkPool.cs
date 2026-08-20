@@ -4,8 +4,8 @@ namespace EmberTrace.Internal.Buffering;
 
 internal sealed class ChunkPool
 {
-    private readonly ConcurrentQueue<Chunk> _free = new();
     private readonly int _capacity;
+    private readonly ConcurrentQueue<Chunk> _free = new();
 
     public ChunkPool(int capacity)
     {

@@ -1,9 +1,4 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EmberTrace;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -27,9 +22,9 @@ public class StressTests
             var runners = Enumerable.Range(0, tasks)
                 .Select(taskIndex => Task.Run(() =>
                 {
-                    for (int i = 0; i < iterations; i++)
+                    for (var i = 0; i < iterations; i++)
                     {
-                        var scopeId = scopeIdBase + (taskIndex % 3);
+                        var scopeId = scopeIdBase + taskIndex % 3;
                         using (ts.Scope(scopeId))
                         {
                             if (i % flowEvery == 0)
@@ -72,11 +67,11 @@ public class StressTests
             var runners = Enumerable.Range(0, tasks)
                 .Select(_ => Task.Run(async () =>
                 {
-                    for (int i = 0; i < iterations; i++)
-                    {
+                    for (var i = 0; i < iterations; i++)
                         await using (ts.ScopeAsync(id))
+                        {
                             await Task.Delay(1);
-                    }
+                        }
                 }));
 
             await Task.WhenAll(runners);

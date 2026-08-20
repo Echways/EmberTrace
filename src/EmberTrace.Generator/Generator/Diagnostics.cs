@@ -10,7 +10,7 @@ internal static class Diagnostics
         "Duplicate TraceId '{0}' already used by '{1}'",
         "EmberTrace.Generator",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        true);
 
     internal static readonly DiagnosticDescriptor EmptyName = new(
         "ETG002",
@@ -18,7 +18,7 @@ internal static class Diagnostics
         "TraceId '{0}' has an empty name",
         "EmberTrace.Generator",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     internal static readonly DiagnosticDescriptor EmptyCategory = new(
         "ETG003",
@@ -26,7 +26,7 @@ internal static class Diagnostics
         "TraceId '{0}' has an empty category",
         "EmberTrace.Generator",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     internal static readonly DiagnosticDescriptor InvalidTraceIdArgument = new(
         "ETG004",
@@ -34,7 +34,7 @@ internal static class Diagnostics
         "TraceId is ignored because its arguments are not a constant 'int' id and 'string' name",
         "EmberTrace.Generator",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     internal static readonly DiagnosticDescriptor NonConstantTraceField = new(
         "ETG005",
@@ -42,7 +42,7 @@ internal static class Diagnostics
         "Trace metadata attributes are ignored here because they only apply to 'const int' fields",
         "EmberTrace.Generator",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     internal static readonly DiagnosticDescriptor ConflictingConstantName = new(
         "ETG006",
@@ -50,5 +50,5 @@ internal static class Diagnostics
         "TraceId names '{0}' and '{1}' both normalize to '{2}'; '{1}' is emitted as '{3}'",
         "EmberTrace.Generator",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 }

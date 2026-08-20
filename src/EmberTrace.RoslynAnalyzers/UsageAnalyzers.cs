@@ -21,7 +21,7 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         "Scope should be wrapped in a using statement",
         "EmberTrace.Usage",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     private static readonly DiagnosticDescriptor AsyncScopeNotAwaited = new(
         AsyncScopeNotAwaitedId,
@@ -29,7 +29,7 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         "AsyncScope should be wrapped in an await using statement",
         "EmberTrace.Usage",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     private static readonly DiagnosticDescriptor FlowHandleNotEnded = new(
         FlowHandleNotEndedId,
@@ -37,7 +37,7 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         "FlowHandle should call End or TryEnd",
         "EmberTrace.Usage",
         DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        true);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(ScopeNotDisposed, AsyncScopeNotAwaited, FlowHandleNotEnded);
@@ -65,12 +65,13 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
                 ctx => AnalyzeInvocation(ctx, tracingTypes),
                 SyntaxKind.InvocationExpression);
 
-            startContext.RegisterOperationBlockStartAction(
-                ctx => AnalyzeFlowHandleBlock(ctx, tracingTypes, flowHandleType));
+            startContext.RegisterOperationBlockStartAction(ctx =>
+                AnalyzeFlowHandleBlock(ctx, tracingTypes, flowHandleType));
         });
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, ImmutableArray<INamedTypeSymbol> tracingTypes)
+    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context,
+        ImmutableArray<INamedTypeSymbol> tracingTypes)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         var symbol = context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken).Symbol as IMethodSymbol;
@@ -151,7 +152,8 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
         });
     }
 
-    private static bool IsFlowStartNewHandle(IInvocationOperation invocation, ImmutableArray<INamedTypeSymbol> tracingTypes)
+    private static bool IsFlowStartNewHandle(IInvocationOperation invocation,
+        ImmutableArray<INamedTypeSymbol> tracingTypes)
     {
         var method = invocation.TargetMethod;
         return method.Name == "FlowStartNewHandle" &&
@@ -165,12 +167,16 @@ public sealed class UsageAnalyzers : DiagnosticAnalyzer
             case UsingStatementSyntax usingStatement when usingStatement.Expression == invocation:
                 return new UsingInfo(true, usingStatement.AwaitKeyword != default);
 
-            case EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax declaration } }:
+            case EqualsValueClauseSyntax
+            {
+                Parent: VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax declaration }
+            }:
                 return declaration.Parent switch
                 {
                     UsingStatementSyntax usingStatement => new UsingInfo(true, usingStatement.AwaitKeyword != default),
-                    LocalDeclarationStatementSyntax local when local.UsingKeyword != default => new UsingInfo(true, local.AwaitKeyword != default),
-                    _ => default,
+                    LocalDeclarationStatementSyntax local when local.UsingKeyword != default => new UsingInfo(true,
+                        local.AwaitKeyword != default),
+                    _ => default
                 };
 
             default:

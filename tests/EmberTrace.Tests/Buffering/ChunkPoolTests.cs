@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using EmberTrace.Internal.Buffering;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Buffering;
 
@@ -20,7 +14,7 @@ public class ChunkPoolTests
         Parallel.For(0, chunks.Length, i => pool.Return(chunks[i]));
 
         var rented = new HashSet<Chunk>();
-        for (int i = 0; i < chunks.Length; i++)
+        for (var i = 0; i < chunks.Length; i++)
             rented.Add(pool.Rent());
 
         Assert.HasCount(chunks.Length, rented);
@@ -34,7 +28,7 @@ public class ChunkPoolTests
     public void RentAndReturn_UnderConcurrency_NeverHandsOneChunkToTwoThreads()
     {
         var pool = new ChunkPool(4);
-        for (int i = 0; i < 32; i++)
+        for (var i = 0; i < 32; i++)
             pool.Return(new Chunk(4));
 
         var collisions = 0;
@@ -42,7 +36,7 @@ public class ChunkPoolTests
         Parallel.For(0, Environment.ProcessorCount * 2, _ =>
         {
             var marker = Environment.CurrentManagedThreadId;
-            for (int i = 0; i < 100_000; i++)
+            for (var i = 0; i < 100_000; i++)
             {
                 var chunk = pool.Rent();
                 chunk.Count = marker;

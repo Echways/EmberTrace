@@ -1,35 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
 
-    <AssemblyName>EmberTrace.Export</AssemblyName>
-    <RootNamespace>EmberTrace.Export</RootNamespace>
+        <AssemblyName>EmberTrace.Export</AssemblyName>
+        <RootNamespace>EmberTrace.Export</RootNamespace>
 
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);1591</NoWarn>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
 
-    <PackageId>EmberTrace.Export</PackageId>
-    <Title>EmberTrace.Export</Title>
-    <Description>Export EmberTrace sessions to Chrome Trace format.</Description>
-    <Authors>Echways</Authors>
-    <PackageTags>tracing;export;chrome-trace;dotnet</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-  </PropertyGroup>
+        <PackageId>EmberTrace.Export</PackageId>
+        <Title>EmberTrace.Export</Title>
+        <Description>Export EmberTrace sessions to Chrome Trace format.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;export;chrome-trace;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <InternalsVisibleTo Include="EmberTrace.Tests" />
-  </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="EmberTrace.Tests"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\EmberTrace\EmberTrace.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="" />
-  </ItemGroup>
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
 
 </Project>

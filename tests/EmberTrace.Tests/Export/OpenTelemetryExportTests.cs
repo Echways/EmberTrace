@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
 using EmberTrace.Metadata;
 using EmberTrace.OpenTelemetry;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Export;
 
@@ -20,9 +16,16 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_NullSession_ThrowsArgumentNullException()
     {
-        bool threw = false;
-        try { OpenTelemetryExport.CreateSpans(null!); }
-        catch (ArgumentNullException) { threw = true; }
+        var threw = false;
+        try
+        {
+            OpenTelemetryExport.CreateSpans(null!);
+        }
+        catch (ArgumentNullException)
+        {
+            threw = true;
+        }
+
         Assert.IsTrue(threw, "Expected ArgumentNullException for null session");
     }
 
@@ -38,7 +41,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_OnlyCounterAndInstantEvents_ReturnsEmpty()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var session = BuildSession(
             new TraceEvent(1, 1, 0, TraceEventKind.Instant, 0, 0),
             new TraceEvent(2, 1, freq, TraceEventKind.Counter, 0, 99));
@@ -51,7 +54,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_SingleBeginEnd_ProducesOneSpan()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var meta = Meta(1, "TestOp");
 
         var session = BuildSession(
@@ -67,7 +70,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_UnknownId_UsesIdAsSpanName()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         const int id = 12345;
 
         var session = BuildSession(
@@ -82,10 +85,10 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_TimestampDelta_ConvertsToCorrectUtcOffset()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var session = BuildSession(
-            startTs: 0,
-            endTs: freq * 2,
+            0,
+            freq * 2,
             new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0));
 
@@ -106,12 +109,12 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_BaseUtcOverride_IsRespected()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var customBase = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         var session = BuildSession(
-            startTs: 0,
-            endTs: freq,
+            0,
+            freq,
             new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(1, 1, freq / 2, TraceEventKind.End, 0, 0));
 
@@ -124,11 +127,11 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_NestedScopes_InnerSpanParentIsOuter()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         long t0 = 0;
-        long t1 = freq / 10;
-        long t2 = freq * 3 / 10;
-        long t3 = freq * 4 / 10;
+        var t1 = freq / 10;
+        var t2 = freq * 3 / 10;
+        var t3 = freq * 4 / 10;
 
         var meta = new DictionaryTraceMetadataProvider();
         meta.Add(1, "outer");
@@ -154,7 +157,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_MultipleRoots_NoParent()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var meta = new DictionaryTraceMetadataProvider();
         meta.Add(1, "A");
         meta.Add(2, "B");
@@ -169,19 +172,19 @@ public class OpenTelemetryExportTests
 
         Assert.HasCount(2, spans);
         foreach (var span in spans)
-            Assert.AreEqual(default(ActivitySpanId), span.ParentSpanId,
+            Assert.AreEqual(default, span.ParentSpanId,
                 $"Root span '{span.DisplayName}' should have no parent");
     }
 
     [TestMethod]
     public void CreateSpans_UnclosedSpan_AutoClosedAtSessionEnd()
     {
-        long freq = Timestamp.Frequency;
-        long endTs = freq * 2;
+        var freq = Timestamp.Frequency;
+        var endTs = freq * 2;
 
         var session = BuildSession(
-            startTs: 0,
-            endTs: endTs,
+            0,
+            endTs,
             new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0));
 
         var opts = new OpenTelemetryExportOptions { BaseUtc = FixedBase };
@@ -193,13 +196,14 @@ public class OpenTelemetryExportTests
         var expectedEnd = FixedBase.UtcDateTime + TimeSpan.FromSeconds(endTs / (double)freq);
         var actualEnd = spans[0].StartTimeUtc + spans[0].Duration;
         var diffMs = Math.Abs((actualEnd - expectedEnd).TotalMilliseconds);
-        Assert.IsLessThan(1.0, diffMs, $"Unclosed span end time should be within 1 ms of session end, diff={diffMs:F3} ms");
+        Assert.IsLessThan(1.0, diffMs,
+            $"Unclosed span end time should be within 1 ms of session end, diff={diffMs:F3} ms");
     }
 
     [TestMethod]
     public void CreateSpans_IncludeFlowsAsLinks_FlowEventsAddLinksToCurrentSpan()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         const long flowId = 42L;
 
         var session = BuildSession(
@@ -218,7 +222,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_IncludeFlowsAsLinksFalse_FlowEventsIgnored()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         const long flowId = 42L;
 
         var session = BuildSession(
@@ -236,7 +240,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_ThreadIdTagPresent_ByDefault()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         const int threadId = 7;
 
         var session = BuildSession(
@@ -254,7 +258,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_IncludeThreadIdTagFalse_TagAbsent()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
 
         var session = BuildSession(
             new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
@@ -270,7 +274,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_CategoryPresentInMeta_AddsCategoryTag()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var meta = new DictionaryTraceMetadataProvider();
         meta.Add(1, "Fetch", "Network");
 
@@ -287,7 +291,7 @@ public class OpenTelemetryExportTests
     [TestMethod]
     public void CreateSpans_DoesNotDisturbAmbientActivity()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var session = BuildSession(
             new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(2, 1, freq / 4, TraceEventKind.Begin, 0, 0),
@@ -309,7 +313,7 @@ public class OpenTelemetryExportTests
             {
                 Assert.AreNotEqual(ambient.TraceId, span.TraceId,
                     $"exported span '{span.DisplayName}' must not join the caller's live trace");
-                Assert.AreNotEqual(default(ActivitySpanId), span.SpanId,
+                Assert.AreNotEqual(default, span.SpanId,
                     $"exported span '{span.DisplayName}' must carry a real W3C span id");
             }
         }
@@ -324,16 +328,23 @@ public class OpenTelemetryExportTests
     public void Export_NullCallback_ThrowsArgumentNullException()
     {
         var session = BuildSession();
-        bool threw = false;
-        try { OpenTelemetryExport.Export(session, null!); }
-        catch (ArgumentNullException) { threw = true; }
+        var threw = false;
+        try
+        {
+            OpenTelemetryExport.Export(session, null!);
+        }
+        catch (ArgumentNullException)
+        {
+            threw = true;
+        }
+
         Assert.IsTrue(threw, "Expected ArgumentNullException for null onSpan callback");
     }
 
     [TestMethod]
     public void Export_CallsCallbackForEachSpan()
     {
-        long freq = Timestamp.Frequency;
+        var freq = Timestamp.Frequency;
         var session = BuildSession(
             new TraceEvent(1, 1, 0, TraceEventKind.Begin, 0, 0),
             new TraceEvent(1, 1, freq, TraceEventKind.End, 0, 0),
@@ -346,8 +357,10 @@ public class OpenTelemetryExportTests
         Assert.HasCount(2, received);
     }
 
-    private static TraceSession BuildSession(params TraceEvent[] events) =>
-        BuildSession(startTs: 0, endTs: Timestamp.Frequency, events);
+    private static TraceSession BuildSession(params TraceEvent[] events)
+    {
+        return BuildSession(0, Timestamp.Frequency, events);
+    }
 
     private static TraceSession BuildSession(long startTs, long endTs, params TraceEvent[] events)
     {
@@ -365,18 +378,20 @@ public class OpenTelemetryExportTests
 
         return new TraceSession(
             chunks,
-            startTimestamp: startTs,
-            endTimestamp: endTs,
-            options: new SessionOptions(),
-            threadNames: new Dictionary<int, string>(),
-            droppedEvents: 0,
-            droppedChunks: 0,
-            sampledOutEvents: 0,
-            wasOverflow: false);
+            startTs,
+            endTs,
+            new SessionOptions(),
+            new Dictionary<int, string>(),
+            0,
+            0,
+            0,
+            false);
     }
 
-    private static OpenTelemetryExportOptions Opts() =>
-        new() { BaseUtc = FixedBase };
+    private static OpenTelemetryExportOptions Opts()
+    {
+        return new OpenTelemetryExportOptions { BaseUtc = FixedBase };
+    }
 
     private static DictionaryTraceMetadataProvider Meta(int id, string name)
     {

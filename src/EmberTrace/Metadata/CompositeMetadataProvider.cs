@@ -1,13 +1,11 @@
-using System;
 using System.Collections.Frozen;
-using System.Collections.Generic;
 
 namespace EmberTrace.Metadata;
 
 internal sealed class CompositeMetadataProvider : ITraceMetadataProvider
 {
-    private readonly FrozenDictionary<int, TraceMeta> _flattened;
     private readonly ITraceMetadataProvider[] _fallbacks;
+    private readonly FrozenDictionary<int, TraceMeta> _flattened;
 
     private CompositeMetadataProvider(FrozenDictionary<int, TraceMeta> flattened, ITraceMetadataProvider[] fallbacks)
     {
@@ -15,12 +13,25 @@ internal sealed class CompositeMetadataProvider : ITraceMetadataProvider
         _fallbacks = fallbacks;
     }
 
+    public bool TryGet(int id, out TraceMeta metadata)
+    {
+        if (_flattened.TryGetValue(id, out metadata))
+            return true;
+
+        for (var i = 0; i < _fallbacks.Length; i++)
+            if (_fallbacks[i].TryGet(id, out metadata))
+                return true;
+
+        metadata = default;
+        return false;
+    }
+
     public static ITraceMetadataProvider Create(IReadOnlyList<ITraceMetadataProvider> providers)
     {
         var flattened = new Dictionary<int, TraceMeta>();
         List<ITraceMetadataProvider>? fallbacks = null;
 
-        for (int i = 0; i < providers.Count; i++)
+        for (var i = 0; i < providers.Count; i++)
         {
             var provider = providers[i];
             if (provider is IEnumerable<TraceMeta> entries)
@@ -48,20 +59,5 @@ internal sealed class CompositeMetadataProvider : ITraceMetadataProvider
         Array.Copy(_fallbacks, merged, _fallbacks.Length);
         merged[^1] = provider;
         return new CompositeMetadataProvider(_flattened, merged);
-    }
-
-    public bool TryGet(int id, out TraceMeta metadata)
-    {
-        if (_flattened.TryGetValue(id, out metadata))
-            return true;
-
-        for (int i = 0; i < _fallbacks.Length; i++)
-        {
-            if (_fallbacks[i].TryGet(id, out metadata))
-                return true;
-        }
-
-        metadata = default;
-        return false;
     }
 }

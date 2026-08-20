@@ -1,5 +1,3 @@
-using System;
-
 namespace EmberTrace.Abstractions.Attributes;
 
 [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]

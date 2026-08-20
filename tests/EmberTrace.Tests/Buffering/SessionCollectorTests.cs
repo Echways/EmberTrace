@@ -1,8 +1,5 @@
-using System.Linq;
-using System.Threading.Tasks;
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Buffering;
 
@@ -26,7 +23,7 @@ public class SessionCollectorTests
         var addChunkTasks = Enumerable.Range(0, chunkTasks)
             .Select(_idx => Task.Run(() =>
             {
-                for (int i = 0; i < chunksPerTask; i++)
+                for (var i = 0; i < chunksPerTask; i++)
                     collector.TryRentChunk(out _);
             }));
 

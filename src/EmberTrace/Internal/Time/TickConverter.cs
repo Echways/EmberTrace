@@ -9,5 +9,8 @@ internal readonly struct TickConverter
         _frequency = frequency;
     }
 
-    public double ToMs(long ticks) => ticks * 1000.0 / _frequency;
+    public double ToMs(long ticks)
+    {
+        return ticks * 1000.0 / _frequency;
+    }
 }

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace EmberTrace.Analysis.Stats;
 
 public sealed class TraceStats

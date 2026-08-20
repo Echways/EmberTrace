@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -10,8 +7,8 @@ namespace EmberTrace.Tests.Tracing;
 [DoNotParallelize]
 public class TracerNameRegistryTests
 {
-    private TracerIdCollisionMode _mode;
     private Action<TracerIdCollision>? _handler;
+    private TracerIdCollisionMode _mode;
 
     [TestInitialize]
     public void Save()

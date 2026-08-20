@@ -1,9 +1,4 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using EmberTrace;
 using EmberTrace.Sessions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EmberTrace.Tests.Tracing;
 
@@ -62,10 +57,8 @@ public class FlowScopeTests
 
         var flowEvents = new List<TraceEventRecord>();
         foreach (var e in session.EnumerateEvents())
-        {
             if (e.Id == id)
                 flowEvents.Add(e);
-        }
 
         Assert.AreEqual(1, flowEvents.Count(e => e.Kind == TraceEventKind.FlowStart));
         Assert.AreEqual(1, flowEvents.Count(e => e.Kind == TraceEventKind.FlowStep));
@@ -97,10 +90,8 @@ public class FlowScopeTests
 
         var flowEvents = new List<TraceEventRecord>();
         foreach (var e in session.EnumerateEvents())
-        {
             if (e.Id == id)
                 flowEvents.Add(e);
-        }
 
         Assert.AreEqual(1, flowEvents.Count(e => e.Kind == TraceEventKind.FlowStart));
         Assert.AreEqual(1, flowEvents.Count(e => e.Kind == TraceEventKind.FlowStep));
