@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace EmberTrace.Internal.Buffering;
@@ -23,10 +24,9 @@ internal sealed class SampleTicketPool
 
         if (everyNById is not null)
         {
-            foreach (var pair in everyNById)
+            foreach (var pair in everyNById.Where(pair => pair.Value > 1))
             {
-                if (pair.Value > 1)
-                    _slotsById[pair.Key] = new SampleSlot(_slotsById.Count + 1, pair.Value);
+                _slotsById[pair.Key] = new SampleSlot(_slotsById.Count + 1, pair.Value);
             }
         }
 
