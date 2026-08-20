@@ -16,7 +16,7 @@ public static class TraceMetadata
         while (true)
         {
             var current = Volatile.Read(ref _registered);
-            var next = Compose(current, provider);
+            var next = Combine(current, provider);
 
             if (Interlocked.CompareExchange(ref _registered, next, current) == current)
                 return;
@@ -28,7 +28,7 @@ public static class TraceMetadata
         return Volatile.Read(ref _registered) ?? new DictionaryTraceMetadataProvider();
     }
 
-    private static ITraceMetadataProvider Compose(ITraceMetadataProvider? current, ITraceMetadataProvider next)
+    internal static ITraceMetadataProvider Combine(ITraceMetadataProvider? current, ITraceMetadataProvider next)
     {
         if (current is null)
             return next;

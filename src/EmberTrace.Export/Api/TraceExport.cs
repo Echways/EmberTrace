@@ -293,7 +293,7 @@ public static class TraceExport
         try
         {
             using var fs = File.Create(outputPath);
-            var meta = CreateOverlayMeta(markerId, name);
+            var meta = CreateOverlayMeta(session.Metadata, markerId, name);
             WriteChromeCompleteSlice(session, fs, meta, window.MinTs, window.MaxTs, pid, processName, markerId, name);
         }
         catch (Exception ex)
@@ -449,11 +449,8 @@ public static class TraceExport
     static string SanitizeTag(string tag) =>
         MapChars(tag, static c => char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_');
 
-    static ITraceMetadataProvider CreateOverlayMeta(int markerId, string name)
-    {
-        var baseMeta = TraceMetadata.CreateDefault();
-        return new OverlayTraceMetadataProvider(baseMeta, markerId, name);
-    }
+    static ITraceMetadataProvider CreateOverlayMeta(ITraceMetadataProvider baseMeta, int markerId, string name) =>
+        new OverlayTraceMetadataProvider(baseMeta, markerId, name);
 
     static (long MinTs, long MaxTs) FindMarkerWindow(TraceSession session, int markerId)
     {

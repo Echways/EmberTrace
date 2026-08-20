@@ -15,6 +15,7 @@ internal sealed class Profiler
 {
     private int _enabled;
     private ProfilingState? _state;
+    private ITraceMetadataProvider? _metadata;
     private long _nextFlowId;
 
     [ThreadStatic] private static long _cachedSessionId;
@@ -22,30 +23,30 @@ internal sealed class Profiler
 
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
+    public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
+
     public void Start(SessionOptions? options = null)
     {
         if (Interlocked.Exchange(ref _enabled, 1) == 1)
             throw new InvalidOperationException("Profiler session already running.");
 
         var opts = options ?? new SessionOptions();
-#if DEBUG
-        Tracer.EnableRuntimeMetadata();
-#else
-        if (opts.EnableRuntimeMetadata)
-            Tracer.EnableRuntimeMetadata();
-#endif
         var chunkCapacity = Math.Max(1024, opts.ChunkCapacity);
         var collector = new SessionCollector(opts, new ChunkPool(chunkCapacity), chunkCapacity);
         _nextFlowId = 0;
 
         var meta = TraceMetadata.CreateDefault();
+        if (opts.EnableRuntimeMetadata)
+            meta = TraceMetadata.Combine(meta, Tracer.Names);
+
         CategoryFilter? categoryFilter = null;
         if ((opts.EnabledCategoryIds?.Length ?? 0) > 0 || (opts.DisabledCategoryIds?.Length ?? 0) > 0)
             categoryFilter = new CategoryFilter(meta, opts.EnabledCategoryIds, opts.DisabledCategoryIds);
 
         var sampling = new SamplingPolicy(opts.SampleEveryNGlobal, opts.SampleEveryNById, opts.MaxEventsPerSecond);
 
-        _state = new ProfilingState(opts, collector, categoryFilter, sampling, Timestamp.Now());
+        _metadata = meta;
+        _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now());
     }
 
     public TraceSession Stop()
@@ -57,7 +58,7 @@ internal sealed class Profiler
         _state = null;
 
         if (state is null)
-            return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false);
+            return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false, Metadata);
 
         state.EndTs = Timestamp.Now();
 
@@ -88,7 +89,8 @@ internal sealed class Profiler
             collector.DroppedEvents,
             collector.DroppedChunks,
             collector.SampledOutEvents,
-            collector.WasOverflow);
+            collector.WasOverflow,
+            state.Metadata);
     }
 
     public Scope Scope(int id)

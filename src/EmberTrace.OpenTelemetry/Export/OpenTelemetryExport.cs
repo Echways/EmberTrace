@@ -24,7 +24,7 @@ public static class OpenTelemetryExport
         if (session is null) throw new ArgumentNullException(nameof(session));
 
         options ??= new OpenTelemetryExportOptions();
-        meta ??= TraceMetadata.CreateDefault();
+        meta ??= session.Metadata;
 
         var baseUtc = options.BaseUtc ?? DateTimeOffset.UtcNow - TimeSpan.FromSeconds(session.DurationMs / 1000.0);
         var spans = new List<Activity>(capacity: (int)Math.Min(int.MaxValue, session.EventCount / 2));

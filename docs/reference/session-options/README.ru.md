@@ -33,7 +33,16 @@ English version: [./README.md](./README.md)
 
 ## Метаданные
 
-- `EnableRuntimeMetadata` — регистрировать runtime‑метаданные (см. `Tracer.Id`)
+- `EnableRuntimeMetadata` — подмешивать имена, записанные через `Tracer.Id`, в метаданные этой
+  сессии (по умолчанию `false`, в любой конфигурации сборки). Действует только на саму сессию:
+  глобальный реестр провайдеров не меняется. Значение по умолчанию можно переключить без кода —
+  через host configuration switch `EmberTrace.EnableRuntimeMetadata`:
+
+```xml
+<ItemGroup>
+  <RuntimeHostConfigurationOption Include="EmberTrace.EnableRuntimeMetadata" Value="true" />
+</ItemGroup>
+```
 
 ## Callbacks
 

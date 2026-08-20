@@ -22,7 +22,7 @@ internal static class ChromeTraceExporter
         if (session is null) throw new ArgumentNullException(nameof(session));
         if (output is null) throw new ArgumentNullException(nameof(output));
 
-        meta ??= TraceMetadata.CreateDefault();
+        meta ??= session.Metadata;
 
         var start = session.StartTimestamp;
         var freq = session.TimestampFrequency;
@@ -72,7 +72,7 @@ internal static class ChromeTraceExporter
         if (session is null) throw new ArgumentNullException(nameof(session));
         if (output is null) throw new ArgumentNullException(nameof(output));
 
-        meta ??= TraceMetadata.CreateDefault();
+        meta ??= session.Metadata;
 
         var start = session.StartTimestamp;
         var freq = session.TimestampFrequency;

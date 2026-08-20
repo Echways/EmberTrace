@@ -257,6 +257,7 @@ public static class TraceSessionExtensions
             DroppedChunks = session.DroppedChunks,
             SampledOutEvents = session.SampledOutEvents,
             WasOverflow = session.WasOverflow,
+            Metadata = session.Metadata,
             Threads = threadList,
             GlobalRoot = globalFrozen,
             HotspotsByInclusiveDesc = hotList

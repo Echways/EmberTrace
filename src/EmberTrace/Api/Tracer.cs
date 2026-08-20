@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using EmberTrace.Flow;
+using EmberTrace.Internal;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 using EmberTrace.Tracing;
@@ -15,28 +15,13 @@ public static partial class Tracer
 {
     internal static readonly Profiler Default = new();
 
-    private static readonly ConcurrentDictionary<int, string> IdToName = new();
-    private static int _trackedNames;
-    private static RuntimeMetadataProvider? _runtimeMetadata;
-    private static int _runtimeMetadataEnabled;
-    private static int _runtimeMetadataRegistered;
     private const string DefaultCategory = "Default";
+    private const int DefaultMaxTrackedNames = 16_384;
 
-#if DEBUG
-    private const TracerIdCollisionMode DefaultIdCollisionMode = TracerIdCollisionMode.Throw;
-#else
-    private const TracerIdCollisionMode DefaultIdCollisionMode = TracerIdCollisionMode.Warn;
-#endif
+    internal static readonly RuntimeMetadataProvider Names = new(DefaultMaxTrackedNames);
 
-    private static int _idCollisionMode = (int)DefaultIdCollisionMode;
-    private static int _maxTrackedNames = 16_384;
-
-    static Tracer()
-    {
-#if DEBUG
-        EnableRuntimeMetadata();
-#endif
-    }
+    private static int _idCollisionMode =
+        (int)RuntimeConfig.GetEnum("EmberTrace.IdCollisionMode", TracerIdCollisionMode.Warn);
 
     public static bool IsRunning => Default.IsRunning;
 
@@ -88,7 +73,7 @@ public static partial class Tracer
 
     public static void FlowStep(FlowHandle handle) => handle.Step();
 
-    public static ITraceMetadataProvider CreateMetadata() => TraceMetadata.CreateDefault();
+    public static ITraceMetadataProvider CreateMetadata() => Default.Metadata;
 
     public static TracerIdCollisionMode IdCollisionMode
     {
@@ -100,84 +85,28 @@ public static partial class Tracer
 
     public static int MaxTrackedNames
     {
-        get => Volatile.Read(ref _maxTrackedNames);
-        set => Volatile.Write(ref _maxTrackedNames, value < 0 ? 0 : value);
+        get => Names.MaxEntries;
+        set => Names.MaxEntries = value;
     }
 
     public static int Id(string name)
     {
-        var id = StableId(name);
-        RegisterIdCollision(name, id);
-        RegisterRuntimeMetadata(id, name);
+        var id = TraceIds.Stable(name);
+
+        if (!Names.TryRegister(id, name, DefaultCategory, out var owner))
+            HandleIdCollision(id, owner, name);
+
         return id;
     }
 
-    public static int CategoryId(string category)
+    public static int CategoryId(string category) => TraceIds.Category(category);
+
+    private static void HandleIdCollision(int id, string existingName, string newName)
     {
-        if (string.IsNullOrWhiteSpace(category))
-            return 0;
-
-        return StableId(category);
-    }
-
-    internal static int StableId(string name)
-    {
-        if (name is null) throw new ArgumentNullException(nameof(name));
-
-        unchecked
-        {
-            const uint offset = 2166136261;
-            const uint prime = 16777619;
-
-            uint h = offset;
-            foreach (var t in name)
-            {
-                h ^= t;
-                h *= prime;
-            }
-
-            h &= 0x7fffffff;
-            if (h == 0) h = 1;
-            return (int)h;
-        }
-    }
-
-    private static void RegisterIdCollision(string name, int id)
-    {
-        var mode = (TracerIdCollisionMode)Volatile.Read(ref _idCollisionMode);
-#if !DEBUG
+        var mode = IdCollisionMode;
         if (mode == TracerIdCollisionMode.Ignore)
             return;
-#endif
 
-        if (IdToName.TryGetValue(id, out var existing))
-        {
-            if (!string.Equals(existing, name, StringComparison.Ordinal))
-                HandleIdCollision(mode, id, existing, name);
-            return;
-        }
-
-        if (!WithinNameLimit(Volatile.Read(ref _trackedNames)))
-            return;
-
-        if (IdToName.TryAdd(id, name))
-        {
-            Interlocked.Increment(ref _trackedNames);
-            return;
-        }
-
-        if (IdToName.TryGetValue(id, out existing) && !string.Equals(existing, name, StringComparison.Ordinal))
-            HandleIdCollision(mode, id, existing, name);
-    }
-
-    internal static bool WithinNameLimit(int tracked)
-    {
-        var limit = MaxTrackedNames;
-        return limit == 0 || tracked < limit;
-    }
-
-    private static void HandleIdCollision(TracerIdCollisionMode mode, int id, string existingName, string newName)
-    {
         var collision = new TracerIdCollision(id, existingName, newName);
         var handler = OnIdCollision;
         handler?.Invoke(collision);
@@ -187,44 +116,6 @@ public static partial class Tracer
 
         if (mode == TracerIdCollisionMode.Warn && handler is null)
             Trace.TraceWarning(collision.ToString());
-    }
-
-    internal static void EnableRuntimeMetadata()
-    {
-        Volatile.Write(ref _runtimeMetadataEnabled, 1);
-        var provider = EnsureRuntimeMetadataProvider();
-        if (provider is null)
-            return;
-
-        foreach (var entry in IdToName)
-            provider.Register(entry.Key, entry.Value, DefaultCategory);
-    }
-
-    private static void RegisterRuntimeMetadata(int id, string name)
-    {
-        var provider = EnsureRuntimeMetadataProvider();
-        if (provider is null)
-            return;
-
-        provider.Register(id, name, DefaultCategory);
-    }
-
-    private static RuntimeMetadataProvider? EnsureRuntimeMetadataProvider()
-    {
-        if (Volatile.Read(ref _runtimeMetadataEnabled) == 0)
-            return null;
-
-        var provider = _runtimeMetadata;
-        if (provider is null)
-        {
-            var created = new RuntimeMetadataProvider();
-            provider = Interlocked.CompareExchange(ref _runtimeMetadata, created, null) ?? created;
-        }
-
-        if (Interlocked.CompareExchange(ref _runtimeMetadataRegistered, 1, 0) == 0)
-            TraceMetadata.Register(provider);
-
-        return provider;
     }
 }
 

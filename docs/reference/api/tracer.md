@@ -127,10 +127,16 @@ Calls `handle.End()`.
 ## Metadata
 
 ### `ITraceMetadataProvider Tracer.CreateMetadata()`
-Creates the default metadata provider (names, categories, etc.) for trace interpretation.
+Returns the metadata provider (names, categories, etc.) of the current or most recent
+`Tracer` session, falling back to the globally registered providers before the first `Start`.
 
-If `SessionOptions.EnableRuntimeMetadata` is enabled, then `Tracer.Id("Name")` automatically
-registers a name with category `Default`.
+`Tracer.Id("Name")` always records the name with category `Default`. Those runtime names are
+mixed into a session's metadata only when that session was started with
+`SessionOptions.EnableRuntimeMetadata = true`, and only for that session — starting a session
+never mutates the global provider registry.
+
+Every completed session also exposes its own provider as `TraceSession.Metadata`, which the
+exporters and `TraceText.Write` use by default when no `meta` argument is passed.
 
 ---
 
@@ -150,9 +156,19 @@ Controls what happens when two distinct names hash to the same value.
 
 | Value | Behaviour | Default |
 |-------|-----------|---------|
-| `Throw` | Throws `InvalidOperationException` | **Yes** in `DEBUG` |
-| `Warn` | Invokes `Tracer.OnIdCollision`, or falls back to `Trace.TraceWarning` when no handler is set | **Yes** in `RELEASE` |
+| `Throw` | Throws `InvalidOperationException` | — |
+| `Warn` | Invokes `Tracer.OnIdCollision`, or falls back to `Trace.TraceWarning` when no handler is set | **Yes** |
 | `Ignore` | Silently keeps the first mapping; correctness not guaranteed | — |
+
+The mode only controls how a detected collision is reported; names are tracked the same way
+in every mode and in every build configuration. The starting value can be changed without code
+through the runtime host configuration property `EmberTrace.IdCollisionMode`:
+
+```xml
+<ItemGroup>
+  <RuntimeHostConfigurationOption Include="EmberTrace.IdCollisionMode" Value="Throw" />
+</ItemGroup>
+```
 
 > **Recommendation for CI**: set `Tracer.IdCollisionMode = TracerIdCollisionMode.Throw` early in your test entry point. This surfaces collisions immediately rather than letting them corrupt traces silently.
 

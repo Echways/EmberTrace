@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 using EmberTrace.Tracing;
 
@@ -17,6 +18,7 @@ internal sealed class ProfilingState
     public long Id { get; } = Interlocked.Increment(ref _nextId);
     public SessionOptions Options { get; }
     public SessionCollector Collector { get; }
+    public ITraceMetadataProvider Metadata { get; }
     public CategoryFilter? CategoryFilter { get; }
     public SamplingPolicy Sampling { get; }
     public long StartTs { get; }
@@ -25,12 +27,14 @@ internal sealed class ProfilingState
     public ProfilingState(
         SessionOptions options,
         SessionCollector collector,
+        ITraceMetadataProvider metadata,
         CategoryFilter? categoryFilter,
         SamplingPolicy sampling,
         long startTs)
     {
         Options = options;
         Collector = collector;
+        Metadata = metadata;
         CategoryFilter = categoryFilter;
         Sampling = sampling;
         StartTs = startTs;

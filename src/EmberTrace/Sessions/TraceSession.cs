@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Metadata;
 
 namespace EmberTrace.Sessions;
 
 public sealed class TraceSession
 {
     private readonly IReadOnlyList<Chunk> _chunks;
+    private readonly ITraceMetadataProvider? _metadata;
 
     internal TraceSession(
         IReadOnlyList<Chunk> chunks,
@@ -17,9 +19,11 @@ public sealed class TraceSession
         long droppedEvents,
         long droppedChunks,
         long sampledOutEvents,
-        bool wasOverflow)
+        bool wasOverflow,
+        ITraceMetadataProvider? metadata = null)
     {
         _chunks = chunks;
+        _metadata = metadata;
         StartTimestamp = startTimestamp;
         EndTimestamp = endTimestamp;
         Options = options;
@@ -38,6 +42,8 @@ public sealed class TraceSession
     public long DroppedChunks { get; }
     public long SampledOutEvents { get; }
     public bool WasOverflow { get; }
+
+    public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
 
     public long TimestampFrequency => EmberTrace.Internal.Time.Timestamp.Frequency;
 

@@ -33,7 +33,16 @@ for the process is `MaxEventsPerSecond` x number of threads that write events.
 
 ## Metadata
 
-- `EnableRuntimeMetadata` - register runtime metadata (see `Tracer.Id`)
+- `EnableRuntimeMetadata` - mix the names recorded by `Tracer.Id` into this session's metadata
+  (default `false`, in every build configuration). Scoped to the session: it never registers a
+  provider globally. The default can be flipped without code through the host configuration
+  switch `EmberTrace.EnableRuntimeMetadata`:
+
+```xml
+<ItemGroup>
+  <RuntimeHostConfigurationOption Include="EmberTrace.EnableRuntimeMetadata" Value="true" />
+</ItemGroup>
+```
 
 ## Callbacks
 

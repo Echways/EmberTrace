@@ -127,10 +127,15 @@ Flows — связанный набор событий (start/step/end), кот�
 ## Metadata
 
 ### `ITraceMetadataProvider Tracer.CreateMetadata()`
-Создаёт дефолтный провайдер метаданных (имена, категории и т.п.) для последующей интерпретации трассы.
+Возвращает провайдер метаданных (имена, категории и т.п.) текущей или последней сессии `Tracer`,
+а до первого `Start` — глобально зарегистрированные провайдеры.
 
-Если включён `SessionOptions.EnableRuntimeMetadata`, то `Tracer.Id("Name")` автоматически
-регистрирует имя с категорией `Default`.
+`Tracer.Id("Name")` всегда запоминает имя с категорией `Default`. Эти runtime-имена попадают
+в метаданные сессии только если она была запущена с `SessionOptions.EnableRuntimeMetadata = true`,
+и только для этой сессии — запуск сессии никогда не меняет глобальный реестр провайдеров.
+
+Каждая завершённая сессия также отдаёт собственный провайдер через `TraceSession.Metadata`;
+именно его по умолчанию используют экспортёры и `TraceText.Write`, когда аргумент `meta` не передан.
 
 ---
 
@@ -150,9 +155,19 @@ Flows — связанный набор событий (start/step/end), кот�
 
 | Значение | Поведение | По умолчанию |
 |----------|-----------|--------------|
-| `Throw` | Бросает `InvalidOperationException` | **Да** в `DEBUG` |
-| `Warn` | Вызывает `Tracer.OnIdCollision`, а если обработчик не задан — `Trace.TraceWarning` | **Да** в `RELEASE` |
+| `Throw` | Бросает `InvalidOperationException` | — |
+| `Warn` | Вызывает `Tracer.OnIdCollision`, а если обработчик не задан — `Trace.TraceWarning` | **Да** |
 | `Ignore` | Тихо оставляет первое отображение; корректность не гарантируется | — |
+
+Режим управляет только тем, как сообщается об обнаруженной коллизии; имена отслеживаются
+одинаково во всех режимах и во всех конфигурациях сборки. Стартовое значение можно задать
+без кода — через host configuration property `EmberTrace.IdCollisionMode`:
+
+```xml
+<ItemGroup>
+  <RuntimeHostConfigurationOption Include="EmberTrace.IdCollisionMode" Value="Throw" />
+</ItemGroup>
+```
 
 > **Рекомендация для CI**: установи `Tracer.IdCollisionMode = TracerIdCollisionMode.Throw` в начале тестового entry point. Коллизии будут обнаружены немедленно, а не испортят трассировку незаметно.
 
