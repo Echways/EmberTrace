@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace EmberTrace.Generator.Generator;
@@ -47,12 +48,12 @@ internal static class SymbolDiscovery
 
     private static string? StringArgumentOf(ISymbol symbol, string attributeFullName)
     {
-        foreach (var attribute in symbol.GetAttributes())
+        foreach (var attribute in symbol.GetAttributes().Where(attribute =>
+                     attribute.AttributeClass?.ToDisplayString() == attributeFullName
+                     && attribute.ConstructorArguments.Length == 1
+                     && attribute.ConstructorArguments[0].Value is string))
         {
-            if (attribute.AttributeClass?.ToDisplayString() == attributeFullName
-                && attribute.ConstructorArguments.Length == 1
-                && attribute.ConstructorArguments[0].Value is string value)
-                return value;
+            return (string)attribute.ConstructorArguments[0].Value!;
         }
 
         return null;
