@@ -139,16 +139,12 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          pushed=0
+          packages=()
           for package in artifacts/packages/*.nupkg; do
             case "${package##*/}" in EmberTrace.All.*) continue ;; esac
-            dotnet nuget push "$package" \
-              --source https://api.nuget.org/v3/index.json \
-              --api-key "$NUGET_API_KEY" \
-              --skip-duplicate
-            pushed=$((pushed + 1))
+            packages+=("$package")
           done
-          [ "$pushed" -gt 0 ] || { echo "::error::No component packages to push"; exit 1; }
+          .github/scripts/nuget_push.sh "${packages[@]}"
 
   publish-meta:
     name: Publish meta package
@@ -188,10 +184,7 @@ jobs:
           shopt -s nullglob
           packages=(artifacts/packages/EmberTrace.All.*.nupkg)
           [ "${#packages[@]}" -gt 0 ] || { echo "::error::EmberTrace.All package is missing"; exit 1; }
-          dotnet nuget push "${packages[@]}" \
-            --source https://api.nuget.org/v3/index.json \
-            --api-key "$NUGET_API_KEY" \
-            --skip-duplicate
+          .github/scripts/nuget_push.sh "${packages[@]}"
 
   github-release:
     name: GitHub Release
