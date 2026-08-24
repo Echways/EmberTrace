@@ -1,7 +1,7 @@
 <Project>
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-        <RoslynVersion>5.0.0</RoslynVersion>
+        <RoslynVersion>5.9.0</RoslynVersion>
     </PropertyGroup>
 
     <ItemGroup Label="Roslyn">
@@ -13,7 +13,7 @@
     </ItemGroup>
 
     <ItemGroup Label="Runtime">
-        <PackageVersion Include="System.Composition.AttributedModel" Version="9.0.0" />
+        <PackageVersion Include="System.Composition.AttributedModel" Version="9.0.19" />
         <PackageVersion Include="System.Text.Json" Version="9.0.19" />
     </ItemGroup>
 
