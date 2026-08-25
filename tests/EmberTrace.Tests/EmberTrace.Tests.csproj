@@ -21,7 +21,9 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj"/>
+        <ProjectReference Include="../../src/EmberTrace.Analysis/EmberTrace.Analysis.csproj"/>
         <ProjectReference Include="../../src/EmberTrace.Export/EmberTrace.Export.csproj"/>
+        <ProjectReference Include="../../src/EmberTrace.Format/EmberTrace.Format.csproj"/>
         <ProjectReference Include="../../src/EmberTrace.ReportText/EmberTrace.ReportText.csproj"/>
         <ProjectReference Include="../../src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj"/>
     </ItemGroup>

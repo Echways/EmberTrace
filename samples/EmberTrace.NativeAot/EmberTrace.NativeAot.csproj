@@ -9,5 +9,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\EmberTrace\EmberTrace.csproj"/>
+        <ProjectReference Include="..\..\src\EmberTrace.Format\EmberTrace.Format.csproj"/>
     </ItemGroup>
 </Project>

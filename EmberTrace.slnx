@@ -14,6 +14,7 @@
         <Project Path="src/EmberTrace/EmberTrace.csproj"/>
         <Project Path="src/EmberTrace.Analysis/EmberTrace.Analysis.csproj"/>
         <Project Path="src/EmberTrace.Export/EmberTrace.Export.csproj"/>
+        <Project Path="src/EmberTrace.Format/EmberTrace.Format.csproj"/>
         <Project Path="src/EmberTrace.ReportText/EmberTrace.ReportText.csproj"/>
         <Project Path="src/EmberTrace.All/EmberTrace.All.csproj"/>
         <Project Path="src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj"/>

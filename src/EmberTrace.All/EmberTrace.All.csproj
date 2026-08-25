@@ -32,6 +32,7 @@
         <ProjectReference Include="..\EmberTrace.Generator\EmberTrace.Generator.csproj"/>
         <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj"/>
         <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Format\EmberTrace.Format.csproj"/>
         <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj"/>
         <ProjectReference Include="..\EmberTrace.OpenTelemetry\EmberTrace.OpenTelemetry.csproj"/>
     </ItemGroup>
@@ -42,6 +43,7 @@
         <PackageReference Include="EmberTrace.Generator"/>
         <PackageReference Include="EmberTrace.Analysis"/>
         <PackageReference Include="EmberTrace.Export"/>
+        <PackageReference Include="EmberTrace.Format"/>
         <PackageReference Include="EmberTrace.ReportText"/>
         <PackageReference Include="EmberTrace.OpenTelemetry"/>
     </ItemGroup>

@@ -60,6 +60,17 @@ public static class TraceMetadata
         }
     }
 
+    public static ITraceMetadataProvider FromEntries(IEnumerable<TraceMeta> entries)
+    {
+        if (entries is null) throw new ArgumentNullException(nameof(entries));
+
+        var provider = new DictionaryTraceMetadataProvider();
+        foreach (var entry in entries)
+            provider.Add(entry.Id, entry.Name, entry.Category);
+
+        return provider;
+    }
+
     internal static ITraceMetadataProvider Combine(ITraceMetadataProvider? current, ITraceMetadataProvider next)
     {
         if (current is null)

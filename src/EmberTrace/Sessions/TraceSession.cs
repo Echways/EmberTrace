@@ -19,7 +19,8 @@ public sealed class TraceSession
         long droppedChunks,
         long sampledOutEvents,
         bool wasOverflow,
-        ITraceMetadataProvider? metadata = null)
+        ITraceMetadataProvider? metadata = null,
+        long timestampFrequency = 0)
     {
         _chunks = chunks;
         _metadata = metadata;
@@ -31,6 +32,55 @@ public sealed class TraceSession
         DroppedChunks = droppedChunks;
         SampledOutEvents = sampledOutEvents;
         WasOverflow = wasOverflow;
+        TimestampFrequency = timestampFrequency > 0 ? timestampFrequency : Timestamp.Frequency;
+    }
+
+    public static TraceSession FromEvents(
+        IEnumerable<TraceEventRecord> events,
+        long startTimestamp,
+        long endTimestamp,
+        long timestampFrequency = 0,
+        IReadOnlyDictionary<int, string>? threadNames = null,
+        ITraceMetadataProvider? metadata = null,
+        long droppedEvents = 0,
+        long droppedChunks = 0,
+        long sampledOutEvents = 0,
+        bool wasOverflow = false,
+        SessionOptions? options = null)
+    {
+        if (events is null) throw new ArgumentNullException(nameof(events));
+
+        var sessionOptions = options ?? new SessionOptions();
+        var capacity = Math.Max(1024, sessionOptions.ChunkCapacity);
+
+        var chunks = new List<Chunk>();
+        var current = new Chunk(capacity);
+        chunks.Add(current);
+
+        foreach (var e in events)
+        {
+            if (current.IsFull)
+            {
+                current = new Chunk(capacity);
+                chunks.Add(current);
+            }
+
+            current.TryWrite(new TraceEvent(
+                e.Id, e.ThreadId, e.Timestamp, e.Kind, e.FlowId, e.Value, e.Sequence, e.TrackId));
+        }
+
+        return new TraceSession(
+            chunks,
+            startTimestamp,
+            endTimestamp,
+            sessionOptions,
+            threadNames ?? new Dictionary<int, string>(),
+            droppedEvents,
+            droppedChunks,
+            sampledOutEvents,
+            wasOverflow,
+            metadata,
+            timestampFrequency);
     }
 
     public long StartTimestamp { get; }
@@ -44,7 +94,7 @@ public sealed class TraceSession
 
     public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
 
-    public long TimestampFrequency => Timestamp.Frequency;
+    public long TimestampFrequency { get; }
 
     public double DurationMs => (EndTimestamp - StartTimestamp) * 1000.0 / TimestampFrequency;
 

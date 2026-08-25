@@ -4,6 +4,12 @@
     "net10.0": {
       "embertrace": {
         "type": "Project"
+      },
+      "embertrace.format": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.2.3, )"
+        }
       }
     }
   }
