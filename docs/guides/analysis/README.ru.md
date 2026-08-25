@@ -87,6 +87,7 @@ Console.WriteLine(text);
 - `includePercentiles` — добавляет колонки p50/p95/p99 в таблицу «горячих точек»
 
 См. также:
+- [Тесты производительности и гейты регрессий](../testing/README.ru.md)
 - [Экспорт](../export/README.ru.md)
 - [Использование и API](../usage/README.ru.md)
 

@@ -26,6 +26,7 @@ dotnet add package EmberTrace.All
 - `EmberTrace.Export` — Chrome Trace export (`TraceExport.*`)
 - `EmberTrace.Format` — бинарное сохранение сессии (`TraceFormat.Write/Read`)
 - `EmberTrace.OpenTelemetry` — экспорт в OpenTelemetry (`Activity`-спаны)
+- `EmberTrace.Testing` — проверки производительности и сравнение с базовой линией в тестах (`stats.Scope(...)`, `TraceBudget`)
 - `EmberTrace.RoslynAnalyzers` — анализаторы и code fixes для корректного использования (фиксы работают в IDE и идут в составе пакета)
 
 ## Быстрый старт
