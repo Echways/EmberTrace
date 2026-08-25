@@ -12,7 +12,8 @@ internal static class TextReportWriter
         int topHotspots = 10,
         int maxDepth = 3,
         string? categoryFilter = null,
-        double minPercent = 0)
+        double minPercent = 0,
+        bool includePercentiles = false)
     {
         var sb = new StringBuilder(32_768);
 
@@ -29,7 +30,7 @@ internal static class TextReportWriter
         sb.AppendLine($"MismatchedEnd: {trace.MismatchedEndCount}");
         sb.AppendLine();
 
-        WriteHotspots(sb, trace, meta, topHotspots, categoryFilter, minPercent);
+        WriteHotspots(sb, trace, meta, topHotspots, categoryFilter, minPercent, includePercentiles);
         sb.AppendLine();
         if (WriteCategoryGroups(sb, trace, meta, categoryFilter))
             sb.AppendLine();
@@ -44,10 +45,14 @@ internal static class TextReportWriter
         ITraceMetadataProvider? meta,
         int top,
         string? categoryFilter,
-        double minPercent)
+        double minPercent,
+        bool includePercentiles)
     {
         sb.AppendLine("Hotspots (by inclusive)");
-        var t = new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%");
+
+        var t = includePercentiles
+            ? new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%", "p50 ms", "p95 ms", "p99 ms")
+            : new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%");
 
         t.AddSeparator();
 
@@ -66,14 +71,27 @@ internal static class TextReportWriter
             if (minPercent > 0 && inclPct < minPercent)
                 continue;
 
-            t.AddRow(
-                r.Id.ToString(),
-                name,
-                cat,
-                r.Count.ToString(),
-                r.InclusiveMs.ToString("F3"),
-                r.ExclusiveMs.ToString("F3"),
-                exclPct.ToString("F2"));
+            if (includePercentiles)
+                t.AddRow(
+                    r.Id.ToString(),
+                    name,
+                    cat,
+                    r.Count.ToString(),
+                    r.InclusiveMs.ToString("F3"),
+                    r.ExclusiveMs.ToString("F3"),
+                    exclPct.ToString("F2"),
+                    r.P50Ms.ToString("F3"),
+                    r.P95Ms.ToString("F3"),
+                    r.P99Ms.ToString("F3"));
+            else
+                t.AddRow(
+                    r.Id.ToString(),
+                    name,
+                    cat,
+                    r.Count.ToString(),
+                    r.InclusiveMs.ToString("F3"),
+                    r.ExclusiveMs.ToString("F3"),
+                    exclPct.ToString("F2"));
         }
 
         t.WriteTo(sb);

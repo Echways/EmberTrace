@@ -29,9 +29,10 @@ public static class TraceSessionExtensions
                 perId.Add(step.Id, agg);
             }
 
-            agg.Add(dtTicks * 1000.0 / freq);
+            agg.Add(dtTicks, freq);
         }
 
+        var toMs = 1000.0 / freq;
         var list = new List<TraceIdStats>(perId.Count);
         foreach (var kv in perId)
         {
@@ -46,7 +47,12 @@ public static class TraceSessionExtensions
                 TotalMs = a.TotalMs,
                 AverageMs = a.Count == 0 ? 0 : a.TotalMs / a.Count,
                 MinMs = min,
-                MaxMs = a.MaxMs
+                MaxMs = a.MaxMs,
+                Durations = a.Histogram,
+                P50Ms = a.Histogram.PercentileTicks(50) * toMs,
+                P90Ms = a.Histogram.PercentileTicks(90) * toMs,
+                P95Ms = a.Histogram.PercentileTicks(95) * toMs,
+                P99Ms = a.Histogram.PercentileTicks(99) * toMs
             });
         }
 
@@ -109,6 +115,7 @@ public static class TraceSessionExtensions
             agg.Count++;
             agg.InclusiveTicks += inclusive;
             agg.ExclusiveTicks += exclusive;
+            agg.Histogram.Add(inclusive);
 
             if (step.ParentTag is TreeFrame parentFrame)
                 parentFrame.ChildTicks += inclusive;
@@ -165,7 +172,11 @@ public static class TraceSessionExtensions
                 Id = id,
                 Count = a.Count,
                 InclusiveMs = conv.ToMs(a.InclusiveTicks),
-                ExclusiveMs = conv.ToMs(a.ExclusiveTicks)
+                ExclusiveMs = conv.ToMs(a.ExclusiveTicks),
+                Durations = a.Histogram,
+                P50Ms = conv.ToMs(a.Histogram.PercentileTicks(50)),
+                P95Ms = conv.ToMs(a.Histogram.PercentileTicks(95)),
+                P99Ms = conv.ToMs(a.Histogram.PercentileTicks(99))
             });
         }
 
@@ -332,17 +343,22 @@ public static class TraceSessionExtensions
 
     private sealed class Agg
     {
+        public readonly DurationHistogram Histogram = new();
         public long Count;
         public double MaxMs;
         public double MinMs = double.PositiveInfinity;
         public double TotalMs;
 
-        public void Add(double ms)
+        public void Add(long ticks, long frequency)
         {
+            var ms = ticks * 1000.0 / frequency;
+
             Count++;
             TotalMs += ms;
             if (ms < MinMs) MinMs = ms;
             if (ms > MaxMs) MaxMs = ms;
+
+            Histogram.Add(ticks);
         }
     }
 
@@ -385,6 +401,7 @@ public static class TraceSessionExtensions
 
     private sealed class HotAgg
     {
+        public readonly DurationHistogram Histogram = new();
         public long Count;
         public long ExclusiveTicks;
         public long InclusiveTicks;

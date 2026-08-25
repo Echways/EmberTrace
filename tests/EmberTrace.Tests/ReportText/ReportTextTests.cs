@@ -1,3 +1,4 @@
+using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
@@ -50,6 +51,45 @@ public class ReportTextTests
         var filtered = TraceText.Write(trace, meta, categoryFilter: "IO");
         Assert.Contains("IO", filtered);
         Assert.DoesNotContain("CPU", filtered);
+    }
+
+    [TestMethod]
+    public void Write_WithoutPercentiles_OmitsTheColumns()
+    {
+        var trace = BuildUniformTrace();
+
+        var report = TraceText.Write(trace);
+
+        Assert.DoesNotContain("p95 ms", report);
+    }
+
+    [TestMethod]
+    public void Write_WithPercentiles_AddsTheColumns()
+    {
+        var trace = BuildUniformTrace();
+
+        var report = TraceText.Write(trace, includePercentiles: true);
+
+        Assert.Contains("p50 ms", report);
+        Assert.Contains("p95 ms", report);
+        Assert.Contains("p99 ms", report);
+    }
+
+    private static ProcessedTrace BuildUniformTrace()
+    {
+        var events = new List<TraceEventRecord>();
+        long ts = 0;
+        long sequence = 0;
+
+        for (var i = 0; i < 20; i++)
+        {
+            events.Add(new TraceEventRecord(1, 1, ts, TraceEventKind.Begin, 0, 0, ++sequence, 1));
+            ts += 5_000;
+            events.Add(new TraceEventRecord(1, 1, ts, TraceEventKind.End, 0, 0, ++sequence, 1));
+            ts += 1_000;
+        }
+
+        return TraceSession.FromEvents(events, 0, ts, 1_000_000).Process();
     }
 
     private sealed class TestMetaProvider : ITraceMetadataProvider
