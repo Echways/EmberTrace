@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using EmberTrace;
 using EmberTrace.Abstractions.Attributes;
+using EmberTrace.Sessions;
 
 [assembly: TraceId(Ids.App, "App", "App")]
 [assembly: TraceId(Ids.Warmup, "Warmup", "App")]
@@ -69,7 +70,12 @@ static void Worker(int workerId, int iterations)
     sw.Stop();
 }
 
-Tracer.Start();
+Tracer.Start(new SessionOptions
+{
+    ChunkCapacity = 64 * 1024,
+    RuntimeCounters = RuntimeCounters.All,
+    RuntimeCounterInterval = TimeSpan.FromMilliseconds(20)
+});
 
 using (var app = Tracer.Scope(Ids.App))
 {

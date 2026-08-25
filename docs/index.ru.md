@@ -10,6 +10,7 @@ English version: [./index.md](./index.md)
 ## Концепции
 
 - [Flow и async](concepts/flows/README.ru.md)
+- [Runtime-счётчики](guides/runtime-counters/README.ru.md)
 
 ## Экспорт и анализ
 

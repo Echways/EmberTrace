@@ -17,6 +17,8 @@ public sealed class SessionOptions
     public int SampleEveryNGlobal { get; init; } = 0;
     public IReadOnlyDictionary<int, int>? SampleEveryNById { get; init; }
     public int MaxEventsPerSecond { get; init; } = 0;
+    public RuntimeCounters RuntimeCounters { get; init; } = RuntimeCounters.None;
+    public TimeSpan RuntimeCounterInterval { get; init; } = TimeSpan.FromMilliseconds(50);
     public Action<OverflowInfo>? OnOverflow { get; init; }
     public Action<MismatchedEndInfo>? OnMismatchedEnd { get; init; }
 }

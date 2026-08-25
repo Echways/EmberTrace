@@ -61,6 +61,16 @@ internal sealed class ThreadWriter
 
     public void Write(int id, TraceEventKind kind, long flowId, long value)
     {
+        WriteWithTimestamp(id, kind, flowId, value, 0);
+    }
+
+    public void WriteAt(int id, TraceEventKind kind, long flowId, long value, long timestamp)
+    {
+        WriteWithTimestamp(id, kind, flowId, value, timestamp);
+    }
+
+    private void WriteWithTimestamp(int id, TraceEventKind kind, long flowId, long value, long timestamp)
+    {
         var collector = _collector;
         if (collector is null)
             return;
@@ -71,7 +81,7 @@ internal sealed class ThreadWriter
             if (collector.IsClosed)
                 return;
 
-            WriteCore(id, kind, flowId, value, collector);
+            WriteCore(id, kind, flowId, value, collector, timestamp);
         }
         finally
         {
@@ -79,12 +89,13 @@ internal sealed class ThreadWriter
         }
     }
 
-    private void WriteCore(int id, TraceEventKind kind, long flowId, long value, SessionCollector collector)
+    private void WriteCore(
+        int id, TraceEventKind kind, long flowId, long value, SessionCollector collector, long timestamp)
     {
         if (!ShouldSample(id, collector))
             return;
 
-        var now = Timestamp.Now();
+        var now = timestamp != 0 ? timestamp : Timestamp.Now();
         if (!ShouldAcceptRate(now, collector))
             return;
 

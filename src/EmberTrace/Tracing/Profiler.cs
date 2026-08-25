@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using EmberTrace.Flow;
 using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Internal.Runtime;
 using EmberTrace.Internal.Time;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -15,6 +16,7 @@ internal sealed class Profiler
     private int _enabled;
     private ITraceMetadataProvider? _metadata;
     private long _nextFlowId;
+    private RuntimeCounterSampler? _runtimeSampler;
     private ProfilingState? _state;
 
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
@@ -35,6 +37,9 @@ internal sealed class Profiler
         if (opts.EnableRuntimeMetadata)
             meta = TraceMetadata.Combine(meta, Tracer.Names);
 
+        if (opts.RuntimeCounters != RuntimeCounters.None)
+            meta = TraceMetadata.Combine(meta, RuntimeCounterMetadata.Instance);
+
         CategoryFilter? categoryFilter = null;
         if ((opts.EnabledCategoryIds?.Length ?? 0) > 0 || (opts.DisabledCategoryIds?.Length ?? 0) > 0)
             categoryFilter = new CategoryFilter(meta, opts.EnabledCategoryIds, opts.DisabledCategoryIds);
@@ -43,12 +48,23 @@ internal sealed class Profiler
 
         _metadata = meta;
         _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now());
+
+        if (opts.RuntimeCounters != RuntimeCounters.None)
+        {
+            var sampler = new RuntimeCounterSampler(this, opts.RuntimeCounters, opts.RuntimeCounterInterval);
+            _runtimeSampler = sampler;
+            sampler.Start();
+        }
     }
 
     public TraceSession Stop()
     {
         if (Interlocked.Exchange(ref _enabled, 0) == 0)
             throw new InvalidOperationException("Profiler session is not running.");
+
+        var sampler = _runtimeSampler;
+        _runtimeSampler = null;
+        sampler?.Dispose();
 
         var state = _state;
         _state = null;
@@ -201,6 +217,15 @@ internal sealed class Profiler
             writer = AcquireWriter(state);
 
         writer.Write(id, kind, flowId, value);
+    }
+
+    internal void WriteRuntime(int id, TraceEventKind kind, long value, long timestamp)
+    {
+        var state = _state;
+        if (state is null || state.Collector.IsClosed)
+            return;
+
+        state.GetWriter().WriteAt(id, kind, 0, value, timestamp);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

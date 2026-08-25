@@ -44,6 +44,15 @@ English version: [./README.md](./README.md)
 </ItemGroup>
 ```
 
+## Runtime-счётчики
+
+| Опция | По умолчанию | Смысл |
+|-------|--------------|-------|
+| `RuntimeCounters` | `RuntimeCounters.None` | Какие группы метрик рантайма снимать на отдельную дорожку. См. [Runtime-счётчики](../../guides/runtime-counters/README.ru.md). |
+| `RuntimeCounterInterval` | `50 мс` | Период сэмплирования. Зажимается в [1 мс, 60 с]. |
+
+Runtime-счётчики обходят `EnabledCategoryIds` / `DisabledCategoryIds`.
+
 ## Callbacks
 
 - `OnOverflow` — вызывается один раз при первом overflow
