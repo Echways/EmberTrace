@@ -21,6 +21,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="EmberTrace.Tests"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\EmberTrace\EmberTrace.csproj"/>
     </ItemGroup>
 

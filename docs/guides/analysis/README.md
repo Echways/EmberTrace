@@ -43,6 +43,25 @@ Flow chain analysis is also available:
 var flows = session.AnalyzeFlows(top: 10);
 ```
 
+## Percentiles
+
+`Analyze()` attaches a duration distribution to every id:
+
+```csharp
+var stats = session.Analyze();
+
+foreach (var row in stats.ByTotalTimeDesc)
+    Console.WriteLine($"{row.Id}: p50={row.P50Ms:F3} p95={row.P95Ms:F3} p99={row.P99Ms:F3} max={row.MaxMs:F3}");
+```
+
+`row.Durations` is the underlying `DurationHistogram` when an arbitrary percentile is needed:
+`row.Durations.PercentileTicks(99.9)`.
+
+`Process()` attaches the same distribution to every `HotspotRow` as `P50Ms`, `P95Ms` and `P99Ms`.
+
+Durations are bucketed with 5 significant bits: at most 3.125% relative error, always rounded up,
+exact below 64 ticks. `MinMs` and `MaxMs` are exact.
+
 ## Text report
 
 ```csharp
@@ -54,7 +73,8 @@ var text = TraceText.Write(
     topHotspots: 20,
     maxDepth: 8,
     categoryFilter: "IO",
-    minPercent: 1);
+    minPercent: 1,
+    includePercentiles: true);
 
 Console.WriteLine(text);
 ```
@@ -64,6 +84,7 @@ Parameters:
 - `maxDepth` - call tree depth
 - `categoryFilter` - category filter
 - `minPercent` - minimum percentage to display
+- `includePercentiles` - adds p50/p95/p99 columns to the hotspots table
 
 See also:
 - [Export](../export/README.md)

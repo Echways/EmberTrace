@@ -43,6 +43,25 @@ var stats = session.Analyze(strict: true);
 var flows = session.AnalyzeFlows(top: 10);
 ```
 
+## Перцентили
+
+`Analyze()` прикладывает к каждому id распределение длительностей:
+
+```csharp
+var stats = session.Analyze();
+
+foreach (var row in stats.ByTotalTimeDesc)
+    Console.WriteLine($"{row.Id}: p50={row.P50Ms:F3} p95={row.P95Ms:F3} p99={row.P99Ms:F3} max={row.MaxMs:F3}");
+```
+
+`row.Durations` — это сама гистограмма `DurationHistogram`, если нужен произвольный перцентиль:
+`row.Durations.PercentileTicks(99.9)`.
+
+`Process()` прикладывает то же распределение к каждой строке `HotspotRow` как `P50Ms`, `P95Ms` и `P99Ms`.
+
+Длительности раскладываются по корзинам с 5 значащими битами: относительная погрешность не больше
+3.125%, округление всегда вверх, ниже 64 тиков — точно. `MinMs` и `MaxMs` всегда точные.
+
 ## Текстовый отчёт
 
 ```csharp
@@ -54,7 +73,8 @@ var text = TraceText.Write(
     topHotspots: 20,
     maxDepth: 8,
     categoryFilter: "IO",
-    minPercent: 1);
+    minPercent: 1,
+    includePercentiles: true);
 
 Console.WriteLine(text);
 ```
@@ -64,6 +84,7 @@ Console.WriteLine(text);
 - `maxDepth` — глубина дерева вызовов
 - `categoryFilter` — фильтр по категории
 - `minPercent` — минимальный процент для вывода
+- `includePercentiles` — добавляет колонки p50/p95/p99 в таблицу «горячих точек»
 
 См. также:
 - [Экспорт](../export/README.ru.md)

@@ -12,8 +12,10 @@ public static class TraceText
         int topHotspots = 10,
         int maxDepth = 3,
         string? categoryFilter = null,
-        double minPercent = 0)
+        double minPercent = 0,
+        bool includePercentiles = false)
     {
-        return TextReportWriter.Write(trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent);
+        return TextReportWriter.Write(
+            trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent, includePercentiles);
     }
 }
