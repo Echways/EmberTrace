@@ -87,6 +87,7 @@ Parameters:
 - `includePercentiles` - adds p50/p95/p99 columns to the hotspots table
 
 See also:
+- [Performance testing and regression gates](../testing/README.md)
 - [Export](../export/README.md)
 - [Usage and API](../usage/README.md)
 

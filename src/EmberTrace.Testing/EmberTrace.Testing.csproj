@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+
+        <AssemblyName>EmberTrace.Testing</AssemblyName>
+        <RootNamespace>EmberTrace.Testing</RootNamespace>
+
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+
+        <PackageId>EmberTrace.Testing</PackageId>
+        <Title>EmberTrace.Testing</Title>
+        <Description>Performance assertions and baseline regression diffing for EmberTrace sessions. Test-framework agnostic.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;profiling;testing;performance;regression;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\EmberTrace.Analysis\EmberTrace.Analysis.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+
+</Project>

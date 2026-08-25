@@ -16,6 +16,7 @@ English version: [./index.md](./index.md)
 - [Экспорт в Chrome Trace](guides/export/README.ru.md)
 - [Анализ и текстовые отчёты](guides/analysis/README.ru.md)
 - [Бинарный формат сессии (.ember)](guides/format/README.ru.md)
+- [Тесты производительности и гейты регрессий](guides/testing/README.ru.md)
 
 ## Интеграции
 

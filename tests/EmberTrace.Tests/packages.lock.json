@@ -389,6 +389,12 @@
           "EmberTrace": "[0.2.3, )",
           "EmberTrace.Analysis": "[0.2.3, )"
         }
+      },
+      "embertrace.testing": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace.Analysis": "[0.2.3, )"
+        }
       }
     }
   }
