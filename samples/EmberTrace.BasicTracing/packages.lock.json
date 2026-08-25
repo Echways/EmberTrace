@@ -20,6 +20,12 @@
           "EmberTrace": "[0.2.3, )"
         }
       },
+      "embertrace.format": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.2.3, )"
+        }
+      },
       "embertrace.reporttext": {
         "type": "Project",
         "dependencies": {

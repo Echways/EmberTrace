@@ -49,6 +49,12 @@ using (var fs = File.Create(chromePath))
 
 Console.WriteLine("OK: " + chromePath);
 
+var tracePath = Path.Combine("out", "session" + TraceFormat.FileExtension);
+TraceFormat.Write(session, tracePath);
+
+var reloaded = TraceFormat.Read(tracePath);
+Console.WriteLine($"Saved {new FileInfo(tracePath).Length} bytes, reloaded {reloaded.EventCount} events.");
+
 internal static class Ids
 {
     public const int App = 1000;

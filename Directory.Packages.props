@@ -32,6 +32,7 @@
         <PackageVersion Include="EmberTrace.Generator" Version="$(Version)" />
         <PackageVersion Include="EmberTrace.Analysis" Version="$(Version)" />
         <PackageVersion Include="EmberTrace.Export" Version="$(Version)" />
+        <PackageVersion Include="EmberTrace.Format" Version="$(Version)" />
         <PackageVersion Include="EmberTrace.ReportText" Version="$(Version)" />
         <PackageVersion Include="EmberTrace.OpenTelemetry" Version="$(Version)" />
     </ItemGroup>

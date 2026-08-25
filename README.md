@@ -26,6 +26,7 @@ If you install packages selectively:
 - `EmberTrace.Analysis` - session processing (`session.Process()`)
 - `EmberTrace.ReportText` - text report (`TraceText.Write(...)`)
 - `EmberTrace.Export` - Chrome Trace export (`TraceExport.*`)
+- `EmberTrace.Format` - binary session persistence (`TraceFormat.Write/Read`)
 - `EmberTrace.OpenTelemetry` - export to OpenTelemetry (`Activity` spans)
 - `EmberTrace.RoslynAnalyzers` - analyzers and code fixes for correct usage (fixes run in IDE and are included in the
   package)

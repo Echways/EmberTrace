@@ -15,6 +15,7 @@
 
 - [Export to Chrome Trace](guides/export/README.md)
 - [Analysis and text reports](guides/analysis/README.md)
+- [Binary session format (.ember)](guides/format/README.md)
 
 ## Integrations
 
