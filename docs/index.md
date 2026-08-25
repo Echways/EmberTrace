@@ -10,6 +10,7 @@
 ## Concepts
 
 - [Flow and async](concepts/flows/README.md)
+- [Runtime counters](guides/runtime-counters/README.md)
 
 ## Export and Analysis
 

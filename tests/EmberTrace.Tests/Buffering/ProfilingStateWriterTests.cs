@@ -1,5 +1,6 @@
 using EmberTrace.Internal;
 using EmberTrace.Internal.Buffering;
+using EmberTrace.Internal.Time;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
@@ -60,5 +61,39 @@ public class ProfilingStateWriterTests
 
         Assert.HasCount(threads.Count, writers);
         Assert.HasCount(threads.Count, state.Writers.ToArray());
+    }
+
+    [TestMethod]
+    public void WriteAt_UsesTheSuppliedTimestamp()
+    {
+        var options = new SessionOptions { ChunkCapacity = 1024 };
+        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
+        var writer = new ThreadWriter(collector, new SamplingPolicy(0, null, 0), 1);
+
+        writer.WriteAt(42, TraceEventKind.Begin, 0, 0, 123_456);
+        writer.WriteAt(42, TraceEventKind.End, 0, 0, 123_999);
+
+        var chunk = collector.Chunks.Single();
+
+        Assert.AreEqual(2, chunk.Count);
+        Assert.AreEqual(123_456, chunk.Events[0].Timestamp);
+        Assert.AreEqual(123_999, chunk.Events[1].Timestamp);
+    }
+
+    [TestMethod]
+    public void Write_StillUsesTheCurrentClock()
+    {
+        var options = new SessionOptions { ChunkCapacity = 1024 };
+        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
+        var writer = new ThreadWriter(collector, new SamplingPolicy(0, null, 0), 1);
+
+        var before = Timestamp.Now();
+        writer.Write(42, TraceEventKind.Instant, 0, 0);
+        var after = Timestamp.Now();
+
+        var recorded = collector.Chunks.Single().Events[0].Timestamp;
+
+        Assert.IsTrue(recorded >= before && recorded <= after,
+            $"timestamp {recorded} must fall inside [{before}, {after}]");
     }
 }

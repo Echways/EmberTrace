@@ -44,6 +44,15 @@ for the process is `MaxEventsPerSecond` x number of threads that write events.
 </ItemGroup>
 ```
 
+## Runtime counters
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `RuntimeCounters` | `RuntimeCounters.None` | Which runtime metric groups to sample onto a dedicated track. See [Runtime counters](../../guides/runtime-counters/README.md). |
+| `RuntimeCounterInterval` | `50 ms` | Sampling period. Clamped to [1 ms, 60 s]. |
+
+Runtime counters bypass `EnabledCategoryIds` / `DisabledCategoryIds`.
+
 ## Callbacks
 
 - `OnOverflow` - called once on first overflow
