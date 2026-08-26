@@ -20,7 +20,7 @@ public static class ActivityBridge
         return flowId != 0;
     }
 
-    internal static long FlowIdFromTraceId(string traceId)
+    public static long FlowIdFromTraceId(string traceId)
     {
         if (string.IsNullOrWhiteSpace(traceId))
             return 0;

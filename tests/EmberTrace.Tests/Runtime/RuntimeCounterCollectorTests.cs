@@ -99,7 +99,9 @@ public class RuntimeCounterCollectorTests
     {
         var metrics = new FakeRuntimeMetrics
         {
-            Gen0 = 10, Gen1 = 5, Gen2 = 1,
+            Gen0 = 10,
+            Gen1 = 5,
+            Gen2 = 1,
             TotalMemoryBytes = 4096,
             TotalAllocatedBytes = 100_000,
             ThreadPoolThreadCount = 8,
@@ -126,7 +128,9 @@ public class RuntimeCounterCollectorTests
     {
         var metrics = new FakeRuntimeMetrics
         {
-            Gen0 = 10, Gen1 = 5, Gen2 = 1,
+            Gen0 = 10,
+            Gen1 = 5,
+            Gen2 = 1,
             TotalMemoryBytes = 4096,
             TotalAllocatedBytes = 100_000,
             ThreadPoolThreadCount = 8,

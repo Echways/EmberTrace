@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+
+        <AssemblyName>EmberTrace.Extensions.Hosting</AssemblyName>
+        <RootNamespace>EmberTrace.Extensions.Hosting</RootNamespace>
+
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+
+        <PackageId>EmberTrace.Extensions.Hosting</PackageId>
+        <Title>EmberTrace.Extensions.Hosting</Title>
+        <Description>Hosting integration for EmberTrace: AddEmberTrace, ASP.NET Core request tracing middleware, appsettings.json configuration, session lifetime as a hosted service, and a guarded flight recorder dump endpoint.</Description>
+        <Authors>Echways</Authors>
+        <PackageTags>tracing;profiling;aspnetcore;hosting;middleware;flight-recorder;dotnet</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\EmberTrace\EmberTrace.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Format\EmberTrace.Format.csproj"/>
+        <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="EmberTrace.Extensions.Hosting.Tests"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+</Project>
