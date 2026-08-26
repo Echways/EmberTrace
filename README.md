@@ -29,6 +29,7 @@ If you install packages selectively:
 - `EmberTrace.Export` - Chrome Trace export (`TraceExport.*`)
 - `EmberTrace.Format` - binary session persistence (`TraceFormat.Write/Read`)
 - `EmberTrace.OpenTelemetry` - export to OpenTelemetry (`Activity` spans)
+- `EmberTrace.Extensions.Hosting` - ASP.NET Core integration (`AddEmberTrace()`, request middleware, `appsettings.json`, `/embertrace/dump`)
 - `EmberTrace.Testing` - performance assertions and baseline diffing for tests (`stats.Scope(...)`, `TraceBudget`)
 - `EmberTrace.RoslynAnalyzers` - analyzers and code fixes for correct usage (fixes run in IDE and are included in the
   package)

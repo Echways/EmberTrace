@@ -5,6 +5,7 @@
         <Project Path="samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj"/>
         <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj"/>
         <Project Path="samples/EmberTrace.FlightRecorder/EmberTrace.FlightRecorder.csproj"/>
+        <Project Path="samples/EmberTrace.WebApi/EmberTrace.WebApi.csproj"/>
     </Folder>
     <Folder Name="/benchmarks/">
         <Project Path="benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj"/>
@@ -20,6 +21,7 @@
         <Project Path="src/EmberTrace.Testing/EmberTrace.Testing.csproj"/>
         <Project Path="src/EmberTrace.All/EmberTrace.All.csproj"/>
         <Project Path="src/EmberTrace.OpenTelemetry/EmberTrace.OpenTelemetry.csproj"/>
+        <Project Path="src/EmberTrace.Extensions.Hosting/EmberTrace.Extensions.Hosting.csproj"/>
         <Project Path="src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj"/>
         <Project Path="src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj"/>
     </Folder>
@@ -27,5 +29,6 @@
         <Project Path="tests/EmberTrace.Tests/EmberTrace.Tests.csproj"/>
         <Project Path="tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj"/>
         <Project Path="tests/EmberTrace.Generator.Tests/EmberTrace.Generator.Tests.csproj"/>
+        <Project Path="tests/EmberTrace.Extensions.Hosting.Tests/EmberTrace.Extensions.Hosting.Tests.csproj"/>
     </Folder>
 </Solution>

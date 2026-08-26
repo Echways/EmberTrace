@@ -16,6 +16,7 @@ docs/
     usage/
     export/
     analysis/
+    hosting/
   concepts/
     index.md
     flows/
