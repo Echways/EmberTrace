@@ -20,7 +20,8 @@ public sealed class TraceSession
         long sampledOutEvents,
         bool wasOverflow,
         ITraceMetadataProvider? metadata = null,
-        long timestampFrequency = 0)
+        long timestampFrequency = 0,
+        bool isSnapshot = false)
     {
         _chunks = chunks;
         _metadata = metadata;
@@ -32,6 +33,7 @@ public sealed class TraceSession
         DroppedChunks = droppedChunks;
         SampledOutEvents = sampledOutEvents;
         WasOverflow = wasOverflow;
+        IsSnapshot = isSnapshot;
         TimestampFrequency = timestampFrequency > 0 ? timestampFrequency : Timestamp.Frequency;
     }
 
@@ -46,7 +48,8 @@ public sealed class TraceSession
         long droppedChunks = 0,
         long sampledOutEvents = 0,
         bool wasOverflow = false,
-        SessionOptions? options = null)
+        SessionOptions? options = null,
+        bool isSnapshot = false)
     {
         if (events is null) throw new ArgumentNullException(nameof(events));
 
@@ -80,7 +83,8 @@ public sealed class TraceSession
             sampledOutEvents,
             wasOverflow,
             metadata,
-            timestampFrequency);
+            timestampFrequency,
+            isSnapshot);
     }
 
     public long StartTimestamp { get; }
@@ -91,6 +95,7 @@ public sealed class TraceSession
     public long DroppedChunks { get; }
     public long SampledOutEvents { get; }
     public bool WasOverflow { get; }
+    public bool IsSnapshot { get; }
 
     public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
 

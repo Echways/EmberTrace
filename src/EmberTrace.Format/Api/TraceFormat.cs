@@ -22,7 +22,8 @@ public static class TraceFormat
             session.EventCount,
             session.DroppedEvents,
             session.DroppedChunks,
-            session.SampledOutEvents);
+            session.SampledOutEvents,
+            session.IsSnapshot);
 
         TraceFormatWriter.WriteHeader(destination, header);
         TraceFormatWriter.WriteThreadNames(destination, session.ThreadNames);

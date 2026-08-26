@@ -7,6 +7,7 @@ public sealed class SessionOptions
     public int ChunkCapacity { get; init; } = 16_384;
     public long MaxTotalEvents { get; init; } = 0;
     public int MaxTotalChunks { get; init; } = 0;
+    public TimeSpan MaxRetentionWindow { get; init; } = TimeSpan.Zero;
     public OverflowPolicy OverflowPolicy { get; init; } = OverflowPolicy.DropNew;
 
     public bool EnableRuntimeMetadata { get; init; } =

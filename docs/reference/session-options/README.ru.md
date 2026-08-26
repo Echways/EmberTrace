@@ -13,6 +13,11 @@ English version: [./README.md](./README.md)
   - `StopSession` — остановить сессию
 - `MaxTotalEvents` — лимит событий в сессии (0 = без лимита)
 - `MaxTotalChunks` — лимит чанков (0 = без лимита)
+- `MaxRetentionWindow` — хранить только последние N времени по стенным часам
+  (по умолчанию `TimeSpan.Zero` = выкл). Требует `OverflowPolicy.DropOldest` и не может
+  превышать сутки, иначе `Tracer.Start` бросает исключение. Применяется при ротации чанка и
+  при снятии снапшота, но не к чанкам, которыми владеет писатель.
+  См. [Flight recorder](../../guides/flight-recorder/README.ru.md).
 
 ## Фильтрация и sampling
 

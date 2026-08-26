@@ -45,6 +45,13 @@ Starts event recording.
 ### `TraceSession Tracer.Stop()`
 Stops recording and returns `TraceSession` with collected events.
 
+### `TraceSession Tracer.Snapshot()`
+### `TraceSession Tracer.Snapshot(TimeSpan window)`
+Copies the current buffer into a `TraceSession` **without stopping the session**. The overload
+keeps only events newer than `window`. Returns an empty session when nothing is running, and
+throws `ArgumentOutOfRangeException` for a negative window. The returned session has
+`IsSnapshot == true`. See [Flight recorder](../../guides/flight-recorder/README.md).
+
 ---
 
 ## Scopes

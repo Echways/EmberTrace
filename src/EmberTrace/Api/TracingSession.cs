@@ -50,6 +50,16 @@ public sealed class TracingSession : IDisposable
         return session;
     }
 
+    public TraceSession Snapshot()
+    {
+        return _profiler.Snapshot(TimeSpan.Zero);
+    }
+
+    public TraceSession Snapshot(TimeSpan window)
+    {
+        return _profiler.Snapshot(window);
+    }
+
     public Scope Scope(int id)
     {
         return _profiler.Scope(id);
