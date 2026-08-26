@@ -11,6 +11,8 @@ namespace EmberTrace.Tracing;
 
 internal sealed class Profiler
 {
+    private static readonly TimeSpan MaxRetentionWindowLimit = TimeSpan.FromDays(1);
+
     [ThreadStatic] private static long _cachedSessionId;
     [ThreadStatic] private static ThreadWriter? _cachedWriter;
     private int _enabled;
@@ -25,10 +27,12 @@ internal sealed class Profiler
 
     public void Start(SessionOptions? options = null)
     {
+        var opts = options ?? new SessionOptions();
+        ValidateRetention(opts);
+
         if (Interlocked.Exchange(ref _enabled, 1) == 1)
             throw new InvalidOperationException("Profiler session already running.");
 
-        var opts = options ?? new SessionOptions();
         var chunkCapacity = Math.Max(1024, opts.ChunkCapacity);
         var collector = new SessionCollector(opts, new ChunkPool(chunkCapacity), chunkCapacity);
         _nextFlowId = 0;
@@ -70,8 +74,7 @@ internal sealed class Profiler
         _state = null;
 
         if (state is null)
-            return new TraceSession(Array.Empty<Chunk>(), 0, 0, new SessionOptions(), new Dictionary<int, string>(), 0,
-                0, 0, false, Metadata);
+            return EmptySession(false);
 
         state.EndTs = Timestamp.Now();
 
@@ -81,20 +84,10 @@ internal sealed class Profiler
         foreach (var writer in state.Writers)
             writer.DrainAndDetach();
 
-        var chunks = collector.Chunks;
-        var snapshot = new Chunk[chunks.Count];
-        for (var i = 0; i < chunks.Count; i++)
-        {
-            var source = chunks[i];
-            var copy = new Chunk(source.Count);
-            if (source.Count > 0)
-                Array.Copy(source.Events, copy.Events, source.Count);
-            copy.Count = source.Count;
-            snapshot[i] = copy;
-        }
+        var chunks = CopySnapshot(collector, 0);
 
         return new TraceSession(
-            snapshot,
+            chunks,
             state.StartTs,
             state.EndTs,
             state.Options,
@@ -104,6 +97,108 @@ internal sealed class Profiler
             collector.SampledOutEvents,
             collector.WasOverflow,
             state.Metadata);
+    }
+
+    public TraceSession Snapshot(TimeSpan window)
+    {
+        if (window < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(window), window, "The snapshot window cannot be negative.");
+
+        var state = _state;
+        if (state is null || !IsRunning)
+            return EmptySession(true);
+
+        var collector = state.Collector;
+        var captures = collector.BeginSnapshot();
+
+        try
+        {
+            var cut = Timestamp.Now();
+            var min = WindowStart(cut, window);
+            var chunks = SnapshotBuilder.Copy(captures, min, out var discarded);
+            collector.RecordSnapshotDiscard(discarded);
+
+            return new TraceSession(
+                chunks,
+                min > 0 ? Math.Max(state.StartTs, min) : state.StartTs,
+                cut,
+                state.Options,
+                collector.ThreadNames,
+                collector.DroppedEvents,
+                collector.DroppedChunks,
+                collector.SampledOutEvents,
+                collector.WasOverflow,
+                state.Metadata,
+                0,
+                true);
+        }
+        finally
+        {
+            collector.EndSnapshot();
+        }
+    }
+
+    private static Chunk[] CopySnapshot(SessionCollector collector, long minTimestamp)
+    {
+        var captures = collector.BeginSnapshot();
+
+        try
+        {
+            var chunks = SnapshotBuilder.Copy(captures, minTimestamp, out var discarded);
+            collector.RecordSnapshotDiscard(discarded);
+            return chunks;
+        }
+        finally
+        {
+            collector.EndSnapshot();
+        }
+    }
+
+    private static void ValidateRetention(SessionOptions options)
+    {
+        if (options.MaxRetentionWindow <= TimeSpan.Zero)
+            return;
+
+        if (options.MaxRetentionWindow > MaxRetentionWindowLimit)
+            throw new ArgumentOutOfRangeException(
+                nameof(SessionOptions.MaxRetentionWindow),
+                options.MaxRetentionWindow,
+                "MaxRetentionWindow must not exceed one day.");
+
+        if (options.OverflowPolicy != OverflowPolicy.DropOldest)
+            throw new ArgumentException(
+                "MaxRetentionWindow requires OverflowPolicy.DropOldest.",
+                nameof(options));
+    }
+
+    private static long WindowStart(long cut, TimeSpan window)
+    {
+        if (window <= TimeSpan.Zero)
+            return 0;
+
+        var seconds = window.TotalSeconds;
+        if (seconds >= long.MaxValue / (double)Timestamp.Frequency)
+            return 0;
+
+        var min = cut - (long)(seconds * Timestamp.Frequency);
+        return min > 0 ? min : 0;
+    }
+
+    private TraceSession EmptySession(bool isSnapshot)
+    {
+        return new TraceSession(
+            Array.Empty<Chunk>(),
+            0,
+            0,
+            new SessionOptions(),
+            new Dictionary<int, string>(),
+            0,
+            0,
+            0,
+            false,
+            Metadata,
+            0,
+            isSnapshot);
     }
 
     public Scope Scope(int id)

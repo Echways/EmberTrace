@@ -13,8 +13,13 @@ internal static class TraceFormatWriter
 
         FormatConstants.Magic.CopyTo(buffer);
         BinaryPrimitives.WriteUInt16LittleEndian(buffer[8..], header.Version);
-        BinaryPrimitives.WriteUInt16LittleEndian(buffer[10..],
-            header.WasOverflow ? FormatConstants.FlagWasOverflow : (ushort)0);
+        ushort flags = 0;
+        if (header.WasOverflow)
+            flags |= FormatConstants.FlagWasOverflow;
+        if (header.IsSnapshot)
+            flags |= FormatConstants.FlagIsSnapshot;
+
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer[10..], flags);
         BinaryPrimitives.WriteUInt32LittleEndian(buffer[12..], FormatConstants.HeaderSize);
         BinaryPrimitives.WriteInt64LittleEndian(buffer[16..], header.TimestampFrequency);
         BinaryPrimitives.WriteInt64LittleEndian(buffer[24..], header.StartTimestamp);

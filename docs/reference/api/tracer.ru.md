@@ -45,6 +45,13 @@ var session = Tracer.Stop();
 ### `TraceSession Tracer.Stop()`
 Останавливает запись и возвращает `TraceSession` с собранными событиями.
 
+### `TraceSession Tracer.Snapshot()`
+### `TraceSession Tracer.Snapshot(TimeSpan window)`
+Копирует текущий буфер в `TraceSession`, **не останавливая сессию**. Перегрузка оставляет
+только события новее `window`. Если сессия не запущена — возвращает пустую сессию; при
+отрицательном окне бросает `ArgumentOutOfRangeException`. У возвращённой сессии
+`IsSnapshot == true`. См. [Flight recorder](../../guides/flight-recorder/README.ru.md).
+
 ---
 
 ## Scopes

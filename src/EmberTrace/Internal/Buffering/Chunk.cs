@@ -4,11 +4,14 @@ internal sealed class Chunk
 {
     public readonly TraceEvent[] Events;
     public int Count;
+    private long _version;
 
     public Chunk(int capacity)
     {
         Events = new TraceEvent[capacity];
     }
+
+    public long Version => Volatile.Read(ref _version);
 
     public bool IsFull => Count >= Events.Length;
 
@@ -26,5 +29,6 @@ internal sealed class Chunk
     public void Reset()
     {
         Count = 0;
+        Interlocked.Increment(ref _version);
     }
 }

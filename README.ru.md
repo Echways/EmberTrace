@@ -7,6 +7,7 @@ English version: [./README.md](./README.md)
 - **Flows** для связей между потоками и `async/await`
 - **Offline-анализ** после остановки сессии (агрегации + отчёты)
 - **Экспорт в Chrome Trace** (для `chrome://tracing` / Perfetto)
+- **Flight recorder** — `Tracer.Snapshot()` выгружает последние N секунд из живой сессии, не останавливая её
 
 ## Установка
 
@@ -88,6 +89,7 @@ dotnet run --project samples/EmberTrace.DocScreenshots -c Release
 - [Flow и async](docs/concepts/flows/README.ru.md)
 - [Экспорт](docs/guides/export/README.ru.md)
 - [Анализ и отчёты](docs/guides/analysis/README.ru.md)
+- [Flight recorder](docs/guides/flight-recorder/README.ru.md)
 - [Генератор и метаданные](docs/reference/source-generator/README.ru.md)
 - [Устранение неполадок](docs/troubleshooting/README.ru.md)
 

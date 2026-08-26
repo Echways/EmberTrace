@@ -13,6 +13,10 @@
   - `StopSession` - stop the session
 - `MaxTotalEvents` - event limit per session (0 = unlimited)
 - `MaxTotalChunks` - chunk limit (0 = unlimited)
+- `MaxRetentionWindow` - keep only the last N of wall-clock time (default `TimeSpan.Zero` = off).
+  Requires `OverflowPolicy.DropOldest` and must not exceed one day; `Tracer.Start` throws
+  otherwise. Enforced on chunk rotation and on snapshot, never on chunks a writer still owns.
+  See [Flight recorder](../../guides/flight-recorder/README.md).
 
 ## Filtering and sampling
 

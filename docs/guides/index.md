@@ -7,4 +7,5 @@
 - [Export](export/README.md)
 - [Analysis and reports](analysis/README.md)
 - [Binary session format (.ember)](format/README.md)
+- [Flight recorder (live snapshots)](flight-recorder/README.md)
 - [Performance testing and regression gates](testing/README.md)

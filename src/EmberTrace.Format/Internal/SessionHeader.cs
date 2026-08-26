@@ -9,4 +9,5 @@ internal readonly record struct SessionHeader(
     long EventCount,
     long DroppedEvents,
     long DroppedChunks,
-    long SampledOutEvents);
+    long SampledOutEvents,
+    bool IsSnapshot = false);

@@ -5,6 +5,7 @@ internal static class FormatConstants
     public const ushort Version = 1;
     public const int HeaderSize = 72;
     public const ushort FlagWasOverflow = 1;
+    public const ushort FlagIsSnapshot = 2;
 
     public static ReadOnlySpan<byte> Magic => "EMBRTRC\0"u8;
 

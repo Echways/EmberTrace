@@ -4,6 +4,7 @@
         <Project Path="samples/EmberTrace.ParallelWorkers/EmberTrace.ParallelWorkers.csproj"/>
         <Project Path="samples/EmberTrace.DocScreenshots/EmberTrace.DocScreenshots.csproj"/>
         <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj"/>
+        <Project Path="samples/EmberTrace.FlightRecorder/EmberTrace.FlightRecorder.csproj"/>
     </Folder>
     <Folder Name="/benchmarks/">
         <Project Path="benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj"/>

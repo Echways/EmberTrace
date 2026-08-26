@@ -37,7 +37,8 @@ internal static class TraceFormatReader
             BinaryPrimitives.ReadInt64LittleEndian(buffer[40..]),
             BinaryPrimitives.ReadInt64LittleEndian(buffer[48..]),
             BinaryPrimitives.ReadInt64LittleEndian(buffer[56..]),
-            BinaryPrimitives.ReadInt64LittleEndian(buffer[64..]));
+            BinaryPrimitives.ReadInt64LittleEndian(buffer[64..]),
+            (flags & FormatConstants.FlagIsSnapshot) != 0);
 
         if (headerSize > FormatConstants.HeaderSize)
             Skip(stream, headerSize - FormatConstants.HeaderSize);
@@ -124,7 +125,9 @@ internal static class TraceFormatReader
             header.DroppedEvents,
             header.DroppedChunks,
             header.SampledOutEvents,
-            header.WasOverflow);
+            header.WasOverflow,
+            null,
+            header.IsSnapshot);
     }
 
     public static List<TraceEventRecord> ReadEvents(Stream stream)

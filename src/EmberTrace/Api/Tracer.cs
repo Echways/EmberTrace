@@ -45,6 +45,16 @@ public static class Tracer
         return Default.Stop();
     }
 
+    public static TraceSession Snapshot()
+    {
+        return Default.Snapshot(TimeSpan.Zero);
+    }
+
+    public static TraceSession Snapshot(TimeSpan window)
+    {
+        return Default.Snapshot(window);
+    }
+
     public static Scope Scope(int id)
     {
         return Default.Scope(id);
