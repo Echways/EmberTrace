@@ -25,9 +25,13 @@ internal static class TraceCatalog
     internal static void ReportContentIssues(ImmutableArray<TraceItem> items, SourceProductionContext spc)
     {
         var owners = new Dictionary<int, string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var item in items)
         {
+            if (!seen.Add(item.Id + "|" + item.Name + "|" + item.Category))
+                continue;
+
             if (string.IsNullOrWhiteSpace(item.Name))
                 spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EmptyName, item.Origin, item.Id));
 

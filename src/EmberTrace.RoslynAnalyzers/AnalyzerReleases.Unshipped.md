@@ -5,3 +5,4 @@
 
  Rule ID | Category | Severity | Notes 
 ---------|----------|----------|-------
+ ETA004  | EmberTrace.Usage | Info | Method can be instrumented with Trace

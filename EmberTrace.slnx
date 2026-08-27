@@ -6,6 +6,7 @@
         <Project Path="samples/EmberTrace.NativeAot/EmberTrace.NativeAot.csproj"/>
         <Project Path="samples/EmberTrace.FlightRecorder/EmberTrace.FlightRecorder.csproj"/>
         <Project Path="samples/EmberTrace.WebApi/EmberTrace.WebApi.csproj"/>
+        <Project Path="samples/EmberTrace.AutoInstrumentation/EmberTrace.AutoInstrumentation.csproj"/>
     </Folder>
     <Folder Name="/benchmarks/">
         <Project Path="benchmarks/EmberTrace.Benchmarks/EmberTrace.Benchmarks.csproj"/>
@@ -30,5 +31,6 @@
         <Project Path="tests/EmberTrace.RoslynAnalyzers.Tests/EmberTrace.RoslynAnalyzers.Tests.csproj"/>
         <Project Path="tests/EmberTrace.Generator.Tests/EmberTrace.Generator.Tests.csproj"/>
         <Project Path="tests/EmberTrace.Extensions.Hosting.Tests/EmberTrace.Extensions.Hosting.Tests.csproj"/>
+        <Project Path="tests/EmberTrace.AutoInstrumentation.Tests/EmberTrace.AutoInstrumentation.Tests.csproj"/>
     </Folder>
 </Solution>

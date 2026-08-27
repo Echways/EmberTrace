@@ -4,11 +4,14 @@
         <TargetFramework>net10.0</TargetFramework>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
         <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
@@ -18,19 +21,14 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces"/>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="../../src/EmberTrace/EmberTrace.csproj"/>
         <ProjectReference Include="../../src/EmberTrace.Abstractions/EmberTrace.Abstractions.csproj"/>
-        <ProjectReference Include="../../src/EmberTrace.RoslynAnalyzers/EmberTrace.RoslynAnalyzers.csproj"
-                          ReferenceOutputAssembly="true"
-                          OutputItemType="Content"/>
-        <ProjectReference Include="../../src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj"
-                          ReferenceOutputAssembly="true"
-                          OutputItemType="Content"/>
+        <ProjectReference Include="../../src/EmberTrace.Analysis/EmberTrace.Analysis.csproj"/>
+        <ProjectReference Include="../../src/EmberTrace.Generator/EmberTrace.Generator.csproj"
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
 </Project>

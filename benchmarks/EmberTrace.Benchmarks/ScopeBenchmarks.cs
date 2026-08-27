@@ -10,6 +10,10 @@ public class ScopeBenchmarks
 
     private readonly int _id = Tracer.Id("Bench.Scope");
 
+    private readonly int _manualId = Tracer.Id("TracedService.Work");
+
+    private readonly TracedService _service = new();
+
     public static IEnumerable<int> ThreadCounts()
     {
         yield return 4;
@@ -53,5 +57,66 @@ public class ScopeBenchmarks
             {
             }
         });
+    }
+
+    [Benchmark]
+    public int Trace_Sync_SessionRunning()
+    {
+        var total = 0;
+        for (var i = 0; i < Operations; i++)
+            total += _service.Work(i);
+
+        return total;
+    }
+
+    [Benchmark]
+    public int Manual_Sync_SessionRunning()
+    {
+        var total = 0;
+        for (var i = 0; i < Operations; i++)
+            using (Tracer.Scope(_manualId))
+            {
+                total += i + 1;
+            }
+
+        return total;
+    }
+
+    [Benchmark]
+    public async Task<int> Trace_Async_SessionRunning()
+    {
+        var total = 0;
+        for (var i = 0; i < Operations; i++)
+            total += await _service.WorkAsync(i).ConfigureAwait(false);
+
+        return total;
+    }
+}
+
+[MemoryDiagnoser]
+public class TraceOverheadBenchmarks
+{
+    private const int Operations = 10_000;
+
+    private readonly TracedService _service = new();
+
+    [Benchmark]
+    public int Trace_Sync_SessionStopped()
+    {
+        var total = 0;
+        for (var i = 0; i < Operations; i++)
+            total += _service.Work(i);
+
+        return total;
+    }
+
+    [Benchmark]
+    public async Task<int> Trace_Async_SessionStopped()
+    {
+        var total = 0;
+        for (var i = 0; i < Operations; i++)
+            total += await _service.WorkAsync(i).ConfigureAwait(false);
+
+        return total;
     }
 }

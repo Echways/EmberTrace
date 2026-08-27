@@ -8,5 +8,6 @@
 - [Analysis and reports](analysis/README.md)
 - [Binary session format (.ember)](format/README.md)
 - [Flight recorder (live snapshots)](flight-recorder/README.md)
+- [Auto-instrumentation with [Trace]](auto-instrumentation/README.md)
 - [Hosting integration (ASP.NET Core)](hosting/README.md)
 - [Performance testing and regression gates](testing/README.md)

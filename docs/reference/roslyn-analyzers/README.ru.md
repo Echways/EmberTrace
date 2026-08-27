@@ -17,6 +17,7 @@ dotnet add package EmberTrace.RoslynAnalyzers
 - **ETA001** — `Scope` создан, но не обёрнут в `using`
 - **ETA002** — `AsyncScope` создан без `await using`
 - **ETA003** — `FlowHandle` создан, но `End/TryEnd` не вызывается
+- **ETA004** (info) — метод начинается с ручного scope и может стать `[Trace] partial` методом
 
 `ETA001` и `ETA002` смотрят на то, как связан сам вызов: `using`-блок где-то выше по дереву (файл,
 соединение, лок) не освобождает scope, объявленный внутри него, и такой случай сообщается.

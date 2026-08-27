@@ -25,6 +25,6 @@ internal static class TraceIds
 
     public static int Category(string? category)
     {
-        return string.IsNullOrWhiteSpace(category) ? 0 : Stable(category);
+        return string.IsNullOrWhiteSpace(category) ? 0 : Stable(category!);
     }
 }

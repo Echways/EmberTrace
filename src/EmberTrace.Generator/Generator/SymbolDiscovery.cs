@@ -36,12 +36,15 @@ internal static class SymbolDiscovery
         return StringArgumentOf(context.TargetSymbol, TraceNameAttribute) is null ? FromField(context) : null;
     }
 
-    private static TraceItem FromField(GeneratorAttributeSyntaxContext context)
+    private static TraceItem? FromField(GeneratorAttributeSyntaxContext context)
     {
+        if (context.TargetSymbol is not IFieldSymbol field)
+            return null;
+
         var location =
             LocationInfo.From(context.Attributes[0].ApplicationSyntaxReference?.GetSyntax() ?? context.TargetNode);
 
-        if (context.TargetSymbol is not IFieldSymbol { HasConstantValue: true, ConstantValue: int id } field)
+        if (field is not { HasConstantValue: true, ConstantValue: int id })
             return TraceItem.Malformed(location);
 
         return new TraceItem(

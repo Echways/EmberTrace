@@ -1,20 +1,11 @@
-using System.Collections.Immutable;
-using EmberTrace.Abstractions.Attributes;
-using EmberTrace.Generator.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace EmberTrace.Generator.Tests;
 
 [TestClass]
 public class TraceMetadataGeneratorTests
 {
-    private static readonly CSharpParseOptions ParseOptions =
-        CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
-
-    private static readonly IReadOnlyList<MetadataReference> References = BuildReferences();
-
     [TestMethod]
     public void AssemblyAttributes_ProduceMetadataProvider()
     {
@@ -157,6 +148,27 @@ public class TraceMetadataGeneratorTests
     }
 
     [TestMethod]
+    public void TraceCategoryOnAType_IsIgnoredWithoutDiagnostics()
+    {
+        var result = Run("""
+                         using EmberTrace.Abstractions.Attributes;
+
+                         [TraceCategory("Orders")]
+                         public class OrderService
+                         {
+                             [TraceName("Fetch")]
+                             public const int Fetch = 4100;
+                         }
+                         """);
+
+        Assert.IsFalse(result.Diagnostics.Any(d => d.Id == "ETG005"),
+            "A category on a type is metadata for [Trace] methods, not a malformed field annotation");
+        StringAssert.Contains(
+            result.Source("EmberTrace.GeneratedTraceMetadataProvider.g.cs"),
+            @"[4100] = new global::EmberTrace.Metadata.TraceMeta(4100, @""Fetch"", null)");
+    }
+
+    [TestMethod]
     public void EditingUnrelatedFile_KeepsGeneratorOutputCached()
     {
         const string attributes = """
@@ -169,7 +181,7 @@ public class TraceMetadataGeneratorTests
 
         var edited = compilation.ReplaceSyntaxTree(
             compilation.SyntaxTrees.Last(),
-            CSharpSyntaxTree.ParseText("class Unrelated { int Added; }", ParseOptions));
+            CSharpSyntaxTree.ParseText("class Unrelated { int Added; }", GeneratorTestHost.ParseOptions));
 
         foreach (var reason in OutputStepReasons(driver.RunGenerators(edited)))
             Assert.AreEqual(IncrementalStepRunReason.Cached, reason);
@@ -190,9 +202,35 @@ public class TraceMetadataGeneratorTests
             CSharpSyntaxTree.ParseText("""
                                        using EmberTrace.Abstractions.Attributes;
                                        [assembly: TraceId(1000, "Application", "App")]
-                                       """, ParseOptions));
+                                       """, GeneratorTestHost.ParseOptions));
 
         Assert.Contains(IncrementalStepRunReason.Modified, OutputStepReasons(driver.RunGenerators(edited)));
+    }
+
+    [TestMethod]
+    public void GeneratedProvider_Compiles()
+    {
+        var result = GeneratorTestHost.RunAndCompile("""
+                                                     using EmberTrace.Abstractions.Attributes;
+                                                     [assembly: TraceId(1000, "App", "App")]
+                                                     """);
+
+        Assert.IsTrue(result.Sources.ContainsKey("EmberTrace.GeneratedTraceMetadataProvider.g.cs"));
+    }
+
+    [TestMethod]
+    public void RunAndCompile_FailsWhenTheCompilationDoesNot()
+    {
+        try
+        {
+            GeneratorTestHost.RunAndCompile("class C { int X => \"not an int\"; }");
+        }
+        catch (AssertFailedException)
+        {
+            return;
+        }
+
+        Assert.Fail("RunAndCompile must surface compiler errors in the input as a test failure");
     }
 
     private static IReadOnlyList<IncrementalStepRunReason> OutputStepReasons(GeneratorDriver driver)
@@ -207,79 +245,16 @@ public class TraceMetadataGeneratorTests
 
     private static GeneratorOutput Run(string code, bool generateTraceIds = false)
     {
-        var result = Driver(generateTraceIds).RunGenerators(Compile(code)).GetRunResult().Results[0];
-
-        return new GeneratorOutput(
-            result.GeneratedSources.ToDictionary(s => s.HintName, s => s.SourceText.ToString(), StringComparer.Ordinal),
-            result.Diagnostics);
+        return GeneratorTestHost.Run(code, generateTraceIds);
     }
 
     private static GeneratorDriver Driver(bool generateTraceIds)
     {
-        return CSharpGeneratorDriver.Create(
-            [new TraceMetadataGenerator().AsSourceGenerator()],
-            optionsProvider: new TestOptionsProvider(generateTraceIds),
-            parseOptions: ParseOptions,
-            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, true));
+        return GeneratorTestHost.Driver(generateTraceIds);
     }
 
     private static CSharpCompilation Compile(params string[] sources)
     {
-        return CSharpCompilation.Create(
-            "TestAssembly",
-            sources.Select(source => CSharpSyntaxTree.ParseText(source, ParseOptions)),
-            References,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-    }
-
-    private static IReadOnlyList<MetadataReference> BuildReferences()
-    {
-        var refs = new List<MetadataReference>
-        {
-            MetadataReference.CreateFromFile(typeof(TraceIdAttribute).Assembly.Location)
-        };
-
-        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa)
-            foreach (var path in tpa.Split(Path.PathSeparator))
-                if (File.Exists(path))
-                    refs.Add(MetadataReference.CreateFromFile(path));
-
-        return refs;
-    }
-
-    private sealed record GeneratorOutput(
-        IReadOnlyDictionary<string, string> Sources,
-        ImmutableArray<Diagnostic> Diagnostics)
-    {
-        internal string Source(string hintName)
-        {
-            Assert.IsTrue(Sources.ContainsKey(hintName),
-                $"Expected generated source '{hintName}', got [{string.Join(", ", Sources.Keys)}]");
-            return Sources[hintName];
-        }
-    }
-
-    private sealed class TestOptionsProvider(bool generateTraceIds) : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(generateTraceIds);
-
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
-        {
-            return GlobalOptions;
-        }
-
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
-        {
-            return GlobalOptions;
-        }
-
-        private sealed class Options(bool generateTraceIds) : AnalyzerConfigOptions
-        {
-            public override bool TryGetValue(string key, out string value)
-            {
-                value = generateTraceIds.ToString();
-                return key == "build_property.EmberTraceGenerateTraceIds";
-            }
-        }
+        return GeneratorTestHost.Compile(sources);
     }
 }

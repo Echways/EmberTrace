@@ -16,6 +16,7 @@ docs/
     usage/
     export/
     analysis/
+    auto-instrumentation/
     hosting/
   concepts/
     index.md
