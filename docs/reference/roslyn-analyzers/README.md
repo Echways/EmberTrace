@@ -17,6 +17,7 @@ The package includes code fixes in a separate assembly. They are not used in CLI
 - **ETA001** - `Scope` is created but not wrapped in `using`
 - **ETA002** - `AsyncScope` is created without `await using`
 - **ETA003** - `FlowHandle` is created but `End/TryEnd` is not called
+- **ETA004** (info) - a method opens with a manual scope and can become a `[Trace] partial` method
 
 `ETA001` and `ETA002` look at how the call itself is bound - a `using` block somewhere up the tree
 (a file, a connection, a lock) does not dispose a scope declared inside it, and is reported.

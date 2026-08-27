@@ -9,8 +9,8 @@ English version: [./README.md](./README.md)
 
 `EmberTrace.Generator`:
 
-1) Сканирует проект на `[assembly: TraceId(id, name, category)]` и на поля `const int`,
-   помеченные `[TraceName]` / `[TraceCategory]`
+1) Сканирует проект на `[assembly: TraceId(id, name, category)]`, на поля `const int`,
+   помеченные `[TraceName]` / `[TraceCategory]`, и на `partial`-методы, помеченные `[Trace]`
 2) Генерирует провайдер метаданных (`ITraceMetadataProvider`)
 3) **Автоматически регистрирует** его через `ModuleInitializer`, так что `Tracer.CreateMetadata()`
    начнёт возвращать имена/категории без ручной инициализации.
@@ -87,6 +87,13 @@ dotnet add package EmberTrace.Generator
   пропускается; остальная сборка генерируется как обычно
 - **ETG005** (warning) — `[TraceName]` / `[TraceCategory]` стоят на поле, которое не `const int`
 - **ETG006** (warning) — два имени нормализуются в одно и то же имя константы; второму добавляется суффикс
+- **ETG010** (ошибка) — `[Trace]` стоит не на `partial`-объявлении без реализации
+- **ETG011** (ошибка) — нет члена `…Core` с совместимой сигнатурой, который держал бы тело
+- **ETG012** (ошибка) — неподдерживаемая форма: `ref`-возвраты, параметры по ссылке у асинхронных
+  методов, `unsafe`-методы и члены интерфейсов
+- **ETG013** (ошибка) — содержащий или внешний тип не объявлен `partial`
+- **ETG014** (ошибка) — `[Trace]` на классе без однозначного интерфейса; задай `Interface = typeof(…)`
+- **ETG015** (info) — член интерфейса неподдерживаемой формы проксируется декоратором без трассировки
 
 ## Глобальный реестр
 
@@ -110,6 +117,7 @@ dotnet add package EmberTrace.Generator
 но отчёты/экспорт будут менее читаемыми.
 
 См. также:
+- [Автоинструментация через [Trace]](../../guides/auto-instrumentation/README.ru.md)
 - [Быстрый старт](../../guides/getting-started/README.ru.md)
 - [Использование и API](../../guides/usage/README.ru.md)
 

@@ -10,6 +10,8 @@
 - **Offline analysis** after stopping a session (aggregations + reports)
 - **Export to Chrome Trace** (for `chrome://tracing` / Perfetto)
 - **Flight recorder** - `Tracer.Snapshot()` dumps the last N seconds from a live session without stopping it
+- **Auto-instrumentation** - `[Trace]` on a `partial` method generates the scope wrapper, the id and the metadata;
+  `[Trace]` on a class generates a DI decorator for the whole service
 
 ## Installation
 
@@ -96,6 +98,7 @@ dotnet run --project samples/EmberTrace.DocScreenshots -c Release
 - [Analysis and reports](docs/guides/analysis/README.md)
 - [Flight recorder](docs/guides/flight-recorder/README.md)
 - [Generator and metadata](docs/reference/source-generator/README.md)
+- [Auto-instrumentation with [Trace]](docs/guides/auto-instrumentation/README.md)
 - [Troubleshooting](docs/troubleshooting/README.md)
 
 ## Build and Tests

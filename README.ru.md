@@ -8,6 +8,8 @@ English version: [./README.md](./README.md)
 - **Offline-анализ** после остановки сессии (агрегации + отчёты)
 - **Экспорт в Chrome Trace** (для `chrome://tracing` / Perfetto)
 - **Flight recorder** — `Tracer.Snapshot()` выгружает последние N секунд из живой сессии, не останавливая её
+- **Автоинструментация** — `[Trace]` на `partial`-методе генерирует обёртку со scope, id и метаданные;
+  `[Trace]` на классе генерирует DI-декоратор для всего сервиса
 
 ## Установка
 
@@ -92,6 +94,7 @@ dotnet run --project samples/EmberTrace.DocScreenshots -c Release
 - [Анализ и отчёты](docs/guides/analysis/README.ru.md)
 - [Flight recorder](docs/guides/flight-recorder/README.ru.md)
 - [Генератор и метаданные](docs/reference/source-generator/README.ru.md)
+- [Автоинструментация через [Trace]](docs/guides/auto-instrumentation/README.ru.md)
 - [Устранение неполадок](docs/troubleshooting/README.ru.md)
 
 ## Сборка и тесты

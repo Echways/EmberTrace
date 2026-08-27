@@ -51,4 +51,52 @@ internal static class Diagnostics
         "EmberTrace.Generator",
         DiagnosticSeverity.Warning,
         true);
+
+    internal static readonly DiagnosticDescriptor NotPartial = new(
+        "ETG010",
+        "Trace requires a partial method declaration",
+        "'{0}' must be declared 'partial' with no implementation for EmberTrace to generate its body",
+        "EmberTrace.Generator",
+        DiagnosticSeverity.Error,
+        true);
+
+    internal static readonly DiagnosticDescriptor MissingCore = new(
+        "ETG011",
+        "Trace requires a Core method",
+        "'{0}' needs a '{1}' method with the same signature to hold the body",
+        "EmberTrace.Generator",
+        DiagnosticSeverity.Error,
+        true);
+
+    internal static readonly DiagnosticDescriptor UnsupportedShape = new(
+        "ETG012",
+        "Unsupported method shape",
+        "EmberTrace cannot wrap '{0}': ref returns, by-reference parameters on asynchronous methods, unsafe methods and interface members are not supported",
+        "EmberTrace.Generator",
+        DiagnosticSeverity.Error,
+        true);
+
+    internal static readonly DiagnosticDescriptor TypeNotPartial = new(
+        "ETG013",
+        "Containing type is not partial",
+        "'{0}' and every type enclosing it must be declared 'partial'",
+        "EmberTrace.Generator",
+        DiagnosticSeverity.Error,
+        true);
+
+    internal static readonly DiagnosticDescriptor AmbiguousInterface = new(
+        "ETG014",
+        "Ambiguous decorator interface",
+        "'{0}' implements {1} interfaces; set Interface = typeof(...) on the Trace attribute",
+        "EmberTrace.Generator",
+        DiagnosticSeverity.Error,
+        true);
+
+    internal static readonly DiagnosticDescriptor UntracedMember = new(
+        "ETG015",
+        "Member is forwarded without a scope",
+        "'{0}' has an unsupported shape and is forwarded by the decorator without tracing",
+        "EmberTrace.Generator",
+        DiagnosticSeverity.Info,
+        true);
 }
