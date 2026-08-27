@@ -155,6 +155,9 @@
       "embertrace": {
         "type": "Project"
       },
+      "embertrace.abstractions": {
+        "type": "Project"
+      },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "CentralTransitive",
         "requested": "[5.9.0, )",
