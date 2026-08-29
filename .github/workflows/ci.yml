@@ -34,10 +34,19 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
-      - name: Build the source generator (dotnet format loads the Debug configuration)
+      - name: Build
         run: |
-          dotnet build src/EmberTrace.Generator/EmberTrace.Generator.csproj \
-            -c Debug --no-restore -p:UseLocalEmberTrace=true
+          dotnet build "$SOLUTION" -c Debug --no-restore -p:UseLocalEmberTrace=true
+
+      - name: Verify the source generator is on disk
+        run: |
+          set -euo pipefail
+          analyzer=src/EmberTrace.Generator/bin/Debug/netstandard2.0/EmberTrace.Generator.dll
+          if [ ! -f "$analyzer" ]; then
+            echo "::error title=Format::'$analyzer' is missing; dotnet format loads the Debug"\
+                 " configuration and reports every generated type as CS0246 without it"
+            exit 1
+          fi
 
       - run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
 
