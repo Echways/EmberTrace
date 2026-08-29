@@ -156,6 +156,24 @@ public class TraceDecoratorGeneratorTests
     }
 
     [TestMethod]
+    public void WithServiceCollection_ARegistrationIsEmitted()
+    {
+        var source = Decorator(GeneratorTestHost.Library("Di", ServiceCollectionSource));
+
+        StringAssert.Contains(source, "AddTracedOrderService(");
+    }
+
+    [TestMethod]
+    public void ServiceCollectionInSeveralReferences_StillEmitsTheRegistration()
+    {
+        var source = Decorator(
+            GeneratorTestHost.Library("Di.Abstractions", ServiceCollectionSource),
+            GeneratorTestHost.Library("Di.Shared", ServiceCollectionSource));
+
+        StringAssert.Contains(source, "AddTracedOrderService(");
+    }
+
+    [TestMethod]
     public void WithoutServiceCollection_NoRegistrationIsEmitted()
     {
         var source = GeneratorTestHost.Run("""
@@ -174,5 +192,30 @@ public class TraceDecoratorGeneratorTests
             .First(pair => pair.Key.StartsWith("EmberTrace.Decorator.", StringComparison.Ordinal)).Value;
 
         Assert.DoesNotContain("IServiceCollection", source);
+    }
+
+    private const string ServiceCollectionSource = """
+                                                   namespace Microsoft.Extensions.DependencyInjection
+                                                   {
+                                                       public interface IServiceCollection { }
+                                                   }
+                                                   """;
+
+    private static string Decorator(params MetadataReference[] references)
+    {
+        return GeneratorTestHost.Run("""
+                                     using EmberTrace.Abstractions.Attributes;
+
+                                     namespace Acme;
+
+                                     public interface IOrderService { void Save(); }
+
+                                     [Trace]
+                                     public partial class OrderService : IOrderService
+                                     {
+                                         public void Save() { }
+                                     }
+                                     """, false, references).Sources
+            .First(pair => pair.Key.StartsWith("EmberTrace.Decorator.", StringComparison.Ordinal)).Value;
     }
 }

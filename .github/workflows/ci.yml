@@ -33,6 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+
+      - name: Build the source generator (dotnet format loads the Debug configuration)
+        run: |
+          dotnet build src/EmberTrace.Generator/EmberTrace.Generator.csproj \
+            -c Debug --no-restore -p:UseLocalEmberTrace=true
+
       - run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
 
   build:

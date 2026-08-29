@@ -34,9 +34,11 @@ internal static class GeneratorTestHost
 
     private static readonly IReadOnlyList<MetadataReference> References = BuildReferences();
 
-    internal static GeneratorOutput Run(string code, bool generateTraceIds = false)
+    internal static GeneratorOutput Run(string code, bool generateTraceIds = false,
+        params MetadataReference[] extraReferences)
     {
-        var result = Driver(generateTraceIds).RunGenerators(Compile(code)).GetRunResult().Results[0];
+        var result = Driver(generateTraceIds)
+            .RunGenerators(Compile(extraReferences, code)).GetRunResult().Results[0];
 
         return new GeneratorOutput(
             result.GeneratedSources.ToDictionary(s => s.HintName, s => s.SourceText.ToString(), StringComparer.Ordinal),
@@ -77,12 +79,34 @@ internal static class GeneratorTestHost
 
     internal static CSharpCompilation Compile(params string[] sources)
     {
+        return Compile([], sources);
+    }
+
+    internal static CSharpCompilation Compile(IEnumerable<MetadataReference> extraReferences,
+        params string[] sources)
+    {
         return CSharpCompilation.Create(
             "TestAssembly",
             sources.Select(source => CSharpSyntaxTree.ParseText(source, ParseOptions)),
-            References,
+            References.Concat(extraReferences),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable));
+    }
+
+    internal static MetadataReference Library(string assemblyName, string source)
+    {
+        var compilation = CSharpCompilation.Create(
+            assemblyName,
+            [CSharpSyntaxTree.ParseText(source, ParseOptions)],
+            References,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var image = new MemoryStream();
+        var emitted = compilation.Emit(image);
+
+        Assert.IsTrue(emitted.Success, string.Join("\n", emitted.Diagnostics));
+
+        return MetadataReference.CreateFromImage(image.ToArray());
     }
 
     private static IReadOnlyList<MetadataReference> BuildReferences()

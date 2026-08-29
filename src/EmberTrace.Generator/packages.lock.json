@@ -2,12 +2,6 @@
   "version": 2,
   "dependencies": {
     ".NETStandard,Version=v2.0": {
-      "EmberTrace.Abstractions": {
-        "type": "Direct",
-        "requested": "[0.2.3, )",
-        "resolved": "0.2.3",
-        "contentHash": "IH1TUrXV7Ji93y+ZZs6w8nATR/XF3s45lKvt3Vay3iFLs2ahIw10mriPRTojWP2bQsRYTzTgfQ7oC+QyH7Z08Q=="
-      },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "Direct",
         "requested": "[5.9.0, )",
@@ -121,6 +115,9 @@
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.1.0"
         }
+      },
+      "embertrace.abstractions": {
+        "type": "Project"
       }
     }
   }
