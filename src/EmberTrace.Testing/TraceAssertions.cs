@@ -8,7 +8,7 @@ public static class TraceAssertions
 {
     public static ScopeAssertion Scope(this TraceStats stats, int id, ITraceMetadataProvider? meta = null)
     {
-        if (stats is null) throw new ArgumentNullException(nameof(stats));
+        ArgumentNullException.ThrowIfNull(stats);
 
         TraceIdStats? match = null;
         var rows = stats.ByTotalTimeDesc;

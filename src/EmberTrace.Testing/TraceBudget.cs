@@ -13,8 +13,8 @@ public static class TraceBudget
         double maxPercent,
         ITraceMetadataProvider? meta = null)
     {
-        if (baseline is null) throw new ArgumentNullException(nameof(baseline));
-        if (current is null) throw new ArgumentNullException(nameof(current));
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(current);
 
         var comparison = TraceDiff.Compare(baseline, current);
 

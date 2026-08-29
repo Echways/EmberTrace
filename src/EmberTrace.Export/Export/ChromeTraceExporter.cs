@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
-using static EmberTrace.Export.TraceTime;
+using static EmberTrace.Export.ChromeJsonWriter;
 
 namespace EmberTrace.Export;
 
@@ -16,8 +16,8 @@ internal static class ChromeTraceExporter
         int pid = 1,
         string processName = "EmberTrace")
     {
-        if (session is null) throw new ArgumentNullException(nameof(session));
-        if (output is null) throw new ArgumentNullException(nameof(output));
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(output);
 
         meta ??= session.Metadata;
 
@@ -62,8 +62,8 @@ internal static class ChromeTraceExporter
         int pid = 1,
         string processName = "EmberTrace")
     {
-        if (session is null) throw new ArgumentNullException(nameof(session));
-        if (output is null) throw new ArgumentNullException(nameof(output));
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(output);
 
         meta ??= session.Metadata;
 
@@ -106,7 +106,7 @@ internal static class ChromeTraceExporter
                 case TraceEventKind.FlowStart:
                 case TraceEventKind.FlowStep:
                 case TraceEventKind.FlowEnd:
-                    WriteFlowEvent(json, e, meta, start, freq, pid);
+                    WriteFlowEvent(json, e, meta, start, freq, pid, ChromeEventArgsMode.Detailed);
                     break;
                 case TraceEventKind.Instant:
                     WriteInstantEvent(json, e, meta, start, freq, pid);
@@ -121,7 +121,7 @@ internal static class ChromeTraceExporter
             WriteAsyncSpan(json, asyncSpans[i], meta, start, freq, pid);
 
         for (var i = 0; i < complete.Count; i++)
-            WriteCompleteEvent(json, complete[i], meta, start, freq, pid);
+            WriteCompleteEvent(json, complete[i], meta, start, freq, pid, ChromeEventArgsMode.Detailed);
 
         json.WriteEndArray();
         json.WriteEndObject();
@@ -206,7 +206,7 @@ internal static class ChromeTraceExporter
             case TraceEventKind.FlowStart:
             case TraceEventKind.FlowStep:
             case TraceEventKind.FlowEnd:
-                WriteFlowEvent(json, e, meta, start, freq, pid);
+                WriteFlowEvent(json, e, meta, start, freq, pid, ChromeEventArgsMode.Detailed);
                 break;
             case TraceEventKind.Instant:
                 WriteInstantEvent(json, e, meta, start, freq, pid);
@@ -215,217 +215,5 @@ internal static class ChromeTraceExporter
                 WriteCounterEvent(json, e, meta, start, freq, pid);
                 break;
         }
-    }
-
-    private static void WriteBeginEndEvent(
-        Utf8JsonWriter json,
-        TraceEventRecord e,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid,
-        char phase)
-    {
-        Resolve(meta, e.Id, out var name, out var cat);
-
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", phase.ToString());
-        json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.TrackId);
-        json.WriteEndObject();
-    }
-
-    private static void WriteCompleteEvent(
-        Utf8JsonWriter json,
-        in CompleteSpan e,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid)
-    {
-        Resolve(meta, e.Id, out var name, out var cat);
-
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", "X");
-        json.WriteNumber("ts", ToUs(e.StartTs - start, freq));
-        json.WriteNumber("dur", ToUs(e.DurTicks, freq));
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.TrackId);
-        json.WriteEndObject();
-    }
-
-    private static void WriteAsyncSpan(
-        Utf8JsonWriter json,
-        in AsyncSpan span,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid)
-    {
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, start, freq, pid, "b");
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, start, freq, pid, "e");
-    }
-
-    private static void WriteAsyncPhase(
-        Utf8JsonWriter json,
-        int id,
-        long asyncScopeId,
-        int trackId,
-        long timestamp,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid,
-        string phase)
-    {
-        Resolve(meta, id, out var name, out var cat);
-
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", phase);
-        json.WriteNumber("ts", ToUs(timestamp - start, freq));
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", trackId);
-        json.WriteNumber("id", asyncScopeId);
-        json.WriteEndObject();
-    }
-
-    private static void WriteFlowEvent(
-        Utf8JsonWriter json,
-        TraceEventRecord e,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid)
-    {
-        Resolve(meta, e.Id, out var name, out var cat);
-
-        var ph = e.Kind switch
-        {
-            TraceEventKind.FlowStart => "s",
-            TraceEventKind.FlowStep => "t",
-            TraceEventKind.FlowEnd => "f",
-            _ => "t"
-        };
-
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", ph);
-        json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.TrackId);
-        json.WriteNumber("id", e.FlowId);
-        json.WriteEndObject();
-    }
-
-    private static void WriteInstantEvent(
-        Utf8JsonWriter json,
-        TraceEventRecord e,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid)
-    {
-        Resolve(meta, e.Id, out var name, out var cat);
-
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", "i");
-        json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.TrackId);
-        json.WriteString("s", "t");
-        json.WriteEndObject();
-    }
-
-    private static void WriteCounterEvent(
-        Utf8JsonWriter json,
-        TraceEventRecord e,
-        ITraceMetadataProvider meta,
-        long start,
-        long freq,
-        int pid)
-    {
-        Resolve(meta, e.Id, out var name, out var cat);
-
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteString("cat", cat);
-        json.WriteString("ph", "C");
-        json.WriteNumber("ts", ToUs(e.Timestamp - start, freq));
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", e.TrackId);
-        json.WritePropertyName("args");
-        json.WriteStartObject();
-        json.WriteNumber("value", e.Value);
-        json.WriteEndObject();
-        json.WriteEndObject();
-    }
-
-    private static void WriteProcessName(Utf8JsonWriter json, int pid, string name)
-    {
-        json.WriteStartObject();
-        json.WriteString("name", "process_name");
-        json.WriteString("ph", "M");
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", 0);
-        json.WritePropertyName("args");
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteEndObject();
-        json.WriteEndObject();
-    }
-
-    private static void WriteThreadName(Utf8JsonWriter json, int pid, int tid, string name)
-    {
-        json.WriteStartObject();
-        json.WriteString("name", "thread_name");
-        json.WriteString("ph", "M");
-        json.WriteNumber("pid", pid);
-        json.WriteNumber("tid", tid);
-        json.WritePropertyName("args");
-        json.WriteStartObject();
-        json.WriteString("name", name);
-        json.WriteEndObject();
-        json.WriteEndObject();
-    }
-
-    private static string ResolveThreadName(TraceSession session, int threadId)
-    {
-        if (session.ThreadNames.TryGetValue(threadId, out var name) && !string.IsNullOrWhiteSpace(name))
-            return name;
-
-        return $"Thread {threadId}";
-    }
-
-    private static int CompareEventOrder(long timestamp, int trackId, long sequence, long otherTimestamp,
-        int otherTrackId, long otherSequence)
-    {
-        var cmp = timestamp.CompareTo(otherTimestamp);
-        if (cmp != 0) return cmp;
-        cmp = trackId.CompareTo(otherTrackId);
-        if (cmp != 0) return cmp;
-        return sequence.CompareTo(otherSequence);
-    }
-
-    private static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
-    {
-        if (meta.TryGet(id, out var m))
-        {
-            name = m.Name;
-            category = m.Category ?? "";
-            return;
-        }
-
-        name = id.ToString();
-        category = "";
     }
 }

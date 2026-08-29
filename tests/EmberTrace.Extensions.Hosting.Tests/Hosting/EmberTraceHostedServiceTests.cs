@@ -1,5 +1,4 @@
 using EmberTrace.Extensions.Hosting.Configuration;
-using EmberTrace.Extensions.Hosting.Hosting;
 using EmberTrace.Extensions.Hosting.Recording;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

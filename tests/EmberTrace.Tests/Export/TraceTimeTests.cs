@@ -2,6 +2,8 @@ using EmberTrace.Export;
 
 namespace EmberTrace.Tests.Export;
 
+#pragma warning disable CS0618
+
 [TestClass]
 public class TraceTimeTests
 {
@@ -19,3 +21,5 @@ public class TraceTimeTests
         Assert.AreEqual(1_500.0, TraceTime.ToUs(15_000, 10_000_000), 1e-12);
     }
 }
+
+#pragma warning restore CS0618

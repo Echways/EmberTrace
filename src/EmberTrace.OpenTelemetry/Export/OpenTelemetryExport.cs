@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using EmberTrace.Internal.Time;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
@@ -19,7 +20,7 @@ public static class OpenTelemetryExport
         ITraceMetadataProvider? meta = null,
         OpenTelemetryExportOptions? options = null)
     {
-        if (session is null) throw new ArgumentNullException(nameof(session));
+        ArgumentNullException.ThrowIfNull(session);
 
         options ??= new OpenTelemetryExportOptions();
         meta ??= session.Metadata;
@@ -47,7 +48,7 @@ public static class OpenTelemetryExport
 
                 if (step.Kind == ScopeStepKind.Open)
                 {
-                    Resolve(meta, step.Id, out var name, out var category);
+                    meta.Resolve(step.Id, out var name, out var category);
 
                     var activity = new Activity(name);
                     activity.SetIdFormat(ActivityIdFormat.W3C);
@@ -104,7 +105,7 @@ public static class OpenTelemetryExport
         ITraceMetadataProvider? meta = null,
         OpenTelemetryExportOptions? options = null)
     {
-        if (onSpan is null) throw new ArgumentNullException(nameof(onSpan));
+        ArgumentNullException.ThrowIfNull(onSpan);
 
         var spans = CreateSpans(session, meta, options);
         for (var i = 0; i < spans.Count; i++)
@@ -160,8 +161,7 @@ public static class OpenTelemetryExport
         if (delta <= 0)
             return baseUtc.UtcDateTime;
 
-        var seconds = delta / (double)session.TimestampFrequency;
-        return baseUtc.UtcDateTime + TimeSpan.FromSeconds(seconds);
+        return TickConverter.FromSession(session).ToUtc(baseUtc, delta);
     }
 
     private static ActivityLink CreateFlowLink(long flowId, int id, long timestamp)
@@ -205,16 +205,4 @@ public static class OpenTelemetryExport
         }
     }
 
-    private static void Resolve(ITraceMetadataProvider meta, int id, out string name, out string category)
-    {
-        if (meta.TryGet(id, out var m))
-        {
-            name = m.Name;
-            category = m.Category ?? string.Empty;
-            return;
-        }
-
-        name = id.ToString();
-        category = string.Empty;
-    }
 }

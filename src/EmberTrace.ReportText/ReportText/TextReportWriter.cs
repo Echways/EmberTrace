@@ -65,7 +65,7 @@ internal static class TextReportWriter
             var exclPct = trace.DurationMs <= 0 ? 0 : r.ExclusiveMs / trace.DurationMs * 100.0;
             var inclPct = trace.DurationMs <= 0 ? 0 : r.InclusiveMs / trace.DurationMs * 100.0;
 
-            Resolve(meta, r.Id, out var name, out var cat);
+            meta.Resolve(r.Id, out var name, out var cat);
             if (!MatchesCategory(categoryFilter, cat))
                 continue;
             if (minPercent > 0 && inclPct < minPercent)
@@ -135,7 +135,7 @@ internal static class TextReportWriter
     {
         var id = depth == 0 ? node.Id.ToString() : new string(' ', depth * 2) + node.Id;
 
-        Resolve(meta, node.Id, out var name, out var cat);
+        meta.Resolve(node.Id, out var name, out var cat);
         if (!MatchesCategory(categoryFilter, cat))
             return;
 
@@ -175,7 +175,7 @@ internal static class TextReportWriter
         for (var i = 0; i < trace.HotspotsByInclusiveDesc.Count; i++)
         {
             var r = trace.HotspotsByInclusiveDesc[i];
-            Resolve(meta, r.Id, out _, out var cat);
+            meta.Resolve(r.Id, out _, out var cat);
             if (string.IsNullOrEmpty(cat))
                 continue;
             if (!MatchesCategory(categoryFilter, cat))
@@ -219,16 +219,4 @@ internal static class TextReportWriter
         return string.Equals(filter, category, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void Resolve(ITraceMetadataProvider? meta, int id, out string name, out string category)
-    {
-        if (meta is not null && meta.TryGet(id, out var m))
-        {
-            name = m.Name;
-            category = m.Category ?? "";
-            return;
-        }
-
-        name = id.ToString();
-        category = "";
-    }
 }
