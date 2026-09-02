@@ -9,8 +9,8 @@ public static class TraceDiff
 {
     public static TraceComparison Compare(TraceStats baseline, TraceStats current)
     {
-        if (baseline is null) throw new ArgumentNullException(nameof(baseline));
-        if (current is null) throw new ArgumentNullException(nameof(current));
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(current);
 
         var baselineById = Index(baseline);
         var currentById = Index(current);
@@ -50,7 +50,7 @@ public static class TraceDiff
 
     public static string Format(TraceComparison comparison, ITraceMetadataProvider? meta = null, double minPercent = 0)
     {
-        if (comparison is null) throw new ArgumentNullException(nameof(comparison));
+        ArgumentNullException.ThrowIfNull(comparison);
 
         var sb = new StringBuilder(4096);
         sb.AppendLine("Id      Name                 Base ms    Cur ms     Total%     Base p95   Cur p95    p95%");

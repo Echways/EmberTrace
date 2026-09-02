@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace EmberTrace.Extensions.Hosting.Hosting;
+namespace EmberTrace.Extensions.Hosting;
 
 internal sealed class EmberTraceHostedService : IHostedService
 {

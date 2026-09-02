@@ -10,8 +10,8 @@ public static class TraceFormat
 
     public static void Write(TraceSession session, Stream destination)
     {
-        if (session is null) throw new ArgumentNullException(nameof(session));
-        if (destination is null) throw new ArgumentNullException(nameof(destination));
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(destination);
 
         var header = new SessionHeader(
             FormatConstants.Version,
@@ -35,7 +35,7 @@ public static class TraceFormat
 
     public static void Write(TraceSession session, string path)
     {
-        if (path is null) throw new ArgumentNullException(nameof(path));
+        ArgumentNullException.ThrowIfNull(path);
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
         if (!string.IsNullOrEmpty(directory))
@@ -47,14 +47,14 @@ public static class TraceFormat
 
     public static TraceSession Read(Stream source)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
 
         return TraceFormatReader.ReadSession(source);
     }
 
     public static TraceSession Read(string path)
     {
-        if (path is null) throw new ArgumentNullException(nameof(path));
+        ArgumentNullException.ThrowIfNull(path);
 
         using var stream = File.OpenRead(path);
         return Read(stream);

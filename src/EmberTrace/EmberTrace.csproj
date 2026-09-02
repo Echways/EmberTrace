@@ -22,6 +22,10 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="EmberTrace.Tests"/>
+        <InternalsVisibleTo Include="EmberTrace.Export"/>
+        <InternalsVisibleTo Include="EmberTrace.ReportText"/>
+        <InternalsVisibleTo Include="EmberTrace.OpenTelemetry"/>
+        <InternalsVisibleTo Include="EmberTrace.Analysis"/>
     </ItemGroup>
 
     <ItemGroup>

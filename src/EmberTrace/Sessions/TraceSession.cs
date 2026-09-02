@@ -51,7 +51,7 @@ public sealed class TraceSession
         SessionOptions? options = null,
         bool isSnapshot = false)
     {
-        if (events is null) throw new ArgumentNullException(nameof(events));
+        ArgumentNullException.ThrowIfNull(events);
 
         var sessionOptions = options ?? new SessionOptions();
         var capacity = Math.Max(1024, sessionOptions.ChunkCapacity);

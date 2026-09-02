@@ -20,7 +20,7 @@ internal sealed class SessionCollector
     private readonly List<Chunk> _quarantine = new();
     private readonly long _retentionTicks;
     private readonly object _sync = new();
-    private readonly Dictionary<int, string> _threadNames = new();
+    private readonly ThreadNameRegistry _threadNames = new();
 
     private int _closed;
     private long _droppedChunks;
@@ -113,16 +113,7 @@ internal sealed class SessionCollector
         }
     }
 
-    public IReadOnlyDictionary<int, string> ThreadNames
-    {
-        get
-        {
-            lock (_sync)
-            {
-                return new Dictionary<int, string>(_threadNames);
-            }
-        }
-    }
+    public IReadOnlyDictionary<int, string> ThreadNames => _threadNames.Snapshot();
 
     public void Close()
     {
@@ -143,33 +134,26 @@ internal sealed class SessionCollector
 
         switch (_policy)
         {
-            case OverflowPolicy.DropNew:
-                Interlocked.Decrement(ref _totalEvents);
-                Interlocked.Increment(ref _droppedEvents);
-                MarkOverflow(OverflowReason.MaxTotalEvents);
-                return false;
             case OverflowPolicy.StopSession:
-                Interlocked.Decrement(ref _totalEvents);
-                Interlocked.Increment(ref _droppedEvents);
-                MarkOverflow(OverflowReason.MaxTotalEvents);
+                Reject(OverflowReason.MaxTotalEvents);
                 Close();
                 return false;
             case OverflowPolicy.DropOldest:
-                if (!TryDropOldestForEvents())
-                {
-                    Interlocked.Decrement(ref _totalEvents);
-                    Interlocked.Increment(ref _droppedEvents);
-                    MarkOverflow(OverflowReason.MaxTotalEvents);
-                    return false;
-                }
+                if (TryDropOldestForEvents())
+                    return true;
 
-                return true;
+                return Reject(OverflowReason.MaxTotalEvents);
             default:
-                Interlocked.Decrement(ref _totalEvents);
-                Interlocked.Increment(ref _droppedEvents);
-                MarkOverflow(OverflowReason.MaxTotalEvents);
-                return false;
+                return Reject(OverflowReason.MaxTotalEvents);
         }
+    }
+
+    private bool Reject(OverflowReason reason)
+    {
+        Interlocked.Decrement(ref _totalEvents);
+        Interlocked.Increment(ref _droppedEvents);
+        MarkOverflow(reason);
+        return false;
     }
 
     public void MarkChunkInactive(Chunk chunk)
@@ -208,11 +192,7 @@ internal sealed class SessionCollector
         if (string.IsNullOrWhiteSpace(name))
             return;
 
-        lock (_sync)
-        {
-            if (!_threadNames.ContainsKey(threadId))
-                _threadNames.Add(threadId, name);
-        }
+        _threadNames.Set(threadId, name);
     }
 
     public bool TryRentChunk(out Chunk? chunk)

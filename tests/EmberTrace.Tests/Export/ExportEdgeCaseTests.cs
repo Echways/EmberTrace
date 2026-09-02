@@ -6,6 +6,8 @@ using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Export;
 
+#pragma warning disable CS0618
+
 [TestClass]
 public class ExportEdgeCaseTests
 {
@@ -133,3 +135,5 @@ public class ExportEdgeCaseTests
             false);
     }
 }
+
+#pragma warning restore CS0618

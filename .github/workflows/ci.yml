@@ -30,9 +30,28 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # dotnet format takes no -c, it reads Configuration from the environment, and MSBuild
+    # property names are case insensitive: whatever CONFIGURATION holds is what it loads.
+    env:
+      CONFIGURATION: Debug
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+
+      - name: Build
+        run: |
+          dotnet build "$SOLUTION" -c "$CONFIGURATION" --no-restore -p:UseLocalEmberTrace=true
+
+      - name: Verify the source generator is on disk
+        run: |
+          set -euo pipefail
+          analyzer="src/EmberTrace.Generator/bin/$CONFIGURATION/netstandard2.0/EmberTrace.Generator.dll"
+          if [ ! -f "$analyzer" ]; then
+            echo "::error title=Format::'$analyzer' is missing; dotnet format loads the"\
+                 " '$CONFIGURATION' configuration and reports every generated type as CS0246 without it"
+            exit 1
+          fi
+
       - run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
 
   build:

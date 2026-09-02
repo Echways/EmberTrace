@@ -11,6 +11,9 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
 {
     private const string GenerateTraceIdsOption = "build_property.EmberTraceGenerateTraceIds";
 
+    private const string ServiceCollectionMetadataName =
+        "Microsoft.Extensions.DependencyInjection.IServiceCollection";
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var assemblyItems = context.SyntaxProvider
@@ -48,8 +51,7 @@ public sealed class TraceMetadataGenerator : IIncrementalGenerator
 
         var hasServiceCollection = context.CompilationProvider
             .Select(static (compilation, _) =>
-                compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.IServiceCollection")
-                    is not null);
+                !compilation.GetTypesByMetadataName(ServiceCollectionMetadataName).IsEmpty);
 
         var generateTraceIds = context.AnalyzerConfigOptionsProvider
             .Select(static (options, _) => NameFormatting.GetBoolOption(options.GlobalOptions, GenerateTraceIdsOption));

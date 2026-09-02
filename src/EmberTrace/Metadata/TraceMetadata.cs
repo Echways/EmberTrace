@@ -9,7 +9,7 @@ public static class TraceMetadata
 
     public static void Register(ITraceMetadataProvider provider)
     {
-        if (provider is null) throw new ArgumentNullException(nameof(provider));
+        ArgumentNullException.ThrowIfNull(provider);
 
         lock (Registered)
         {
@@ -20,7 +20,7 @@ public static class TraceMetadata
 
     public static bool Unregister(ITraceMetadataProvider provider)
     {
-        if (provider is null) throw new ArgumentNullException(nameof(provider));
+        ArgumentNullException.ThrowIfNull(provider);
 
         lock (Registered)
         {
@@ -62,7 +62,7 @@ public static class TraceMetadata
 
     public static ITraceMetadataProvider FromEntries(IEnumerable<TraceMeta> entries)
     {
-        if (entries is null) throw new ArgumentNullException(nameof(entries));
+        ArgumentNullException.ThrowIfNull(entries);
 
         var provider = new DictionaryTraceMetadataProvider();
         foreach (var entry in entries)
