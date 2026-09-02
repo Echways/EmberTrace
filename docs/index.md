@@ -6,6 +6,7 @@
 
 - [Quick Start](guides/getting-started/README.md)
 - [Usage and API](guides/usage/README.md)
+- [Auto-instrumentation with [Trace]](guides/auto-instrumentation/README.md)
 
 ## Concepts
 
@@ -22,6 +23,7 @@
 
 ## Integrations
 
+- [Hosting integration (ASP.NET Core)](guides/hosting/README.md)
 - [OpenTelemetry export](reference/opentelemetry/README.md)
 - [Roslyn analyzers](reference/roslyn-analyzers/README.md)
 

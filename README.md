@@ -56,7 +56,7 @@ Tracer.Start();
 
 using (Tracer.Scope(1000))
 {
-    // работа
+    // work
 }
 
 var session = Tracer.Stop();

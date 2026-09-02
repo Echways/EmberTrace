@@ -6,6 +6,7 @@ English version: [./index.md](./index.md)
 
 - [Быстрый старт](guides/getting-started/README.ru.md)
 - [Использование и API](guides/usage/README.ru.md)
+- [Автоинструментация через [Trace]](guides/auto-instrumentation/README.ru.md)
 
 ## Концепции
 
@@ -22,6 +23,7 @@ English version: [./index.md](./index.md)
 
 ## Интеграции
 
+- [Интеграция с хостингом (ASP.NET Core)](guides/hosting/README.ru.md)
 - [OpenTelemetry export](reference/opentelemetry/README.ru.md)
 - [Roslyn analyzers](reference/roslyn-analyzers/README.ru.md)
 

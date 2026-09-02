@@ -134,4 +134,4 @@ See also:
 
 ## Screenshots
 
-![Пример кода: скриншот блока instrumentation (Scope + metadata)](../../assets/usage-instrumentation.png)
+![Code sample: the instrumentation block (Scope + metadata)](../../assets/usage-instrumentation.png)

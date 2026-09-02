@@ -8,13 +8,13 @@
       "embertrace.export": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       },
       "embertrace.format": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       }
     }

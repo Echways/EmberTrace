@@ -71,4 +71,4 @@ See also:
 
 ## Screenshots
 
-![Нет имён в отчёте: отсутствуют метаданные TraceId](../assets/troubleshooting-common.png)
+![No names in the report: the TraceId metadata is missing](../assets/troubleshooting-common.png)

@@ -7,7 +7,7 @@ English version: [./STRUCTURE.md](./STRUCTURE.md)
 ```
 docs/
   index.md
-  README.md                 
+  README.md
   STRUCTURE.md              # этот файл
   assets/
   guides/
@@ -16,8 +16,12 @@ docs/
     usage/
     export/
     analysis/
+    format/
+    flight-recorder/
     auto-instrumentation/
+    runtime-counters/
     hosting/
+    testing/
   concepts/
     index.md
     flows/
@@ -26,23 +30,24 @@ docs/
     api/
       index.md
       tracer.md
+      scope-reader.md
     source-generator/
+    session-options/
+    opentelemetry/
+    roslyn-analyzers/
   troubleshooting/
     index.md
     README.md
 ```
 
+Страница раздела лежит в `README.md`; `index.md` — оглавление каталога, у которого есть вложенные
+страницы. У каждой страницы есть русская пара с суффиксом `.ru.md`, обе версии ссылаются друг на
+друга первой строкой.
+
 ## Правила именования
 
 - **guides/** — пошаговые сценарии («сделай X»)
-- **concepts/** — ментальная модель и invariants («как оно работает внутри»)
+- **concepts/** — ментальная модель и инварианты («как оно работает внутри»)
 - **reference/** — точная справка/контракты (API, конфиги, генераторы, форматы)
 - **troubleshooting/** — симптомы → причины → фиксы
-- **assets/** — изображения/диаграммы, которые референсятся из docs
-
-
-## Что можно сделать дальше (если захочешь ещё “строже”)
-
-- Перейти с `README.md` внутри разделов на `index.md` (как в Docusaurus/MkDocs),
-  и оставить `README.md` только как redirect.
-- Добавить страницы для остальных публичных типов (например `TraceSession`, `SessionOptions`, exporters/reporters), если захочешь 100% coverage.
+- **assets/** — изображения и диаграммы, на которые ссылаются страницы docs

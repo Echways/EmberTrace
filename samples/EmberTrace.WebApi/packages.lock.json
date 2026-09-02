@@ -8,21 +8,21 @@
       "embertrace.export": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       },
       "embertrace.extensions.hosting": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )",
-          "EmberTrace.Export": "[0.2.3, )",
-          "EmberTrace.Format": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )",
+          "EmberTrace.Export": "[0.3.0, )",
+          "EmberTrace.Format": "[0.3.0, )"
         }
       },
       "embertrace.format": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       }
     }

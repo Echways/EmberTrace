@@ -93,7 +93,7 @@ See also:
 
 ## Screenshots
 
-![Срез анализа: агрегирование/сортировка/фильтры](../../assets/analysis-slice.png)
+![Analysis slice: aggregation, sorting, filters](../../assets/analysis-slice.png)
 
 ## Links
 
