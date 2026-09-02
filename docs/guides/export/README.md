@@ -81,4 +81,4 @@ See also:
 
 ## Screenshots
 
-![Открытый экспорт: json открыт в Perfetto](../../assets/export-opened.png)
+![Exported trace: the json opened in Perfetto](../../assets/export-opened.png)

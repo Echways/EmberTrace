@@ -27,7 +27,7 @@ using (Tracer.Scope(parseId))
 }
 
 var session = Tracer.Stop();
-// дальше: экспорт / отчёт (см. [Экспорт](../../guides/export/README.md) и [Анализ](../../guides/analysis/README.md))
+// дальше: экспорт / отчёт - см. гайды «Экспорт» и «Анализ»
 ```
 
 ---

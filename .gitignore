@@ -424,6 +424,3 @@ FodyWeavers.xsd
 .vscode/
 .idea/
 *.log
-
-# Superpowers
-docs/superpowers/*

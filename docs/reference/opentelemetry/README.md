@@ -20,7 +20,7 @@ var spans = OpenTelemetryExport.CreateSpans(session);
 
 foreach (var span in spans)
 {
-    // отправка в свой экспортёр
+    // send to your own exporter
 }
 ```
 

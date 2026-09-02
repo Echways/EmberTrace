@@ -125,4 +125,4 @@ See also:
 
 ## Screenshots
 
-![Сгенерированный код: файл из `obj/` с атрибутами и регистрацией (вид в IDE)](../../assets/generator-generated-code.png)
+![Generated code: a file under `obj/` with the attributes and registration, as seen in the IDE](../../assets/generator-generated-code.png)

@@ -7,8 +7,8 @@
 ```
 docs/
   index.md
-  README.md                 
-  STRUCTURE.md              # этот файл
+  README.md
+  STRUCTURE.md              # this file
   assets/
   guides/
     index.md
@@ -16,8 +16,12 @@ docs/
     usage/
     export/
     analysis/
+    format/
+    flight-recorder/
     auto-instrumentation/
+    runtime-counters/
     hosting/
+    testing/
   concepts/
     index.md
     flows/
@@ -26,11 +30,19 @@ docs/
     api/
       index.md
       tracer.md
+      scope-reader.md
     source-generator/
+    session-options/
+    opentelemetry/
+    roslyn-analyzers/
   troubleshooting/
     index.md
     README.md
 ```
+
+A section directory holds its page in `README.md`; `index.md` is the table of contents of a
+directory that has children. Every page has a Russian sibling with the `.ru.md` suffix, and both
+versions link to each other on the first line.
 
 ## Naming rules
 
@@ -39,9 +51,3 @@ docs/
 - **reference/** - precise docs/contracts (API, configs, generators, formats)
 - **troubleshooting/** - symptoms -> causes -> fixes
 - **assets/** - images/diagrams referenced from docs
-
-## What you can do next (if you want it even "stricter")
-
-- Switch from `README.md` inside sections to `index.md` (as in Docusaurus/MkDocs),
-  and keep `README.md` only as redirect.
-- Add pages for remaining public types (for example `TraceSession`, `SessionOptions`, exporters/reporters) if you want 100% coverage.

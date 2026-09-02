@@ -11,19 +11,19 @@
       "embertrace.analysis": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       },
       "embertrace.export": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       },
       "embertrace.format": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       },
       "embertrace.generator": {
@@ -32,14 +32,14 @@
       "embertrace.opentelemetry": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )"
         }
       },
       "embertrace.reporttext": {
         "type": "Project",
         "dependencies": {
-          "EmberTrace": "[0.2.3, )",
-          "EmberTrace.Analysis": "[0.2.3, )"
+          "EmberTrace": "[0.3.0, )",
+          "EmberTrace.Analysis": "[0.3.0, )"
         }
       }
     }

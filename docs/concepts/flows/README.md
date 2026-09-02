@@ -14,7 +14,7 @@ In Chrome Trace/Perfetto, a flow is usually displayed as an "arrow" or a connect
 ```csharp
 var flow = Tracer.FlowStartNewHandle(Ids.JobFlow);
 
-flow.Step(); // отметка прогресса
+flow.Step(); // progress mark
 DoWork();
 
 await Task.Delay(10);
@@ -67,4 +67,4 @@ See also:
 
 ## Screenshots
 
-![Диаграмма Flow: создание/пропагация FlowId между async/threads](../../assets/flows-propagation.png)
+![Flow diagram: FlowId creation and propagation across async and threads](../../assets/flows-propagation.png)

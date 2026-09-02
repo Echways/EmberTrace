@@ -68,7 +68,7 @@ Tracer.Start();
 
 using (Tracer.Scope(1000))
 {
-    // работа
+    // work
 }
 
 var session = Tracer.Stop();
@@ -114,7 +114,7 @@ The repository contains a ready-to-run scenario with scopes + flows + async + ex
 
 ```bash
 dotnet run --project samples/EmberTrace.DocScreenshots -c Release
-# выходные файлы: samples/EmberTrace.DocScreenshots/out
+# output files: samples/EmberTrace.DocScreenshots/out
 ```
 
 Next:
