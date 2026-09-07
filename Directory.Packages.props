@@ -1,7 +1,7 @@
 <Project>
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-        <RoslynVersion>5.0.0</RoslynVersion>
+        <RoslynVersion>5.9.0</RoslynVersion>
     </PropertyGroup>
 
     <ItemGroup Label="Roslyn">
@@ -19,9 +19,9 @@
 
     <ItemGroup Label="Tests and benchmarks">
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-        <PackageVersion Include="MSTest.Sdk" Version="4.3.3" />
-        <PackageVersion Include="MSTest.TestFramework" Version="4.3.3" />
-        <PackageVersion Include="MSTest.TestAdapter" Version="4.3.3" />
+        <PackageVersion Include="MSTest.Sdk" Version="4.4.0" />
+        <PackageVersion Include="MSTest.TestFramework" Version="4.4.0" />
+        <PackageVersion Include="MSTest.TestAdapter" Version="4.4.0" />
         <PackageVersion Include="Microsoft.ApplicationInsights" Version="3.1.2" />
         <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     </ItemGroup>
