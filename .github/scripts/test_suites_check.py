@@ -10,7 +10,11 @@ WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 def main() -> int:
     covered = set(re.findall(r"FullyQualifiedName~EmberTrace\.Tests\.(\w+)", WORKFLOW.read_text()))
-    namespaces = {d.name for d in TESTS.iterdir() if d.is_dir() and any(d.glob("*.cs"))}
+    namespaces = {
+        d.name
+        for d in TESTS.iterdir()
+        if d.is_dir() and any("[TestClass" in f.read_text() for f in d.rglob("*.cs"))
+    }
     missing = sorted(namespaces - covered)
 
     for name in missing:
