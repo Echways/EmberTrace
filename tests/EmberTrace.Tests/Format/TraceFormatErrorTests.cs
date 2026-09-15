@@ -123,4 +123,37 @@ public class TraceFormatErrorTests
 
     private static SessionHeader EmptyHeader =>
         new(FormatConstants.Version, false, 1_000_000, 0, 0, 0, 0, 0, 0);
+
+    [TestMethod]
+    public void ReadThreadNames_WithAbsurdStringLength_ThrowsWithoutHugeAllocation()
+    {
+        using var ms = new MemoryStream();
+        VarInt.WriteUInt64(ms, 1);
+        VarInt.WriteInt64(ms, 1);
+        VarInt.WriteUInt64(ms, 1_500_000_000);
+        ms.Write(new byte[16]);
+        ms.Position = 0;
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+
+        Assert.ThrowsExactly<InvalidDataException>(() => TraceFormatReader.ReadThreadNames(ms));
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.IsTrue(allocated < 1_000_000, $"Reader allocated {allocated} bytes for a 30-byte stream.");
+    }
+
+    [TestMethod]
+    public void ReadThreadNames_WithStringLongerThanTheStream_Throws()
+    {
+        using var ms = new MemoryStream();
+        VarInt.WriteUInt64(ms, 1);
+        VarInt.WriteInt64(ms, 1);
+        VarInt.WriteUInt64(ms, 4096);
+        ms.Write(new byte[16]);
+        ms.Position = 0;
+
+        var ex = Assert.ThrowsExactly<InvalidDataException>(() => TraceFormatReader.ReadThreadNames(ms));
+
+        StringAssert.Contains(ex.Message, "4096");
+    }
 }
