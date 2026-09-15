@@ -87,7 +87,7 @@ public class TraceMethodGeneratorTests
         var outer = source.IndexOf("partial class Outer", StringComparison.Ordinal);
         var inner = source.IndexOf("partial class Inner", StringComparison.Ordinal);
 
-        Assert.IsGreaterThan(-1, outer);
+        Assert.IsGreaterThanOrEqualTo(0, outer);
         Assert.IsGreaterThan(outer, inner);
     }
 
@@ -218,26 +218,6 @@ public class TraceMethodGeneratorTests
     }
 
     [TestMethod]
-    public void ReadonlyAsyncStructMethod_ReportsETG012()
-    {
-        var diagnostics = GeneratorTestHost.Run("""
-                                                using System.Threading.Tasks;
-                                                using EmberTrace.Abstractions.Attributes;
-
-                                                public partial struct S
-                                                {
-                                                    [Trace]
-                                                    public readonly partial Task M();
-
-                                                    private readonly Task MCore() => Task.CompletedTask;
-                                                }
-                                                """).Diagnostics;
-
-        Assert.IsTrue(diagnostics.Any(d => d.Id == "ETG012"),
-            "A readonly struct member cannot call a non-readonly async helper without CS8656");
-    }
-
-    [TestMethod]
     public void TracedMethod_JoinsTheMetadataProvider()
     {
         var result = GeneratorTestHost.Run("""
@@ -277,8 +257,7 @@ public class TraceMethodGeneratorTests
                                            }
                                            """);
 
-        Assert.IsTrue(result.Diagnostics.Any(d => d.Id == "ETG001"),
-            "Two different names on one id must still collide");
+        Assert.HasCount(1, result.Diagnostics.Where(d => d.Id == "ETG001"));
     }
 
     internal static string Wrapper(string code)

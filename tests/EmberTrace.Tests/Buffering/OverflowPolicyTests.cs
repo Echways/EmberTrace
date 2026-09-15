@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Buffering;
@@ -8,274 +7,189 @@ namespace EmberTrace.Tests.Buffering;
 public class OverflowPolicyTests
 {
     [TestMethod]
-    public void DropNew_ExcessEvents_AreRejectedAndCountedAsDropped()
+    [DataRow(OverflowPolicy.DropNew, false, 2L)]
+    [DataRow(OverflowPolicy.DropOldest, false, 2L)]
+    [DataRow(OverflowPolicy.StopSession, true, 1L)]
+    public void MaxTotalEvents_AcceptsUpToTheLimitThenAppliesThePolicy(
+        OverflowPolicy policy, bool closes, long expectedDropped)
     {
-        const int limit = 5;
-        var (collector, _) = MakeCollector(OverflowPolicy.DropNew, limit, 16);
+        var collector = Collectors.Create(policy, maxEvents: 3);
 
-        int accepted = 0, rejected = 0;
-        for (var i = 0; i < limit * 2; i++)
-            if (collector.TryAcceptEvent()) accepted++;
-            else rejected++;
+        for (var i = 0; i < 3; i++)
+            Assert.IsTrue(collector.TryAcceptEvent());
 
-        Assert.AreEqual(limit, accepted, "Only exactly MaxTotalEvents events should be accepted");
-        Assert.AreEqual(limit, rejected, "Excess events must be counted");
-        Assert.AreEqual(limit, collector.DroppedEvents);
-        Assert.IsFalse(collector.IsClosed, "DropNew must not close the session");
-    }
+        Assert.IsFalse(collector.WasOverflow);
 
-    [TestMethod]
-    public void DropNew_WasOverflow_SetAfterFirstExcess()
-    {
-        var (collector, _) = MakeCollector(OverflowPolicy.DropNew, 2, 16);
+        Assert.IsFalse(collector.TryAcceptEvent());
+        Assert.IsFalse(collector.TryAcceptEvent());
 
-        collector.TryAcceptEvent();
-        collector.TryAcceptEvent();
-        Assert.IsFalse(collector.WasOverflow, "No overflow yet");
-
-        collector.TryAcceptEvent();
         Assert.IsTrue(collector.WasOverflow);
+        Assert.AreEqual(closes, collector.IsClosed);
+        Assert.AreEqual(expectedDropped, collector.DroppedEvents);
+        Assert.AreEqual(!closes, collector.TryRentChunk(out _));
     }
 
     [TestMethod]
-    public void DropNew_OnOverflow_FiredExactlyOnceWithCorrectInfo()
+    [DataRow(OverflowPolicy.DropNew)]
+    [DataRow(OverflowPolicy.DropOldest)]
+    [DataRow(OverflowPolicy.StopSession)]
+    public void OnOverflow_FiresOnceOffTheWritingThreadWithTheReasonAndPolicy(OverflowPolicy policy)
     {
-        var received = new ConcurrentQueue<OverflowInfo>();
+        var received = new ConcurrentQueue<(OverflowInfo Info, int Thread)>();
         using var fired = new ManualResetEventSlim();
 
-        var options = new SessionOptions
+        var collector = Collectors.Create(policy, maxEvents: 3, onOverflow: info =>
         {
-            MaxTotalEvents = 3,
-            OverflowPolicy = OverflowPolicy.DropNew,
-            ChunkCapacity = 16,
-            OnOverflow = info =>
-            {
-                received.Enqueue(info);
-                fired.Set();
-            }
-        };
-        var pool = new ChunkPool(16);
-        var collector = new SessionCollector(options, pool, 16);
+            received.Enqueue((info, Environment.CurrentManagedThreadId));
+            fired.Set();
+        });
 
         for (var i = 0; i < 10; i++)
             collector.TryAcceptEvent();
 
-        Assert.IsTrue(fired.Wait(TimeSpan.FromSeconds(10)), "OnOverflow must be delivered outside the writing path");
-        Assert.HasCount(1, received, "OnOverflow must fire exactly once regardless of how many events overflow");
-        Assert.IsTrue(received.TryDequeue(out var info));
-        Assert.AreEqual(OverflowReason.MaxTotalEvents, info.Reason);
-        Assert.AreEqual(OverflowPolicy.DropNew, info.Policy);
+        Assert.IsTrue(fired.Wait(TimeSpan.FromSeconds(10)));
+        Assert.HasCount(1, received);
+        Assert.IsTrue(received.TryDequeue(out var notification));
+        Assert.AreEqual(OverflowReason.MaxTotalEvents, notification.Info.Reason);
+        Assert.AreEqual(policy, notification.Info.Policy);
+        Assert.AreNotEqual(Environment.CurrentManagedThreadId, notification.Thread);
     }
 
     [TestMethod]
-    public void StopSession_MaxTotalEvents_ClosesCollectorOnFirstExcess()
+    public void OnOverflow_HandlerThatThrows_DoesNotBreakTheCollector()
     {
-        var (collector, _) = MakeCollector(OverflowPolicy.StopSession, 3, 16);
+        using var fired = new ManualResetEventSlim();
+        var collector = Collectors.Create(maxEvents: 1, onOverflow: _ =>
+        {
+            fired.Set();
+            throw new InvalidOperationException();
+        });
 
         collector.TryAcceptEvent();
         collector.TryAcceptEvent();
-        collector.TryAcceptEvent();
+
+        Assert.IsTrue(fired.Wait(TimeSpan.FromSeconds(10)));
+        Assert.IsFalse(collector.IsClosed);
+    }
+
+    [TestMethod]
+    public void StopSession_MaxTotalChunks_ClosesWhenTheLimitIsExceeded()
+    {
+        var collector = Collectors.Create(OverflowPolicy.StopSession, maxChunks: 2, capacity: 8);
+
+        Assert.IsTrue(collector.TryRentChunk(out _));
+        Assert.IsTrue(collector.TryRentChunk(out _));
         Assert.IsFalse(collector.IsClosed);
 
-        collector.TryAcceptEvent();
-        Assert.IsTrue(collector.IsClosed);
-        Assert.IsTrue(collector.WasOverflow);
-    }
-
-    [TestMethod]
-    public void StopSession_MaxTotalEvents_AllSubsequentEventsRejected()
-    {
-        var (collector, _) = MakeCollector(OverflowPolicy.StopSession, 2, 16);
-
-        for (var i = 0; i < 20; i++)
-            collector.TryAcceptEvent();
-
-        Assert.IsFalse(collector.TryAcceptEvent());
         Assert.IsFalse(collector.TryRentChunk(out _));
-    }
-
-    [TestMethod]
-    public void StopSession_MaxTotalChunks_ClosesCollectorWhenChunkLimitExceeded()
-    {
-        const int maxChunks = 2;
-        var options = new SessionOptions
-        {
-            MaxTotalChunks = maxChunks,
-            OverflowPolicy = OverflowPolicy.StopSession,
-            ChunkCapacity = 8
-        };
-        var pool = new ChunkPool(8);
-        var collector = new SessionCollector(options, pool, 8);
-
-        Assert.IsTrue(collector.TryRentChunk(out _));
-        Assert.IsTrue(collector.TryRentChunk(out _));
-        Assert.IsFalse(collector.IsClosed, "Not closed yet — still at limit");
-
-        collector.TryRentChunk(out _);
         Assert.IsTrue(collector.IsClosed);
         Assert.IsTrue(collector.WasOverflow);
     }
 
     [TestMethod]
-    public void DropOldest_MaxTotalEvents_DropsOldestChunkAndAcceptsNewEvent()
+    public void DropNew_MaxTotalChunks_RefusesWithoutClosing()
+    {
+        var collector = Collectors.Create(OverflowPolicy.DropNew, maxChunks: 1, capacity: 8);
+
+        Assert.IsTrue(collector.TryRentChunk(out _));
+        Assert.IsFalse(collector.TryRentChunk(out _));
+
+        Assert.IsFalse(collector.IsClosed);
+        Assert.HasCount(1, collector.Chunks);
+    }
+
+    [TestMethod]
+    public void DropOldest_MaxTotalEvents_EvictsTheOldestInactiveChunk()
     {
         const int capacity = 4;
-        var (collector, _) = MakeCollector(OverflowPolicy.DropOldest, capacity, capacity);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: capacity, capacity: capacity);
 
         Assert.IsTrue(collector.TryRentChunk(out var chunk));
-        var dummyEvent = new TraceEvent(1, 1, 100L, TraceEventKind.Begin, 0, 0);
         for (var i = 0; i < capacity; i++)
         {
             Assert.IsTrue(collector.TryAcceptEvent());
-            chunk!.TryWrite(dummyEvent);
+            chunk!.TryWrite(Collectors.Event());
         }
 
         collector.MarkChunkInactive(chunk!);
 
-        var accepted = collector.TryAcceptEvent();
-
-        Assert.IsTrue(accepted, "DropOldest should accept the new event after evicting oldest chunk");
-        Assert.IsFalse(collector.IsClosed, "Session must remain open");
+        Assert.IsTrue(collector.TryAcceptEvent());
+        Assert.IsFalse(collector.IsClosed);
         Assert.IsTrue(collector.WasOverflow);
-        Assert.AreEqual(1L, collector.DroppedChunks, "Exactly one chunk should be dropped");
-        Assert.AreEqual(capacity, collector.DroppedEvents, "All events in dropped chunk counted as dropped");
+        Assert.AreEqual(1L, collector.DroppedChunks);
+        Assert.AreEqual(capacity, collector.DroppedEvents);
+        Assert.IsEmpty(collector.Chunks);
     }
 
     [TestMethod]
-    public void DropOldest_MaxTotalEvents_WhenNoInactiveChunkAvailable_FallsBackToDropNew()
+    public void DropOldest_MaxTotalEvents_WithoutAnInactiveChunk_RejectsTheEvent()
     {
         const int capacity = 4;
-        var (collector, _) = MakeCollector(OverflowPolicy.DropOldest, capacity, capacity);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: capacity, capacity: capacity);
 
         for (var i = 0; i < capacity; i++)
             Assert.IsTrue(collector.TryAcceptEvent());
 
         Assert.IsTrue(collector.TryRentChunk(out _));
 
-        var accepted = collector.TryAcceptEvent();
-
-        Assert.IsFalse(accepted, "No inactive chunk to drop → event is rejected");
+        Assert.IsFalse(collector.TryAcceptEvent());
         Assert.IsTrue(collector.WasOverflow);
         Assert.IsFalse(collector.IsClosed);
+        Assert.AreEqual(0L, collector.DroppedChunks);
     }
 
     [TestMethod]
-    public void DropOldest_MaxTotalChunks_ReusesDroppedChunk()
+    public void DropOldest_MaxTotalChunks_RecyclesTheOldestInactiveChunk()
     {
-        const int maxChunks = 2;
-        const int capacity = 8;
-        var options = new SessionOptions
-        {
-            MaxTotalChunks = maxChunks,
-            OverflowPolicy = OverflowPolicy.DropOldest,
-            ChunkCapacity = capacity
-        };
-        var pool = new ChunkPool(capacity);
-        var collector = new SessionCollector(options, pool, capacity);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 2, capacity: 8);
 
-        Assert.IsTrue(collector.TryRentChunk(out var chunk1));
-        collector.MarkChunkInactive(chunk1!);
+        Assert.IsTrue(collector.TryRentChunk(out var first));
+        collector.MarkChunkInactive(first!);
+        Assert.IsTrue(collector.TryRentChunk(out var second));
+        collector.MarkChunkInactive(second!);
 
-        Assert.IsTrue(collector.TryRentChunk(out var chunk2));
-        collector.MarkChunkInactive(chunk2!);
+        Assert.IsTrue(collector.TryRentChunk(out var third));
 
-        var rented = collector.TryRentChunk(out var chunk3);
-
-        Assert.IsTrue(rented, "DropOldest should succeed by evicting the oldest inactive chunk");
-        Assert.IsNotNull(chunk3);
+        Assert.AreSame(first, third);
+        CollectionAssert.AreEqual(new[] { second, third }, collector.Chunks.ToArray());
         Assert.AreEqual(1L, collector.DroppedChunks);
         Assert.IsTrue(collector.WasOverflow);
         Assert.IsFalse(collector.IsClosed);
     }
 
     [TestMethod]
-    public void DropOldest_MaxTotalChunks_WhenNoInactiveChunk_ReturnsFalse()
+    public void DropOldest_MaxTotalChunks_WithoutAnInactiveChunk_RefusesWithoutClosing()
     {
-        const int maxChunks = 1;
-        var options = new SessionOptions
-        {
-            MaxTotalChunks = maxChunks,
-            OverflowPolicy = OverflowPolicy.DropOldest,
-            ChunkCapacity = 8
-        };
-        var pool = new ChunkPool(8);
-        var collector = new SessionCollector(options, pool, 8);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 1, capacity: 8);
 
         Assert.IsTrue(collector.TryRentChunk(out _));
 
-        var rented = collector.TryRentChunk(out _);
-        Assert.IsFalse(rented);
+        Assert.IsFalse(collector.TryRentChunk(out _));
         Assert.IsTrue(collector.WasOverflow);
         Assert.IsFalse(collector.IsClosed);
     }
 
     [TestMethod]
-    [DataRow(OverflowPolicy.DropNew)]
-    [DataRow(OverflowPolicy.DropOldest)]
-    public void HandleRateLimitExceeded_NonStopPolicies_KeepSessionOpen(OverflowPolicy policy)
+    public void DropOldest_EventLimitWithoutAChunkLimit_DerivesTheChunkLimit()
     {
-        var (collector, _) = MakeCollector(policy, 0, 16);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: 5, capacity: 4);
 
-        collector.HandleRateLimitExceeded();
-
-        Assert.IsFalse(collector.IsClosed);
-        Assert.AreEqual(1L, collector.DroppedEvents);
-        Assert.IsTrue(collector.WasOverflow);
+        Assert.IsTrue(collector.TryRentChunk(out _));
+        Assert.IsTrue(collector.TryRentChunk(out _));
+        Assert.IsFalse(collector.TryRentChunk(out _));
     }
 
     [TestMethod]
-    public void HandleRateLimitExceeded_StopSession_ClosesCollector()
-    {
-        var (collector, _) = MakeCollector(OverflowPolicy.StopSession, 0, 16);
-
-        collector.HandleRateLimitExceeded();
-
-        Assert.IsTrue(collector.IsClosed);
-    }
-
-    [TestMethod]
-    public void RecordSampledOutEvent_AccumulatesCount()
-    {
-        var (collector, _) = MakeCollector(OverflowPolicy.DropNew, 0, 16);
-
-        collector.RecordSampledOutEvent();
-        collector.RecordSampledOutEvent();
-        collector.RecordSampledOutEvent();
-
-        Assert.AreEqual(3L, collector.SampledOutEvents);
-    }
-
-    [TestMethod]
-    public void NoEventLimit_AcceptsEveryEvent()
-    {
-        var (collector, _) = MakeCollector(OverflowPolicy.DropNew, 0, 16);
-
-        for (var i = 0; i < 1024; i++)
-            Assert.IsTrue(collector.TryAcceptEvent(), "Without MaxTotalEvents no event may be rejected");
-
-        Assert.AreEqual(0L, collector.DroppedEvents);
-        Assert.IsFalse(collector.WasOverflow);
-    }
-
-    [TestMethod]
-    public void NoEventLimit_DroppedChunkEventsAreCountedAndLimitStaysDisabled()
+    public void DropOldest_EvictedChunkEvents_AreCountedWithoutEnablingAnEventLimit()
     {
         const int capacity = 4;
-        var options = new SessionOptions
-        {
-            MaxTotalChunks = 1,
-            OverflowPolicy = OverflowPolicy.DropOldest,
-            ChunkCapacity = capacity
-        };
-        var pool = new ChunkPool(capacity);
-        var collector = new SessionCollector(options, pool, capacity);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 1, capacity: capacity);
 
         Assert.IsTrue(collector.TryRentChunk(out var chunk));
-        var dummyEvent = new TraceEvent(1, 1, 100L, TraceEventKind.Begin, 0, 0);
         for (var i = 0; i < capacity; i++)
         {
             Assert.IsTrue(collector.TryAcceptEvent());
-            chunk!.TryWrite(dummyEvent);
+            chunk!.TryWrite(Collectors.Event());
         }
 
         collector.MarkChunkInactive(chunk!);
@@ -285,7 +199,22 @@ public class OverflowPolicyTests
         Assert.AreEqual(capacity, collector.DroppedEvents);
 
         for (var i = 0; i < capacity * 4; i++)
-            Assert.IsTrue(collector.TryAcceptEvent(), "Evicting a chunk must not turn on the event limit");
+            Assert.IsTrue(collector.TryAcceptEvent());
+    }
+
+    [TestMethod]
+    [DataRow(OverflowPolicy.DropNew, false)]
+    [DataRow(OverflowPolicy.DropOldest, false)]
+    [DataRow(OverflowPolicy.StopSession, true)]
+    public void HandleRateLimitExceeded_CountsTheDropAndClosesOnlyForStopSession(OverflowPolicy policy, bool closes)
+    {
+        var collector = Collectors.Create(policy);
+
+        Assert.IsFalse(collector.HandleRateLimitExceeded());
+
+        Assert.AreEqual(closes, collector.IsClosed);
+        Assert.AreEqual(1L, collector.DroppedEvents);
+        Assert.IsTrue(collector.WasOverflow);
     }
 
     [TestMethod]
@@ -294,23 +223,7 @@ public class OverflowPolicyTests
         Assert.AreEqual("DropNew", OverflowPolicy.DropNew.ToString());
         Assert.AreEqual("DropOldest", OverflowPolicy.DropOldest.ToString());
         Assert.AreEqual("StopSession", OverflowPolicy.StopSession.ToString());
-        Assert.AreEqual("DropNew", ((OverflowPolicy)0).ToString());
-        Assert.AreEqual("DropNew", Enum.GetName(OverflowPolicy.DropNew));
-
         Assert.AreEqual(OverflowPolicy.DropNew, Enum.Parse<OverflowPolicy>("Drop"));
         Assert.HasCount(3, new HashSet<OverflowPolicy>(Enum.GetValues<OverflowPolicy>()));
-    }
-
-    private static (SessionCollector collector, ChunkPool pool) MakeCollector(
-        OverflowPolicy policy, long maxEvents, int capacity)
-    {
-        var options = new SessionOptions
-        {
-            MaxTotalEvents = maxEvents,
-            OverflowPolicy = policy,
-            ChunkCapacity = capacity
-        };
-        var pool = new ChunkPool(capacity);
-        return (new SessionCollector(options, pool, capacity), pool);
     }
 }

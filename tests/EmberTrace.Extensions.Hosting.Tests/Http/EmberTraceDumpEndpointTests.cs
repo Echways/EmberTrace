@@ -1,9 +1,10 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using EmberTrace.Extensions.Hosting.Configuration;
 using EmberTrace.Extensions.Hosting.Http;
 using EmberTrace.Extensions.Hosting.Recording;
-using EmberTrace.Sessions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,12 +24,170 @@ public sealed class EmberTraceDumpEndpointTests
             Tracer.Stop();
     }
 
+    [TestMethod]
+    [DataRow(false, true, null, null, null, null, StatusCodes.Status404NotFound)]
+    [DataRow(true, true, null, null, null, null, StatusCodes.Status200OK)]
+    [DataRow(true, true, "127.0.0.1", null, null, null, StatusCodes.Status200OK)]
+    [DataRow(true, true, "::1", null, null, null, StatusCodes.Status200OK)]
+    [DataRow(true, true, "::ffff:127.0.0.1", null, null, null, StatusCodes.Status200OK)]
+    [DataRow(true, true, "203.0.113.5", null, null, null, StatusCodes.Status404NotFound)]
+    [DataRow(true, true, "127.0.0.1", "X-Forwarded-For", null, null, StatusCodes.Status404NotFound)]
+    [DataRow(true, true, "127.0.0.1", "Forwarded", null, null, StatusCodes.Status404NotFound)]
+    [DataRow(true, false, "203.0.113.5", "X-Forwarded-For", Key, Key, StatusCodes.Status200OK)]
+    [DataRow(true, true, "127.0.0.1", null, Key, null, StatusCodes.Status401Unauthorized)]
+    [DataRow(true, true, "127.0.0.1", null, Key, "0123456789abcdef02", StatusCodes.Status401Unauthorized)]
+    [DataRow(true, true, "127.0.0.1", null, Key, Key + "0", StatusCodes.Status401Unauthorized)]
+    [DataRow(true, true, "127.0.0.1", null, Key, Key, StatusCodes.Status200OK)]
+    [DataRow(true, true, "203.0.113.5", null, Key, Key, StatusCodes.Status404NotFound)]
+    public async Task Access_IsGuardedByEnablementLoopbackAndApiKey(
+        bool enabled, bool loopbackOnly, string? remoteIp, string? forwardedHeader, string? configuredKey,
+        string? providedKey, int expectedStatus)
+    {
+        using var provider = Build(options =>
+        {
+            options.Dump.Enabled = enabled;
+            options.Dump.RestrictToLoopback = loopbackOnly;
+            options.Dump.ApiKey = configuredKey;
+        });
+        StartWithEvents(provider);
+
+        var context = Request(provider);
+        if (remoteIp is not null)
+            context.Connection.RemoteIpAddress = IPAddress.Parse(remoteIp);
+        if (forwardedHeader is not null)
+            context.Request.Headers[forwardedHeader] = "203.0.113.5";
+        if (providedKey is not null)
+            context.Request.Headers[EmberTraceDumpOptions.ApiKeyHeader] = providedKey;
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual(expectedStatus, context.Response.StatusCode);
+        Assert.AreEqual(expectedStatus == StatusCodes.Status200OK, BodyOf(context).Length > 0);
+        Assert.IsTrue(Tracer.IsRunning);
+    }
+
+    [TestMethod]
+    public async Task DefaultFormat_ReturnsAReadableEmberSnapshotWithHeaders()
+    {
+        using var provider = Build(options => options.Dump.FileNamePrefix = "svc");
+        StartWithEvents(provider);
+        var context = Request(provider);
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        var body = BodyOf(context);
+        var session = TraceFormat.Read(new MemoryStream(body));
+
+        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.AreEqual("application/octet-stream", context.Response.ContentType);
+        Assert.AreEqual(body.Length, context.Response.ContentLength);
+        StringAssert.Matches(context.Response.Headers.ContentDisposition.ToString(),
+            new Regex("^attachment; filename=\"svc-\\d{8}-\\d{6}-\\d{3}\\.ember\"$"));
+        Assert.AreEqual("1", context.Response.Headers["X-EmberTrace-Events"].ToString());
+        Assert.AreEqual("0", context.Response.Headers["X-EmberTrace-Dropped"].ToString());
+        Assert.IsTrue(session.IsSnapshot);
+        Assert.AreEqual(Tracer.Id("dump-probe"), session.SortedEvents().Single().Id);
+    }
+
+    [TestMethod]
+    [DataRow("?format=chrome")]
+    [DataRow("?format=CHROME")]
+    public async Task ChromeFormat_ReturnsTraceEventJson(string query)
+    {
+        using var provider = Build(_ => { });
+        StartWithEvents(provider);
+        var context = Request(provider, query);
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual("application/json", context.Response.ContentType);
+        StringAssert.EndsWith(context.Response.Headers.ContentDisposition.ToString(), ".json\"");
+
+        using var document = JsonDocument.Parse(BodyOf(context));
+        Assert.IsTrue(document.RootElement.GetProperty("traceEvents").EnumerateArray()
+            .Any(e => e.GetProperty("name").GetString() == "dump-probe"));
+    }
+
+    [TestMethod]
+    public async Task CollapsedFormat_ReturnsFlameGraphText()
+    {
+        using var provider = Build(_ => { });
+        provider.GetRequiredService<EmberTraceRecorder>().TryStart();
+        using (Tracer.Scope(Tracer.Id("dump-scope")))
+            Thread.Sleep(2);
+
+        var context = Request(provider, "?format=collapsed");
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual("text/plain; charset=utf-8", context.Response.ContentType);
+        StringAssert.EndsWith(context.Response.Headers.ContentDisposition.ToString(), ".folded\"");
+        StringAssert.Matches(Encoding.UTF8.GetString(BodyOf(context)),
+            new Regex("^dump-scope \\d+\n$"));
+    }
+
+    [TestMethod]
+    public async Task UnknownFormat_Returns400()
+    {
+        using var provider = Build(_ => { });
+        StartWithEvents(provider);
+        var context = Request(provider, "?format=parquet");
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task StoppedSession_Returns503()
+    {
+        using var provider = Build(_ => { });
+        var context = Request(provider);
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual(StatusCodes.Status503ServiceUnavailable, context.Response.StatusCode);
+    }
+
+    [TestMethod]
+    [DataRow("", 10.0)]
+    [DataRow("?window=5", 5.0)]
+    [DataRow("?window=2.5", 2.5)]
+    [DataRow("?window=00:00:03", 3.0)]
+    [DataRow("?window=900", 300.0)]
+    [DataRow("?window=00:30:00", 300.0)]
+    [DataRow("?window=0", 0.0)]
+    [DataRow("?window=-5", 0.0)]
+    [DataRow("?window=-00:00:05", 0.0)]
+    [DataRow("?window=NaN", 10.0)]
+    [DataRow("?window=abc", 10.0)]
+    [DataRow("?window=1e300", 300.0)]
+    [DataRow("?window=Infinity", 300.0)]
+    [DataRow("?window=-Infinity", 0.0)]
+    public void ResolveWindow_ParsesSecondsOrTimeSpansAndClampsToTheMaximum(string query, double expectedSeconds)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString(query);
+
+        var window = EmberTraceDumpEndpoint.ResolveWindow(context.Request, new EmberTraceDumpOptions
+        {
+            Window = TimeSpan.FromSeconds(10),
+            MaxWindow = TimeSpan.FromMinutes(5)
+        });
+
+        Assert.AreEqual(TimeSpan.FromSeconds(expectedSeconds), window);
+    }
+
     private static ServiceProvider Build(Action<EmberTraceOptions> configure)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        services.AddEmberTrace(configure);
+        services.AddEmberTrace(options =>
+        {
+            options.Dump.Enabled = true;
+            configure(options);
+        });
         return services.BuildServiceProvider();
     }
 
@@ -44,268 +203,12 @@ public sealed class EmberTraceDumpEndpointTests
 
     private static byte[] BodyOf(HttpContext context)
     {
-        var body = (MemoryStream)context.Response.Body;
-        return body.ToArray();
+        return ((MemoryStream)context.Response.Body).ToArray();
     }
 
     private static void StartWithEvents(ServiceProvider provider)
     {
         provider.GetRequiredService<EmberTraceRecorder>().TryStart();
         Tracer.Instant(Tracer.Id("dump-probe"));
-    }
-
-    [TestMethod]
-    public async Task DisabledDump_Returns404()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = false);
-        StartWithEvents(provider);
-        var context = Request(provider);
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status404NotFound, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task NonLoopbackCaller_Returns404()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-        var context = Request(provider);
-        context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.5");
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status404NotFound, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task LoopbackCaller_IsAllowed()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-        var context = Request(provider);
-        context.Connection.RemoteIpAddress = IPAddress.Loopback;
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task MissingApiKey_Returns401()
-    {
-        using var provider = Build(static options =>
-        {
-            options.Dump.Enabled = true;
-            options.Dump.ApiKey = Key;
-        });
-        StartWithEvents(provider);
-        var context = Request(provider);
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
-        Assert.AreEqual(0, BodyOf(context).Length);
-    }
-
-    [TestMethod]
-    public async Task WrongApiKey_Returns401()
-    {
-        using var provider = Build(static options =>
-        {
-            options.Dump.Enabled = true;
-            options.Dump.ApiKey = Key;
-        });
-        StartWithEvents(provider);
-        var context = Request(provider);
-        context.Request.Headers[EmberTraceDumpOptions.ApiKeyHeader] = "0123456789abcdef02";
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task CorrectApiKey_ReturnsAReadableSession()
-    {
-        using var provider = Build(static options =>
-        {
-            options.Dump.Enabled = true;
-            options.Dump.ApiKey = Key;
-        });
-        StartWithEvents(provider);
-        var context = Request(provider);
-        context.Request.Headers[EmberTraceDumpOptions.ApiKeyHeader] = Key;
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.AreEqual("application/octet-stream", context.Response.ContentType);
-        StringAssert.Contains(context.Response.Headers.ContentDisposition.ToString(), ".ember");
-
-        var session = TraceFormat.Read(new MemoryStream(BodyOf(context)));
-        Assert.IsTrue(session.IsSnapshot);
-        Assert.AreEqual(1L, session.EventCount);
-    }
-
-    [TestMethod]
-    public async Task SessionKeepsRunningAfterADump()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-
-        await EmberTraceDumpEndpoint.HandleAsync(Request(provider));
-
-        Assert.IsTrue(Tracer.IsRunning);
-    }
-
-    [TestMethod]
-    public async Task ChromeFormat_ReturnsJson()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-        var context = Request(provider, "?format=chrome");
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual("application/json", context.Response.ContentType);
-        StringAssert.Contains(context.Response.Headers.ContentDisposition.ToString(), ".json");
-
-        using var document = JsonDocument.Parse(BodyOf(context));
-        Assert.IsTrue(document.RootElement.TryGetProperty("traceEvents", out _));
-    }
-
-    [TestMethod]
-    public async Task CollapsedFormat_ReturnsFlameGraphText()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        provider.GetRequiredService<EmberTraceRecorder>().TryStart();
-        using (Tracer.Scope(Tracer.Id("dump-scope")))
-            Thread.Sleep(2);
-
-        var context = Request(provider, "?format=collapsed");
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.AreEqual("text/plain; charset=utf-8", context.Response.ContentType);
-        StringAssert.EndsWith(context.Response.Headers.ContentDisposition.ToString(), ".folded\"");
-        StringAssert.StartsWith(System.Text.Encoding.UTF8.GetString(BodyOf(context)), "dump-scope ");
-    }
-
-    [TestMethod]
-    public async Task UnknownFormat_Returns400()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-        var context = Request(provider, "?format=parquet");
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status400BadRequest, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task StoppedSession_Returns503()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        var context = Request(provider);
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status503ServiceUnavailable, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task EventCountHeader_IsWritten()
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-        var context = Request(provider);
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual("1", context.Response.Headers["X-EmberTrace-Events"].ToString());
-        Assert.AreEqual("0", context.Response.Headers["X-EmberTrace-Dropped"].ToString());
-        Assert.AreEqual(BodyOf(context).Length, context.Response.ContentLength);
-    }
-
-    [TestMethod]
-    [DataRow("?window=5", 5)]
-    [DataRow("?window=00:00:03", 3)]
-    [DataRow("?window=900", 300)]
-    public async Task WindowQuery_IsParsedAndClamped(string query, int expectedSeconds)
-    {
-        using var provider = Build(static options =>
-        {
-            options.Dump.Enabled = true;
-            options.Dump.MaxWindow = TimeSpan.FromMinutes(5);
-        });
-        StartWithEvents(provider);
-        var context = Request(provider, query);
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(
-            TimeSpan.FromSeconds(expectedSeconds),
-            EmberTraceDumpEndpoint.ResolveWindow(context.Request, provider.GetRequiredService<
-                Microsoft.Extensions.Options.IOptions<EmberTraceOptions>>().Value.Dump));
-    }
-
-    [TestMethod]
-    [DataRow("?window=NaN", 10)]
-    [DataRow("?window=abc", 10)]
-    [DataRow("?window=1e300", 300)]
-    [DataRow("?window=Infinity", 300)]
-    [DataRow("?window=-Infinity", 0)]
-    [DataRow("?window=-5", 0)]
-    public void WindowQuery_WithExtremeValues_IsClampedWithoutThrowing(string query, int expectedSeconds)
-    {
-        var context = new DefaultHttpContext();
-        context.Request.QueryString = new QueryString(query);
-
-        var window = EmberTraceDumpEndpoint.ResolveWindow(context.Request, new EmberTraceDumpOptions
-        {
-            Window = TimeSpan.FromSeconds(10),
-            MaxWindow = TimeSpan.FromMinutes(5)
-        });
-
-        Assert.AreEqual(TimeSpan.FromSeconds(expectedSeconds), window);
-    }
-
-    [TestMethod]
-    [DataRow("X-Forwarded-For", "203.0.113.5")]
-    [DataRow("Forwarded", "for=203.0.113.5")]
-    public async Task LoopbackPeerWithForwardingHeader_Returns404(string header, string value)
-    {
-        using var provider = Build(static options => options.Dump.Enabled = true);
-        StartWithEvents(provider);
-        var context = Request(provider);
-        context.Connection.RemoteIpAddress = IPAddress.Loopback;
-        context.Request.Headers[header] = value;
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status404NotFound, context.Response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task ForwardingHeaderWithoutLoopbackRestriction_IsIgnored()
-    {
-        using var provider = Build(static options =>
-        {
-            options.Dump.Enabled = true;
-            options.Dump.RestrictToLoopback = false;
-            options.Dump.ApiKey = Key;
-        });
-        StartWithEvents(provider);
-        var context = Request(provider);
-        context.Request.Headers["X-Forwarded-For"] = "203.0.113.5";
-        context.Request.Headers[EmberTraceDumpOptions.ApiKeyHeader] = Key;
-
-        await EmberTraceDumpEndpoint.HandleAsync(context);
-
-        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
     }
 }

@@ -6,6 +6,35 @@ namespace EmberTrace.Tests.Buffering;
 public class ChunkPoolTests
 {
     [TestMethod]
+    public void Rent_FromAnEmptyPool_CreatesAnEmptyChunkOfThePoolCapacity()
+    {
+        var chunk = new ChunkPool(4).Rent();
+
+        Assert.AreEqual(0, chunk.Count);
+        Assert.HasCount(4, chunk.Events);
+    }
+
+    [TestMethod]
+    public void Return_ResetsTheChunk_AndRentHandsTheSameInstanceBack()
+    {
+        var pool = new ChunkPool(4);
+        var chunk = pool.Rent();
+        chunk.TryWrite(Collectors.Event());
+        var version = chunk.Version;
+
+        pool.Return(chunk);
+
+        Assert.AreEqual(0, chunk.Count);
+        Assert.IsGreaterThan(version, chunk.Version);
+
+        chunk.Count = 3;
+        var rented = pool.Rent();
+
+        Assert.AreSame(chunk, rented);
+        Assert.AreEqual(0, rented.Count);
+    }
+
+    [TestMethod]
     public void ReturnAndRent_MultiThreaded_PreservesAllChunks()
     {
         var pool = new ChunkPool(8);
@@ -17,11 +46,7 @@ public class ChunkPoolTests
         for (var i = 0; i < chunks.Length; i++)
             rented.Add(pool.Rent());
 
-        Assert.HasCount(chunks.Length, rented);
-
-        var originals = new HashSet<Chunk>(chunks);
-        var reused = rented.Count(c => originals.Contains(c));
-        Assert.AreEqual(chunks.Length, reused);
+        Assert.IsTrue(rented.SetEquals(chunks));
     }
 
     [TestMethod]
@@ -47,16 +72,6 @@ public class ChunkPoolTests
             }
         });
 
-        Assert.AreEqual(0, collisions, "a pooled chunk was handed to two threads at once");
-    }
-
-    [TestMethod]
-    public void Rent_WhenPoolIsEmpty_ReturnsNewChunk()
-    {
-        var pool = new ChunkPool(4);
-
-        var chunk = pool.Rent();
-        Assert.IsNotNull(chunk);
-        Assert.AreEqual(0, chunk.Count);
+        Assert.AreEqual(0, collisions);
     }
 }

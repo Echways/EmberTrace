@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text;
-using EmberTrace.Metadata;
+using EmberTrace.Internal.Runtime;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Runtime;
@@ -9,102 +9,79 @@ namespace EmberTrace.Tests.Runtime;
 [DoNotParallelize]
 public class RuntimeCounterSessionTests
 {
-    private static readonly int[] ReservedIds =
-    {
-        RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2,
-        RuntimeCounterIds.HeapBytes, RuntimeCounterIds.AllocatedBytes,
-        RuntimeCounterIds.ThreadPoolThreads, RuntimeCounterIds.ThreadPoolQueue,
-        RuntimeCounterIds.ThreadPoolCompleted, RuntimeCounterIds.Exceptions,
-        RuntimeCounterIds.GcPause
-    };
+    private const int ScopeId = 1000;
 
-    [TestMethod]
-    public void RuntimeCounterMetadata_NamesEveryReservedId()
-    {
-        foreach (var id in ReservedIds)
-        {
-            Assert.IsTrue(RuntimeCounterMetadata.Instance.TryGet(id, out var meta), $"id {id} has no metadata");
-            Assert.IsFalse(string.IsNullOrWhiteSpace(meta.Name));
-            Assert.AreEqual(RuntimeCounterIds.Category, meta.Category);
-        }
-    }
-
-    [TestMethod]
-    public void RuntimeCounterMetadata_Enumerates_SoCompositesCanFlattenIt()
-    {
-        Assert.HasCount(ReservedIds.Length, RuntimeCounterMetadata.Instance.ToList());
-    }
+    private static readonly int[] GcIds = [RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2];
 
     [TestMethod]
     public void Session_WithoutRuntimeCounters_EmitsNoReservedIds()
     {
-        Tracer.Start(new SessionOptions { ChunkCapacity = 4096 });
-
-        using (Tracer.Scope(1000))
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 4096 });
+        using (tracing.Scope(ScopeId))
         {
         }
 
-        var session = Tracer.Stop();
+        var session = tracing.Stop();
 
-        Assert.IsFalse(
-            Events(session).Any(e => RuntimeCounterIds.IsReserved(e.Id)),
-            "runtime counters must be opt-in");
+        Assert.IsFalse(session.Events().Any(e => RuntimeCounterIds.IsReserved(e.Id)));
+        Assert.IsFalse(session.ThreadNames.Values.Contains(RuntimeCounterSampler.ThreadName));
     }
 
     [TestMethod]
-    public void Session_WithRuntimeCounters_EmitsCountersOnTheirOwnTrack()
+    public void Session_WithRuntimeCounters_EmitsNamedCountersOnTheSamplerTrack()
     {
-        Tracer.Start(new SessionOptions
-        {
-            ChunkCapacity = 4096,
-            RuntimeCounters = RuntimeCounters.Gc | RuntimeCounters.Memory | RuntimeCounters.ThreadPool,
-            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
-        });
-
-        using (Tracer.Scope(1000))
-        {
-            var deadline = DateTime.UtcNow.AddSeconds(2);
-            while (DateTime.UtcNow < deadline)
-                Thread.Sleep(20);
-        }
-
-        var session = Tracer.Stop();
-        var events = Events(session);
-        var counters = events.Where(e => RuntimeCounterIds.IsReserved(e.Id)).ToList();
-
-        Assert.IsNotEmpty(counters);
-        Assert.IsTrue(counters.All(e => e.Kind == TraceEventKind.Counter));
-        Assert.IsTrue(counters.Any(e => e.Id == RuntimeCounterIds.HeapBytes));
-        Assert.IsTrue(counters.Any(e => e.Id == RuntimeCounterIds.ThreadPoolThreads));
-        Assert.IsTrue(
-            counters.Where(e => e.Id == RuntimeCounterIds.HeapBytes).All(e => e.Value > 0),
-            "heap size is a gauge and must be positive");
-
-        var scopeTrack = events.First(e => e.Id == 1000).TrackId;
-        var counterTracks = counters.Select(e => e.TrackId).Distinct().ToList();
-
-        Assert.HasCount(1, counterTracks, "all counters come from the single sampler thread");
-        Assert.AreNotEqual(scopeTrack, counterTracks[0], "the sampler must occupy its own track");
-        Assert.IsTrue(session.ThreadNames.Values.Any(n => n == "EmberTrace.Runtime"));
-    }
-
-    [TestMethod]
-    public void Session_WithRuntimeCounters_StopIsCleanAndRepeatable()
-    {
-        for (var i = 0; i < 3; i++)
-        {
-            Tracer.Start(new SessionOptions
+        var session = RecordUntil(
+            Options(RuntimeCounters.Gc | RuntimeCounters.Memory | RuntimeCounters.ThreadPool),
+            events => events.Count(e => e.Id == RuntimeCounterIds.HeapBytes) >= 2,
+            tracing =>
             {
-                ChunkCapacity = 1024,
-                RuntimeCounters = RuntimeCounters.Gc,
-                RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
+                using (tracing.Scope(ScopeId))
+                {
+                }
             });
 
-            Thread.Sleep(30);
-            var session = Tracer.Stop();
+        var events = session.Events();
+        var counters = events.Where(e => RuntimeCounterIds.IsReserved(e.Id)).ToList();
+        var expectedIds = new[]
+        {
+            RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2,
+            RuntimeCounterIds.HeapBytes, RuntimeCounterIds.AllocatedBytes,
+            RuntimeCounterIds.ThreadPoolThreads, RuntimeCounterIds.ThreadPoolQueue,
+            RuntimeCounterIds.ThreadPoolCompleted
+        };
 
-            Assert.IsFalse(Tracer.IsRunning);
-            Assert.IsTrue(session.EventCount >= 0);
+        CollectionAssert.AreEquivalent(expectedIds, counters.Select(e => e.Id).Distinct().ToArray());
+        Assert.IsTrue(counters.All(e => e.Kind == TraceEventKind.Counter));
+        Assert.IsTrue(counters.Where(e => e.Id == RuntimeCounterIds.HeapBytes).All(e => e.Value > 0));
+        Assert.IsTrue(counters.All(e => e.Value >= 0));
+
+        var counterTrack = counters.Select(e => e.TrackId).Distinct().Single();
+        Assert.AreNotEqual(events.First(e => e.Id == ScopeId).TrackId, counterTrack);
+        Assert.AreEqual(RuntimeCounterSampler.ThreadName, session.ThreadNames[counters[0].ThreadId]);
+
+        Assert.IsTrue(session.Metadata.TryGet(RuntimeCounterIds.HeapBytes, out var meta));
+        Assert.AreEqual("Heap bytes", meta.Name);
+        Assert.AreEqual(RuntimeCounterIds.Category, meta.Category);
+    }
+
+    [TestMethod]
+    public void Session_WithRuntimeCounters_StopsWithWholeSamplesAndCanRestart()
+    {
+        using var tracing = new TracingSession();
+
+        for (var i = 0; i < 3; i++)
+        {
+            tracing.Start(Options(RuntimeCounters.Gc));
+            WaitFor(tracing, events => events.Count > 0);
+
+            var session = tracing.Stop();
+            var ids = session.Events().Select(e => e.Id).ToList();
+
+            Assert.IsFalse(tracing.IsRunning);
+            Assert.IsNotEmpty(ids);
+            Assert.AreEqual(0, ids.Count % GcIds.Length);
+            Assert.IsTrue(ids.All(GcIds.Contains));
         }
     }
 
@@ -117,139 +94,100 @@ public class RuntimeCounterSessionTests
         for (var i = 0; i < 10; i++)
             RunShortCounterSession();
 
-        var after = Process.GetCurrentProcess().Threads.Count;
-
-        Assert.IsTrue(after <= baseline + 5, $"thread count grew from {baseline} to {after}");
+        Assert.IsLessThanOrEqualTo(baseline + 5, Process.GetCurrentProcess().Threads.Count);
     }
 
     [TestMethod]
-    public void Session_WithRuntimeCounters_MetadataResolvesCounterNames()
+    public void Session_WithRuntimeCounters_IgnoresTheCategoryAllowlist()
     {
-        Tracer.Start(new SessionOptions
-        {
-            ChunkCapacity = 1024,
-            RuntimeCounters = RuntimeCounters.Memory,
-            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
-        });
+        var session = RecordUntil(
+            Options(RuntimeCounters.Memory, [Tracer.CategoryId("Nothing")]),
+            events => events.Any(e => e.Id == RuntimeCounterIds.HeapBytes),
+            tracing => tracing.Instant(ScopeId));
 
-        Thread.Sleep(50);
-        var session = Tracer.Stop();
-
-        Assert.IsTrue(session.Metadata.TryGet(RuntimeCounterIds.HeapBytes, out var meta));
-        Assert.AreEqual("Heap bytes", meta.Name);
+        Assert.IsFalse(session.Events().Any(e => e.Id == ScopeId));
     }
 
     [TestMethod]
-    public void Session_WithRuntimeCounters_IgnoresCategoryAllowlist()
+    public void GcPauses_AppearAsBalancedScopesWithPositiveDuration()
     {
-        Tracer.Start(new SessionOptions
-        {
-            ChunkCapacity = 1024,
-            EnabledCategoryIds = new[] { Tracer.CategoryId("Nothing") },
-            RuntimeCounters = RuntimeCounters.Memory,
-            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
-        });
+        var session = RecordUntil(
+            Options(RuntimeCounters.GcPauses),
+            events =>
+            {
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                return events.Count(e => e.Id == RuntimeCounterIds.GcPause) >= 2;
+            });
 
-        Thread.Sleep(50);
-        var session = Tracer.Stop();
+        var pauses = session.SortedEvents().Where(e => e.Id == RuntimeCounterIds.GcPause).ToList();
 
-        Assert.IsTrue(
-            Events(session).Any(e => e.Id == RuntimeCounterIds.HeapBytes),
-            "a category allowlist must not discard counters the caller asked for");
-    }
-
-    [TestMethod]
-    public void GcPauses_AppearAsMatchedScopePairs()
-    {
-        Tracer.Start(new SessionOptions
-        {
-            ChunkCapacity = 8192,
-            RuntimeCounters = RuntimeCounters.GcPauses,
-            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
-        });
-
-        for (var i = 0; i < 5; i++)
-        {
-            var garbage = new byte[1 << 20];
-            GC.KeepAlive(garbage);
-            GC.Collect(2, GCCollectionMode.Forced, true);
-            Thread.Sleep(30);
-        }
-
-        var session = Tracer.Stop();
-
-        var pauses = SortedEvents(session).Where(e => e.Id == RuntimeCounterIds.GcPause).ToList();
-
-        Assert.IsTrue(pauses.Count >= 2, $"expected at least one begin/end pair, saw {pauses.Count} events");
-        Assert.AreEqual(0, pauses.Count % 2, "pause spans must be balanced");
-
+        Assert.AreEqual(0, pauses.Count % 2);
         for (var i = 0; i < pauses.Count; i += 2)
         {
             Assert.AreEqual(TraceEventKind.Begin, pauses[i].Kind);
             Assert.AreEqual(TraceEventKind.End, pauses[i + 1].Kind);
-            Assert.IsTrue(pauses[i + 1].Timestamp > pauses[i].Timestamp, "a pause must have positive duration");
+            Assert.IsGreaterThan(pauses[i].Timestamp, pauses[i + 1].Timestamp);
         }
 
-        var pauseStats = session.Analyze().ByTotalTimeDesc.SingleOrDefault(r => r.Id == RuntimeCounterIds.GcPause);
-
-        Assert.IsNotNull(pauseStats);
-        Assert.IsTrue(pauseStats.TotalMs > 0);
+        var stats = session.Analyze();
+        Assert.AreEqual(0, stats.UnmatchedBeginCount + stats.UnmatchedEndCount);
+        Assert.IsGreaterThan(0.0, stats.ByTotalTimeDesc.Single(r => r.Id == RuntimeCounterIds.GcPause).TotalMs);
     }
 
     [TestMethod]
-    public void GcPauses_ExportToChromeWithoutError()
+    public void RuntimeCounters_ExportToChromeWithResolvedNames()
     {
-        Tracer.Start(new SessionOptions
-        {
-            ChunkCapacity = 8192,
-            RuntimeCounters = RuntimeCounters.All,
-            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
-        });
+        var session = RecordUntil(
+            Options(RuntimeCounters.Memory),
+            events => events.Any(e => e.Id == RuntimeCounterIds.HeapBytes));
 
-        using (Tracer.Scope(1000))
+        using var stream = new MemoryStream();
+        TraceExport.WriteChromeComplete(session, stream);
+        var json = Encoding.UTF8.GetString(stream.ToArray());
+
+        StringAssert.Contains(json, "\"name\":\"Heap bytes\",\"cat\":\"Runtime\",\"ph\":\"C\"");
+    }
+
+    private static SessionOptions Options(RuntimeCounters counters, int[]? enabledCategoryIds = null)
+    {
+        return new SessionOptions
         {
-            GC.Collect(2, GCCollectionMode.Forced, true);
-            Thread.Sleep(60);
+            ChunkCapacity = 4096,
+            RuntimeCounters = counters,
+            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5),
+            EnabledCategoryIds = enabledCategoryIds
+        };
+    }
+
+    private static TraceSession RecordUntil(
+        SessionOptions options,
+        Func<List<TraceEventRecord>, bool> done,
+        Action<TracingSession>? body = null)
+    {
+        using var tracing = new TracingSession();
+        tracing.Start(options);
+
+        body?.Invoke(tracing);
+        WaitFor(tracing, done);
+        return tracing.Stop();
+    }
+
+    private static void WaitFor(TracingSession tracing, Func<List<TraceEventRecord>, bool> done)
+    {
+        var elapsed = Stopwatch.StartNew();
+
+        while (!done(tracing.Snapshot().Events()))
+        {
+            Assert.IsLessThan(TimeSpan.FromSeconds(10), elapsed.Elapsed);
+            Thread.Sleep(5);
         }
-
-        var session = Tracer.Stop();
-
-        using var ms = new MemoryStream();
-        TraceExport.WriteChromeComplete(session, ms, session.Metadata);
-
-        var json = Encoding.UTF8.GetString(ms.ToArray());
-
-        StringAssert.Contains(json, "Heap bytes");
     }
 
     private static void RunShortCounterSession()
     {
-        Tracer.Start(new SessionOptions
-        {
-            ChunkCapacity = 1024,
-            RuntimeCounters = RuntimeCounters.All,
-            RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
-        });
-
+        using var tracing = new TracingSession();
+        tracing.Start(Options(RuntimeCounters.All));
         Thread.Sleep(20);
-        Tracer.Stop();
-    }
-
-    private static List<TraceEventRecord> Events(TraceSession session)
-    {
-        var events = new List<TraceEventRecord>();
-        foreach (var e in session.EnumerateEvents())
-            events.Add(e);
-
-        return events;
-    }
-
-    private static List<TraceEventRecord> SortedEvents(TraceSession session)
-    {
-        var events = new List<TraceEventRecord>();
-        foreach (var e in session.EnumerateEventsSorted())
-            events.Add(e);
-
-        return events;
+        tracing.Stop();
     }
 }

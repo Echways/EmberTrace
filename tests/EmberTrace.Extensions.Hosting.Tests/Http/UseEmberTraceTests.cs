@@ -62,14 +62,9 @@ public sealed class UseEmberTraceTests
 
         await pipeline(context);
 
-        var session = Tracer.Stop();
         var expected = Tracer.Id("GET /orders/{id}");
-        var begins = 0;
-        foreach (var e in session.EnumerateEvents())
-            if (e.Id == expected && e.Kind == TraceEventKind.Begin)
-                begins++;
 
-        Assert.AreEqual(1, begins);
+        Assert.AreEqual(1, Tracer.Stop().SortedEvents().Count(e => e.Id == expected && e.Kind == TraceEventKind.Begin));
         Assert.AreEqual(StatusCodes.Status204NoContent, context.Response.StatusCode);
     }
 }

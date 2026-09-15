@@ -14,8 +14,7 @@ public class StableIdParityTests
     [DataRow("OrderService.GetAsync(int)")]
     public void GeneratorStableId_MatchesRuntimeStableId(string name)
     {
-        Assert.AreEqual(RuntimeStableId(name), GeneratorStable(name),
-            $"The generator and the runtime must agree on the id of '{name}'");
+        Assert.AreEqual(RuntimeStableId(name), GeneratorStable(name));
     }
 
     private static int GeneratorStable(string name)

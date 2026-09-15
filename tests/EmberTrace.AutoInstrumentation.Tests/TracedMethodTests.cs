@@ -1,4 +1,4 @@
-using EmberTrace.Analysis;
+using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.AutoInstrumentation.Tests;
@@ -15,77 +15,55 @@ public class TracedMethodTests
     }
 
     [TestMethod]
-    public void SyncMethod_RecordsABeginAndAnEnd()
+    public void SyncMethod_ReturnsTheCoreResultInsideOneScope()
     {
         Tracer.Start(new SessionOptions());
         var result = new OrderService().Sum(2, 3);
         var session = Tracer.Stop();
 
-        Assert.AreEqual(5, result);
-
-        var begins = 0;
-        var ends = 0;
         var id = Tracer.Id("OrderService.Sum");
+        var kinds = new List<TraceEventKind>();
+        foreach (var e in session.EnumerateEventsSorted())
+            if (e.Id == id)
+                kinds.Add(e.Kind);
 
-        foreach (var e in session.EnumerateEvents())
-        {
-            if (e.Id != id)
-                continue;
-
-            if (e.Kind == TraceEventKind.Begin)
-                begins++;
-            if (e.Kind == TraceEventKind.End)
-                ends++;
-        }
-
-        Assert.AreEqual(1, begins);
-        Assert.AreEqual(1, ends);
+        Assert.AreEqual(5, result);
+        CollectionAssert.AreEqual(new[] { TraceEventKind.Begin, TraceEventKind.End }, kinds);
     }
 
     [TestMethod]
-    public void GeneratedMetadata_CarriesNameAndCategory()
+    [DataRow("OrderService.Sum", "Orders")]
+    [DataRow("OrderService.GetAsync", "Orders")]
+    [DataRow("checkout", "Orders")]
+    [DataRow("InventoryService.Reserve", "Inventory")]
+    public void GeneratedMetadata_CarriesNameAndCategory(string name, string category)
     {
-        Tracer.Start(new SessionOptions());
-        new OrderService().Sum(1, 1);
-        var session = Tracer.Stop();
-
-        Assert.IsTrue(session.Metadata.TryGet(Tracer.Id("OrderService.Sum"), out var meta));
-        Assert.AreEqual("OrderService.Sum", meta.Name);
-        Assert.AreEqual("Orders", meta.Category);
+        Assert.IsTrue(TraceMetadata.CreateDefault().TryGet(Tracer.Id(name), out var meta));
+        Assert.AreEqual(name, meta.Name);
+        Assert.AreEqual(category, meta.Category);
     }
 
     [TestMethod]
-    public async Task ExplicitName_OverridesTheDefault()
-    {
-        Tracer.Start(new SessionOptions());
-        await new OrderService().CheckoutAsync();
-        var session = Tracer.Stop();
-
-        Assert.IsTrue(session.Metadata.TryGet(Tracer.Id("checkout"), out var meta));
-        Assert.AreEqual("checkout", meta.Name);
-    }
-
-    [TestMethod]
-    public async Task AsyncMethod_NestsTheInnerScope()
+    public async Task AsyncMethod_NestsTheScopesItCallsAfterAnAwait()
     {
         Tracer.Start(new SessionOptions());
         var result = await new OrderService().GetAsync(21);
+        await new OrderService().CheckoutAsync();
         var session = Tracer.Stop();
 
+        var stats = session.Analyze();
+        var root = session.Process(groupByThread: false).GlobalRoot;
+        var outer = root.Children.Single(c => c.Id == Tracer.Id("OrderService.GetAsync"));
+
         Assert.AreEqual(42, result);
-
-        var ids = session.Analyze().ByTotalTimeDesc.Select(stat => stat.Id).ToList();
-
-        CollectionAssert.Contains(ids, Tracer.Id("OrderService.GetAsync"));
-        CollectionAssert.Contains(ids, Tracer.Id("OrderService.Inner"));
+        Assert.AreEqual(Tracer.Id("OrderService.Inner"), outer.Children.Single().Id);
+        Assert.AreEqual(1L, root.Children.Single(c => c.Id == Tracer.Id("checkout")).Count);
+        Assert.AreEqual(0L, stats.UnmatchedBeginCount + stats.UnmatchedEndCount);
     }
 
     [TestMethod]
-    public async Task AsyncMethod_RecordsNothingWhenNoSessionRuns()
+    public async Task AsyncMethod_WithoutASession_StillReturnsTheCoreResult()
     {
-        var result = await new OrderService().GetAsync(5);
-
-        Assert.AreEqual(10, result);
-        Assert.IsFalse(Tracer.IsRunning);
+        Assert.AreEqual(10, await new OrderService().GetAsync(5));
     }
 }

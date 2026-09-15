@@ -6,132 +6,124 @@ namespace EmberTrace.Tests.Tracing;
 public class TracingSessionLifecycleTests
 {
     [TestMethod]
-    public void Dispose_WhenRunning_StopsSession()
+    public void Stop_ReturnsTheRecordedSessionAndRemembersIt()
     {
-        var ts = new TracingSession();
-        ts.Start();
-        ts.Dispose();
+        var tracing = new TracingSession();
+        tracing.Start();
+        tracing.Instant(1);
 
-        Assert.IsFalse(ts.IsRunning);
+        var stopped = tracing.Stop();
+
+        Assert.IsFalse(tracing.IsRunning);
+        Assert.AreEqual(1L, stopped.EventCount);
+        Assert.AreSame(stopped, tracing.LastSession);
     }
 
     [TestMethod]
-    public void Dispose_WhenNotRunning_DoesNotThrow()
+    public void Dispose_WhenRunning_StopsAndKeepsTheCollectedEvents()
     {
-        var ts = new TracingSession();
-        ts.Dispose();
+        var tracing = new TracingSession();
+        tracing.Start();
+        tracing.Instant(42);
 
-        Assert.IsFalse(ts.IsRunning);
+        tracing.Dispose();
+
+        Assert.IsFalse(tracing.IsRunning);
+        Assert.AreEqual(1L, tracing.LastSession!.EventCount);
     }
 
     [TestMethod]
-    public void Dispose_WhenRunning_KeepsCollectedEventsInLastSession()
+    public void Dispose_WhenNotRunning_OrTwice_IsANoOp()
     {
-        var ts = new TracingSession();
-        ts.Start();
-        ts.Instant(42);
-        ts.Dispose();
+        var tracing = new TracingSession();
 
-        Assert.IsNotNull(ts.LastSession);
-        Assert.AreEqual(1, ts.LastSession!.EventCount);
-    }
+        tracing.Dispose();
+        tracing.Dispose();
 
-    [TestMethod]
-    public void Dispose_WithCallback_HandsOverCollectedSession()
-    {
-        TraceSessionCapture captured = new();
-
-        using (var ts = new TracingSession(captured.Accept))
-        {
-            ts.Start();
-            ts.Instant(7);
-        }
-
-        Assert.AreEqual(1, captured.Count);
-        Assert.AreEqual(1, captured.Session!.EventCount);
-    }
-
-    [TestMethod]
-    public void Stop_RecordsLastSession()
-    {
-        var ts = new TracingSession();
-        ts.Start();
-        ts.Instant(1);
-        var stopped = ts.Stop();
-
-        Assert.AreSame(stopped, ts.LastSession);
+        Assert.IsFalse(tracing.IsRunning);
+        Assert.IsNull(tracing.LastSession);
     }
 
     [TestMethod]
     public void Start_AfterDispose_Throws()
     {
-        using var ts = new TracingSession();
-        ts.Start();
-        ts.Dispose();
+        var tracing = new TracingSession();
+        tracing.Start();
+        tracing.Dispose();
 
-        Assert.ThrowsExactly<ObjectDisposedException>(() => ts.Start());
+        Assert.ThrowsExactly<ObjectDisposedException>(() => tracing.Start());
     }
 
     [TestMethod]
-    public void Dispose_CalledTwice_DoesNotThrow()
+    public void StartTwice_Throws_AndStopWithoutStart_Throws()
     {
-        using var ts = new TracingSession();
-        ts.Start();
-        ts.Dispose();
-        ts.Dispose();
+        using var tracing = new TracingSession();
+        tracing.Start();
 
-        Assert.IsFalse(ts.IsRunning);
+        Assert.ThrowsExactly<InvalidOperationException>(() => tracing.Start());
+
+        tracing.Stop();
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tracing.Stop());
     }
 
     [TestMethod]
-    public void UsingBlock_ExceptionBetweenStartAndStop_PreservesCollectedEvents()
+    public void Restart_BeginsWithAnEmptySession()
     {
-        var ts = new TracingSession();
+        using var tracing = new TracingSession();
+        tracing.Start();
+        tracing.Instant(1);
+        tracing.Stop();
 
-        try
-        {
-            ts.Start();
-            using (ts)
-            {
-                ts.Instant(3);
-                throw new InvalidOperationException("simulated");
-            }
-        }
-        catch (InvalidOperationException)
-        {
-        }
+        tracing.Start();
+        tracing.Instant(2);
 
-        Assert.IsFalse(ts.IsRunning);
-        Assert.IsNotNull(ts.LastSession);
-        Assert.AreEqual(1, ts.LastSession!.EventCount);
+        CollectionAssert.AreEqual(new[] { 2 }, tracing.Stop().Events().Select(e => e.Id).ToArray());
     }
 
-    private sealed class TraceSessionCapture
+    [TestMethod]
+    public void OnStopped_ReceivesEverySessionFromStopAndDispose()
     {
-        public int Count { get; private set; }
-        public TraceSession? Session { get; private set; }
+        var received = new List<TraceSession>();
 
-        public void Accept(TraceSession session)
+        using (var tracing = new TracingSession(received.Add))
         {
-            Count++;
-            Session = session;
+            tracing.Start();
+            tracing.Instant(1);
+            var explicitStop = tracing.Stop();
+
+            tracing.Start();
+            tracing.Instant(7);
+            tracing.Instant(7);
+
+            Assert.HasCount(1, received);
+            Assert.AreSame(explicitStop, received[0]);
         }
+
+        Assert.HasCount(2, received);
+        Assert.AreEqual(2L, received[1].EventCount);
+    }
+
+    [TestMethod]
+    public void Constructor_WithNullCallback_Throws()
+    {
+        Assert.ThrowsExactly<ArgumentNullException>(() => new TracingSession(null!));
     }
 
     [TestMethod]
     public void Stop_DoesNotCopyFullChunks()
     {
-        using var session = new TracingSession();
-        session.Start(new SessionOptions { ChunkCapacity = 16_384 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 16_384 });
 
         for (var i = 0; i < 200_000; i++)
-            session.Instant(1);
+            tracing.Instant(1);
 
         var before = GC.GetAllocatedBytesForCurrentThread();
-        var stopped = session.Stop();
+        var stopped = tracing.Stop();
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        Assert.AreEqual(200_000, stopped.EventCount);
-        Assert.IsTrue(allocated < 1_000_000, $"Stop allocated {allocated} bytes for 200000 recorded events.");
+        Assert.AreEqual(200_000L, stopped.EventCount);
+        Assert.IsLessThan(1_000_000, allocated);
     }
 }

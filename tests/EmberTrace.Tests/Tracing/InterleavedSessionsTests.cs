@@ -29,8 +29,8 @@ public class InterleavedSessionsTests
 
         Assert.AreEqual(iterations, firstTrace.EventCount);
         Assert.AreEqual(iterations, secondTrace.EventCount);
-        Assert.IsTrue(ToIdSet(firstTrace).SetEquals(new[] { FirstId }));
-        Assert.IsTrue(ToIdSet(secondTrace).SetEquals(new[] { SecondId }));
+        Assert.IsTrue(firstTrace.Events().All(e => e.Id == FirstId));
+        Assert.IsTrue(secondTrace.Events().All(e => e.Id == SecondId));
     }
 
     [TestMethod]
@@ -41,8 +41,7 @@ public class InterleavedSessionsTests
         RunInterleaved(16);
         var allocated = RunInterleaved(iterations);
 
-        Assert.IsLessThan(2 * 1024 * 1024, allocated,
-            $"interleaved sessions allocated {allocated} bytes for {iterations * 2} events");
+        Assert.IsLessThan(2 * 1024 * 1024, allocated);
     }
 
     private static long RunInterleaved(int iterations)
@@ -66,13 +65,5 @@ public class InterleavedSessionsTests
         Assert.AreEqual(iterations, second.Stop().EventCount);
 
         return allocated;
-    }
-
-    private static HashSet<int> ToIdSet(TraceSession session)
-    {
-        var ids = new HashSet<int>();
-        foreach (var e in session.EnumerateEvents())
-            ids.Add(e.Id);
-        return ids;
     }
 }

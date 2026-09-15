@@ -1,5 +1,6 @@
 using EmberTrace.Extensions.Hosting.Configuration;
 using EmberTrace.Extensions.Hosting.Recording;
+using EmberTrace.Sessions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -27,71 +28,72 @@ public sealed class EmberTraceHostedServiceTests
             Directory.Delete(_directory, true);
     }
 
+    [TestMethod]
+    public async Task StartAndStop_ControlTheTracerSession()
+    {
+        var service = Create(new EmberTraceOptions());
+
+        await service.StartAsync(CancellationToken.None);
+        Assert.IsTrue(Tracer.IsRunning);
+
+        await service.StopAsync(CancellationToken.None);
+        Assert.IsFalse(Tracer.IsRunning);
+        Assert.IsFalse(Directory.Exists(_directory));
+    }
+
+    [TestMethod]
+    public async Task StopAsync_WritesAReadableShutdownDump()
+    {
+        var service = Create(new EmberTraceOptions { ShutdownDumpDirectory = _directory, Dump = { FileNamePrefix = "app" } });
+        await service.StartAsync(CancellationToken.None);
+        var probe = Tracer.Id("shutdown-probe");
+        Tracer.Instant(probe);
+
+        await service.StopAsync(CancellationToken.None);
+
+        var file = Directory.GetFiles(_directory).Single();
+        StringAssert.StartsWith(Path.GetFileName(file), "app-shutdown-");
+        StringAssert.EndsWith(file, TraceFormat.FileExtension);
+        Assert.AreEqual(probe, TraceFormat.Read(file).SortedEvents().Single().Id);
+    }
+
+    [TestMethod]
+    public async Task StopAsync_WhenTheDumpCannotBeWritten_StillStopsTheSession()
+    {
+        File.WriteAllText(_directory, "not a directory");
+        try
+        {
+            var service = Create(new EmberTraceOptions { ShutdownDumpDirectory = _directory });
+            await service.StartAsync(CancellationToken.None);
+            Tracer.Instant(1);
+
+            await service.StopAsync(CancellationToken.None);
+
+            Assert.IsFalse(Tracer.IsRunning);
+        }
+        finally
+        {
+            File.Delete(_directory);
+        }
+    }
+
+    [TestMethod]
+    public async Task DisabledRecorder_NeitherStartsNorStops()
+    {
+        Tracer.Start(new SessionOptions());
+        var service = Create(new EmberTraceOptions { Enabled = false, ShutdownDumpDirectory = _directory });
+
+        await service.StartAsync(CancellationToken.None);
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.IsTrue(Tracer.IsRunning);
+        Assert.IsFalse(Directory.Exists(_directory));
+    }
+
     private static EmberTraceHostedService Create(EmberTraceOptions options)
     {
         var wrapped = Options.Create(options);
         var recorder = new EmberTraceRecorder(wrapped, NullLogger<EmberTraceRecorder>.Instance);
         return new EmberTraceHostedService(recorder, wrapped, NullLogger<EmberTraceHostedService>.Instance);
-    }
-
-    [TestMethod]
-    public async Task StartAsync_StartsTheSession()
-    {
-        var service = Create(new EmberTraceOptions());
-
-        await service.StartAsync(CancellationToken.None);
-
-        Assert.IsTrue(Tracer.IsRunning);
-
-        await service.StopAsync(CancellationToken.None);
-    }
-
-    [TestMethod]
-    public async Task StopAsync_StopsTheSession()
-    {
-        var service = Create(new EmberTraceOptions());
-        await service.StartAsync(CancellationToken.None);
-
-        await service.StopAsync(CancellationToken.None);
-
-        Assert.IsFalse(Tracer.IsRunning);
-    }
-
-    [TestMethod]
-    public async Task StopAsync_WritesTheShutdownDump()
-    {
-        var service = Create(new EmberTraceOptions { ShutdownDumpDirectory = _directory });
-        await service.StartAsync(CancellationToken.None);
-        Tracer.Instant(Tracer.Id("shutdown-probe"));
-
-        await service.StopAsync(CancellationToken.None);
-
-        var files = Directory.GetFiles(_directory, "*.ember");
-        Assert.AreEqual(1, files.Length);
-
-        var session = TraceFormat.Read(files[0]);
-        Assert.AreEqual(1L, session.EventCount);
-    }
-
-    [TestMethod]
-    public async Task StopAsync_WithoutADirectory_WritesNothing()
-    {
-        var service = Create(new EmberTraceOptions());
-        await service.StartAsync(CancellationToken.None);
-
-        await service.StopAsync(CancellationToken.None);
-
-        Assert.IsFalse(Directory.Exists(_directory));
-    }
-
-    [TestMethod]
-    public async Task StopAsync_IsSafeWhenStartWasSkipped()
-    {
-        var service = Create(new EmberTraceOptions { Enabled = false });
-        await service.StartAsync(CancellationToken.None);
-
-        await service.StopAsync(CancellationToken.None);
-
-        Assert.IsFalse(Tracer.IsRunning);
     }
 }

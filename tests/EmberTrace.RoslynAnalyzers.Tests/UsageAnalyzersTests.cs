@@ -1,556 +1,79 @@
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Diagnostics;
-
 namespace EmberTrace.RoslynAnalyzers.Tests;
 
 [TestClass]
 public class UsageAnalyzersTests
 {
     [TestMethod]
-    public async Task ETA001_ScopeAssignedWithoutUsing_ReportsWarning()
+    [DataRow("var scope = Tracer.Scope(1);", 1)]
+    [DataRow("Tracer.Scope(1);", 1)]
+    [DataRow("var a = Tracer.Scope(1); var b = Tracer.Scope(2);", 2)]
+    [DataRow("using (var f = new System.IO.MemoryStream()) { var a = Tracer.Scope(1); var b = Tracer.Scope(2); }", 2)]
+    [DataRow("var ts = new TracingSession(); var scope = ts.Scope(1);", 1)]
+    [DataRow("using var scope = Tracer.Scope(1);", 0)]
+    [DataRow("using (Tracer.Scope(1)) { }", 0)]
+    [DataRow("using (var scope = Tracer.Scope(1)) { }", 0)]
+    [DataRow("var ts = new TracingSession(); using var scope = ts.Scope(1);", 0)]
+    public async Task ETA001_ReportsScopesThatAreNotDisposedByUsing(string body, int expected)
     {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var scope = Tracer.Scope(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId, 1);
+        await AssertDiagnostics(UsageAnalyzers.ScopeNotDisposedId, expected, "void M() { " + body + " }");
     }
 
     [TestMethod]
-    public async Task ETA001_ScopeWithUsingDeclaration_NoDiagnostic()
+    [DataRow("var scope = Tracer.ScopeAsync(1);", 1)]
+    [DataRow("using var scope = Tracer.ScopeAsync(1);", 1)]
+    [DataRow("using (Tracer.ScopeAsync(1)) { }", 1)]
+    [DataRow("await using (var f = new System.IO.MemoryStream()) { var scope = Tracer.ScopeAsync(1); }", 1)]
+    [DataRow("var ts = new TracingSession(); var scope = ts.ScopeAsync(1);", 1)]
+    [DataRow("await using var scope = Tracer.ScopeAsync(1);", 0)]
+    [DataRow("await using (Tracer.ScopeAsync(1)) { }", 0)]
+    [DataRow("var ts = new TracingSession(); await using var scope = ts.ScopeAsync(1);", 0)]
+    public async Task ETA002_ReportsAsyncScopesThatAreNotAwaitUsing(string body, int expected)
     {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    using var scope = Tracer.Scope(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId);
+        await AssertDiagnostics(UsageAnalyzers.AsyncScopeNotAwaitedId, expected,
+            "async System.Threading.Tasks.Task M() { " + body + " }");
     }
 
     [TestMethod]
-    public async Task ETA001_ScopeWithUsingStatement_NoDiagnostic()
+    [DataRow("var handle = Tracer.FlowStartNewHandle(1);", 1)]
+    [DataRow("FlowHandle handle; handle = Tracer.FlowStartNewHandle(1);", 1)]
+    [DataRow("var ts = new TracingSession(); var handle = ts.FlowStartNewHandle(1);", 1)]
+    [DataRow("var h1 = Tracer.FlowStartNewHandle(1); var h2 = Tracer.FlowStartNewHandle(2); h1.End();", 1)]
+    [DataRow("var handle = Tracer.FlowStartNewHandle(1); handle.End();", 0)]
+    [DataRow("var handle = Tracer.FlowStartNewHandle(1); handle.TryEnd();", 0)]
+    [DataRow("var ts = new TracingSession(); FlowHandle handle = ts.FlowStartNewHandle(1); handle.End();", 0)]
+    public async Task ETA003_ReportsFlowHandlesThatAreNeverEnded(string body, int expected)
     {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    using (Tracer.Scope(1)) { }
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId);
+        await AssertDiagnostics(UsageAnalyzers.FlowHandleNotEndedId, expected, "void M() { " + body + " }");
     }
 
     [TestMethod]
-    public async Task ETA001_MultipleScopesWithoutUsing_ReportsOneWarningEach()
+    public async Task ETA001_IsReportedAtTheScopeInvocation()
     {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var a = Tracer.Scope(1);
-                                    var b = Tracer.Scope(2);
-                                }
-                            }
-                            """;
+        var diagnostic = (await AnalyzerTestHost.DiagnosticsAsync(new UsageAnalyzers(),
+            Source("void M() { var scope = Tracer.Scope(1); }"))).Single();
 
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId, 2);
+        Assert.AreEqual("Tracer.Scope(1)", diagnostic.Location.SourceTree!.GetText()
+            .ToString(diagnostic.Location.SourceSpan));
     }
 
     [TestMethod]
-    public async Task ETA001_ScopeInsideUnrelatedUsingBlock_ReportsWarningEach()
+    [DataRow("class C { }")]
+    [DataRow("class Tracer { public static System.IDisposable Scope(int id) => null!; void M() { var s = Scope(1); } }")]
+    public async Task UnrelatedCode_ProducesNoDiagnostics(string code)
     {
-        const string code = """
-                            using EmberTrace;
-                            using System.IO;
-                            class C
-                            {
-                                void M()
-                                {
-                                    using (var f = new MemoryStream())
-                                    {
-                                        var scope = Tracer.Scope(1);
-                                        var other = Tracer.Scope(2);
-                                    }
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId, 2);
+        Assert.IsEmpty(await AnalyzerTestHost.DiagnosticsAsync(new UsageAnalyzers(), "namespace Other; " + code));
     }
 
-    [TestMethod]
-    public async Task ETA001_ScopeAsUsingStatementDeclaration_NoDiagnostic()
+    private static async Task AssertDiagnostics(string id, int expected, string method)
     {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    using (var scope = Tracer.Scope(1)) { }
-                                }
-                            }
-                            """;
+        var diagnostics = await AnalyzerTestHost.DiagnosticsAsync(new UsageAnalyzers(), Source(method));
 
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId);
+        Assert.HasCount(expected, diagnostics.Where(d => d.Id == id));
+        Assert.IsTrue(diagnostics.All(d => d.Id == id));
     }
 
-    [TestMethod]
-    public async Task ETA002_ScopeAsyncInsideUnrelatedUsingBlock_ReportsWarning()
+    private static string Source(string method)
     {
-        const string code = """
-                            using EmberTrace;
-                            using System.IO;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                async Task M()
-                                {
-                                    await using (var f = new MemoryStream())
-                                    {
-                                        var scope = Tracer.ScopeAsync(1);
-                                    }
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA002_ScopeAsyncWithoutAwaitUsing_ReportsWarning()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                async Task M()
-                                {
-                                    var scope = Tracer.ScopeAsync(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA002_ScopeAsyncWithUsingButNotAwait_ReportsWarning()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                void M()
-                                {
-                                    using var scope = Tracer.ScopeAsync(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA002_ScopeAsyncWithAwaitUsing_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                async Task M()
-                                {
-                                    await using var scope = Tracer.ScopeAsync(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId);
-    }
-
-    [TestMethod]
-    public async Task ETA002_ScopeAsyncWithAwaitUsingStatement_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                async Task M()
-                                {
-                                    await using (Tracer.ScopeAsync(1)) { }
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId);
-    }
-
-    [TestMethod]
-    public async Task ETA003_FlowHandleWithoutEndOrTryEnd_ReportsWarning()
-    {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var handle = Tracer.FlowStartNewHandle(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA003_FlowHandleWithEnd_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using EmberTrace.Flow;
-                            class C
-                            {
-                                void M()
-                                {
-                                    FlowHandle handle = Tracer.FlowStartNewHandle(1);
-                                    handle.End();
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId);
-    }
-
-    [TestMethod]
-    public async Task ETA003_FlowHandleWithTryEnd_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using EmberTrace.Flow;
-                            class C
-                            {
-                                void M()
-                                {
-                                    FlowHandle handle = Tracer.FlowStartNewHandle(1);
-                                    handle.TryEnd();
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId);
-    }
-
-    [TestMethod]
-    public async Task ETA003_MultipleHandles_OnlyUnendedOnesReported()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using EmberTrace.Flow;
-                            class C
-                            {
-                                void M()
-                                {
-                                    FlowHandle h1 = Tracer.FlowStartNewHandle(1);
-                                    FlowHandle h2 = Tracer.FlowStartNewHandle(2);
-                                    h1.End();
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        var eta003 = diagnostics.Where(d => d.Id == UsageAnalyzers.FlowHandleNotEndedId).ToArray();
-        Assert.HasCount(1, eta003, "Only the un-ended handle should be reported");
-    }
-
-    [TestMethod]
-    public async Task ETA003_FlowHandleAssignedViaAssignment_Detected()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using EmberTrace.Flow;
-                            class C
-                            {
-                                void M()
-                                {
-                                    FlowHandle handle;
-                                    handle = Tracer.FlowStartNewHandle(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA001_TracingSession_ScopeWithoutUsing_ReportsWarning()
-    {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var ts = new TracingSession();
-                                    var scope = ts.Scope(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA001_TracingSession_ScopeWithUsingDeclaration_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var ts = new TracingSession();
-                                    using var scope = ts.Scope(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.ScopeNotDisposedId);
-    }
-
-    [TestMethod]
-    public async Task ETA002_TracingSession_ScopeAsyncWithoutAwaitUsing_ReportsWarning()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                async Task M()
-                                {
-                                    var ts = new TracingSession();
-                                    var scope = ts.ScopeAsync(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA002_TracingSession_ScopeAsyncWithAwaitUsing_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                async Task M()
-                                {
-                                    var ts = new TracingSession();
-                                    await using var scope = ts.ScopeAsync(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.AsyncScopeNotAwaitedId);
-    }
-
-    [TestMethod]
-    public async Task ETA003_TracingSession_FlowHandleWithoutEnd_ReportsWarning()
-    {
-        const string code = """
-                            using EmberTrace;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var ts = new TracingSession();
-                                    var handle = ts.FlowStartNewHandle(1);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId, 1);
-    }
-
-    [TestMethod]
-    public async Task ETA003_TracingSession_FlowHandleWithEnd_NoDiagnostic()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using EmberTrace.Flow;
-                            class C
-                            {
-                                void M()
-                                {
-                                    var ts = new TracingSession();
-                                    FlowHandle handle = ts.FlowStartNewHandle(1);
-                                    handle.End();
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-
-        AssertNoDiagnostic(diagnostics, UsageAnalyzers.FlowHandleNotEndedId);
-    }
-
-    [TestMethod]
-    public async Task NoFalsePositives_EmptyClass_NoDiagnostics()
-    {
-        const string code = """
-                            class C { }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-        Assert.IsEmpty(diagnostics);
-    }
-
-    [TestMethod]
-    public async Task NoFalsePositives_AllPatternsCorrect_NoDiagnostics()
-    {
-        const string code = """
-                            using EmberTrace;
-                            using EmberTrace.Flow;
-                            using System.Threading.Tasks;
-                            class C
-                            {
-                                void Sync()
-                                {
-                                    using var scope = Tracer.Scope(1);
-                                    FlowHandle handle = Tracer.FlowStartNewHandle(2);
-                                    handle.End();
-                                }
-                                async Task Async()
-                                {
-                                    await using var scope = Tracer.ScopeAsync(3);
-                                }
-                            }
-                            """;
-
-        var diagnostics = await GetDiagnosticsAsync(code);
-        Assert.IsEmpty(diagnostics);
-    }
-
-    private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(string code)
-    {
-        var parseOptions = CSharpParseOptions.Default
-            .WithLanguageVersion(LanguageVersion.Latest);
-
-        var tree = CSharpSyntaxTree.ParseText(code, parseOptions);
-
-        var references = BuildReferences();
-
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            [tree],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var analyzer = new UsageAnalyzers();
-        var compilationWithAnalyzers = compilation.WithAnalyzers(
-            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
-            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty));
-
-        return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
-    }
-
-    private static IReadOnlyList<MetadataReference> BuildReferences()
-    {
-        var refs = new List<MetadataReference>
-        {
-            MetadataReference.CreateFromFile(typeof(Tracer).Assembly.Location)
-        };
-
-        var tpa = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
-        if (!string.IsNullOrEmpty(tpa))
-            foreach (var path in tpa.Split(Path.PathSeparator))
-                if (File.Exists(path))
-                    refs.Add(MetadataReference.CreateFromFile(path));
-
-        return refs;
-    }
-
-    private static void AssertDiagnostic(
-        ImmutableArray<Diagnostic> diagnostics, string id, int count)
-    {
-        var matched = diagnostics.Where(d => d.Id == id).ToArray();
-        Assert.HasCount(count, matched,
-            $"Expected {count} diagnostic(s) with id '{id}', " +
-            $"but got {matched.Length}. All diagnostics: [{string.Join(", ", diagnostics.Select(d => d.Id))}]");
-    }
-
-    private static void AssertNoDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
-    {
-        var matched = diagnostics.Where(d => d.Id == id).ToArray();
-        Assert.IsEmpty(matched,
-            $"Expected no diagnostics with id '{id}', but got {matched.Length}: " +
-            string.Join("; ", matched.Select(d => d.GetMessage())));
+        return "using EmberTrace;\nusing EmberTrace.Flow;\nclass C\n{\n" + method + "\n}";
     }
 }

@@ -34,7 +34,7 @@ public class TraceDiffTests
 
         var comparison = TraceDiff.Compare(baseline, current);
 
-        Assert.AreEqual(2, comparison.Deltas[0].Id, "the worst regression must come first");
+        CollectionAssert.AreEqual(new[] { 2, 1 }, comparison.Deltas.Select(d => d.Id).ToArray());
     }
 
     [TestMethod]
@@ -95,25 +95,27 @@ public class TraceDiffTests
     }
 
     [TestMethod]
-    public void Format_MarksOneSidedIdsAndHonoursMinPercent()
+    public void Format_MarksOneSidedIdsAndHidesSharedRowsBelowMinPercent()
     {
-        var baseline = Stats((1, 10, 10.0, 1.0), (2, 10, 10.0, 1.0));
-        var current = Stats((1, 10, 30.0, 1.0), (3, 10, 10.0, 1.0));
+        var baseline = Stats((1, 10, 10.0, 1.0), (2, 10, 10.0, 1.0), (4, 10, 10.0, 1.0));
+        var current = Stats((1, 10, 30.0, 1.0), (3, 10, 10.0, 1.0), (4, 10, 10.5, 1.0));
 
-        var text = TraceDiff.Format(TraceDiff.Compare(baseline, current), minPercent: 10);
+        var lines = TraceDiff.Format(TraceDiff.Compare(baseline, current), minPercent: 10)
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.Contains("(new)", text);
-        Assert.Contains("(gone)", text);
-        Assert.Contains("+200.0", text);
+        Assert.HasCount(5, lines);
+        Assert.IsTrue(lines.Any(l => l.StartsWith("1 ") && l.Contains("+200.0")));
+        Assert.IsTrue(lines.Any(l => l.StartsWith("2 ") && l.Contains("(gone)")));
+        Assert.IsTrue(lines.Any(l => l.StartsWith("3 ") && l.Contains("(new)")));
+        Assert.IsFalse(lines.Any(l => l.StartsWith("4 ")));
     }
 
     [TestMethod]
-    public void AssertNoRegressions_PassesWithinBudget()
+    [DataRow(10.5)]
+    [DataRow(11.0)]
+    public void AssertNoRegressions_PassesUpToTheBudgetInclusive(double currentTotalMs)
     {
-        var baseline = Stats((1, 10, 10.0, 1.0));
-        var current = Stats((1, 10, 10.5, 1.0));
-
-        TraceBudget.AssertNoRegressions(baseline, current, 10);
+        TraceBudget.AssertNoRegressions(Stats((1, 10, 10.0, 1.0)), Stats((1, 10, currentTotalMs, 1.0)), 10);
     }
 
     [TestMethod]

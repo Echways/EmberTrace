@@ -1,113 +1,90 @@
 using System.Diagnostics;
 using EmberTrace.Sessions;
+using Bridge = EmberTrace.ActivityBridge.ActivityBridge;
 
 namespace EmberTrace.Tests.Tracing;
 
 [TestClass]
 public sealed class ActivityBridgeTests
 {
-    [TestMethod]
-    public void FlowIdFromTraceId_IsStableAndPositive()
-    {
-        var first = ActivityBridge.ActivityBridge.FlowIdFromTraceId("4bf92f3577b34da6a3ce929d0e0e4736");
-        var second = ActivityBridge.ActivityBridge.FlowIdFromTraceId("4bf92f3577b34da6a3ce929d0e0e4736");
-
-        Assert.AreEqual(first, second);
-        Assert.IsTrue(first > 0);
-    }
+    private const string TraceId = "4bf92f3577b34da6a3ce929d0e0e4736";
 
     [TestMethod]
-    public void FlowIdFromTraceId_DiffersPerTraceId()
+    public void FlowIdFromTraceId_IsStablePositiveAndDistinctPerTraceId()
     {
-        var first = ActivityBridge.ActivityBridge.FlowIdFromTraceId("4bf92f3577b34da6a3ce929d0e0e4736");
-        var second = ActivityBridge.ActivityBridge.FlowIdFromTraceId("00f067aa0ba902b7a3ce929d0e0e4736");
+        var first = Bridge.FlowIdFromTraceId(TraceId);
 
-        Assert.AreNotEqual(first, second);
+        Assert.IsGreaterThan(0L, first);
+        Assert.AreEqual(first, Bridge.FlowIdFromTraceId(TraceId));
+        Assert.AreNotEqual(first, Bridge.FlowIdFromTraceId("00f067aa0ba902b7a3ce929d0e0e4736"));
     }
 
     [TestMethod]
     [DataRow("")]
     [DataRow("   ")]
-    public void FlowIdFromTraceId_ReturnsZeroForEmpty(string traceId)
+    public void FlowIdFromTraceId_ReturnsZeroForBlankInput(string traceId)
     {
-        Assert.AreEqual(0L, ActivityBridge.ActivityBridge.FlowIdFromTraceId(traceId));
+        Assert.AreEqual(0L, Bridge.FlowIdFromTraceId(traceId));
     }
 
     [TestMethod]
-    public void FlowIdFromTraceId_MatchesActivityTraceId()
+    public void FlowIdFromActivityTraceId_MatchesTheHexStringOverloadWithoutAllocating()
     {
-        using var activity = new Activity("probe");
-        activity.SetIdFormat(ActivityIdFormat.W3C);
-        activity.Start();
-
-        var flowId = ActivityBridge.ActivityBridge.FlowIdFromTraceId(activity.TraceId.ToHexString());
-
-        Assert.IsTrue(flowId > 0);
-    }
-
-    [TestMethod]
-    public void FlowIdFromActivityTraceId_MatchesTheHexStringOverload()
-    {
-        var traceId = ActivityTraceId.CreateRandom();
-
-        Assert.AreEqual(
-            ActivityBridge.ActivityBridge.FlowIdFromTraceId(traceId.ToHexString()),
-            ActivityBridge.ActivityBridge.FlowIdFromTraceId(traceId));
-    }
-
-    [TestMethod]
-    public void FlowIdFromActivityTraceId_DoesNotAllocate()
-    {
-        var traceId = ActivityTraceId.CreateRandom();
-        ActivityBridge.ActivityBridge.FlowIdFromTraceId(traceId);
+        var traceId = ActivityTraceId.CreateFromString(TraceId);
+        Bridge.FlowIdFromTraceId(traceId);
 
         var before = GC.GetAllocatedBytesForCurrentThread();
-        ActivityBridge.ActivityBridge.FlowIdFromTraceId(traceId);
+        var flowId = Bridge.FlowIdFromTraceId(traceId);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        Assert.AreEqual(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        Assert.AreEqual(Bridge.FlowIdFromTraceId(TraceId), flowId);
+        Assert.AreEqual(0L, allocated);
     }
 
     [TestMethod]
-    public void TryGetCurrentFlowId_ReadsTheCurrentW3CActivity()
+    [DataRow(ActivityIdFormat.W3C, true)]
+    [DataRow(ActivityIdFormat.Hierarchical, false)]
+    public void TryGetCurrentFlowId_ReadsOnlyW3CActivities(ActivityIdFormat format, bool expected)
     {
-        using var activity = new Activity("probe");
-        activity.SetIdFormat(ActivityIdFormat.W3C);
-        activity.Start();
+        using var activity = StartActivity(format);
 
-        Assert.IsTrue(ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId));
-        Assert.AreEqual(ActivityBridge.ActivityBridge.FlowIdFromTraceId(activity.TraceId.ToHexString()), flowId);
-    }
-
-    [TestMethod]
-    public void TryGetCurrentFlowId_IgnoresHierarchicalActivities()
-    {
-        using var activity = new Activity("probe");
-        activity.SetIdFormat(ActivityIdFormat.Hierarchical);
-        activity.Start();
-
-        Assert.IsFalse(ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId));
-        Assert.AreEqual(0L, flowId);
+        Assert.AreEqual(expected, Bridge.TryGetCurrentFlowId(out var flowId));
+        Assert.AreEqual(expected ? Bridge.FlowIdFromTraceId(activity.TraceId) : 0L, flowId);
     }
 
     [TestMethod]
     public void FlowFromActivityCurrent_RecordsStartStepAndEndUnderTheTraceFlowId()
     {
-        using var activity = new Activity("probe");
-        activity.SetIdFormat(ActivityIdFormat.W3C);
-        activity.Start();
+        using var activity = StartActivity(ActivityIdFormat.W3C);
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
 
-        using var session = new TracingSession();
-        session.Start(new SessionOptions { ChunkCapacity = 1024 });
-        var flowId = session.FlowFromActivityCurrent(77);
-        var stopped = session.Stop();
+        var flowId = tracing.FlowFromActivityCurrent(77);
+        var events = tracing.Stop().SortedEvents();
 
-        var kinds = new List<TraceEventKind>();
-        foreach (var e in stopped.EnumerateEventsSorted())
-            if (e.FlowId == flowId)
-                kinds.Add(e.Kind);
-
-        Assert.AreEqual(ActivityBridge.ActivityBridge.FlowIdFromTraceId(activity.TraceId), flowId);
+        Assert.AreEqual(Bridge.FlowIdFromTraceId(activity.TraceId), flowId);
         CollectionAssert.AreEqual(
-            new[] { TraceEventKind.FlowStart, TraceEventKind.FlowStep, TraceEventKind.FlowEnd }, kinds);
+            new[] { TraceEventKind.FlowStart, TraceEventKind.FlowStep, TraceEventKind.FlowEnd },
+            events.Select(e => e.Kind).ToArray());
+        Assert.IsTrue(events.All(e => e.Id == 77 && e.FlowId == flowId));
+    }
+
+    [TestMethod]
+    public void FlowFromActivityCurrent_WithoutAnActivity_ReturnsZeroAndRecordsNothing()
+    {
+        Activity.Current = null;
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
+
+        Assert.AreEqual(0L, tracing.FlowFromActivityCurrent(77));
+        Assert.AreEqual(0L, tracing.Stop().EventCount);
+    }
+
+    private static Activity StartActivity(ActivityIdFormat format)
+    {
+        Activity.Current = null;
+        var activity = new Activity("probe");
+        activity.SetIdFormat(format);
+        return activity.Start();
     }
 }

@@ -6,234 +6,164 @@ namespace EmberTrace.Tests.Tracing;
 public class EventKindTests
 {
     [TestMethod]
-    public void Instant_RecordsExactlyOneInstantEvent()
+    public void Instant_RecordsItsIdWithoutValueOrFlow()
     {
-        var ts = Run(s => s.Instant(1));
-        var events = Events(ts);
+        var e = Record(s => s.Instant(7)).Single();
 
-        Assert.HasCount(1, events);
-        Assert.AreEqual(TraceEventKind.Instant, events[0].Kind);
-        Assert.AreEqual(1, events[0].Id);
-    }
-
-    [TestMethod]
-    public void Instant_ValueAndFlowIdAreZero()
-    {
-        var ts = Run(s => s.Instant(7));
-        var e = Events(ts)[0];
-
+        Assert.AreEqual(TraceEventKind.Instant, e.Kind);
+        Assert.AreEqual(7, e.Id);
         Assert.AreEqual(0L, e.Value);
         Assert.AreEqual(0L, e.FlowId);
     }
 
     [TestMethod]
-    public void Instant_WithoutRunningSession_ProducesNoEvents()
-    {
-        var ts = new TracingSession();
-        ts.Instant(1);
-        ts.Start();
-        var session = ts.Stop();
-
-        Assert.AreEqual(0L, session.EventCount);
-    }
-
-    [TestMethod]
-    public void Instant_MultipleIds_AllRecorded()
-    {
-        var ts = Run(s =>
-        {
-            s.Instant(10);
-            s.Instant(20);
-            s.Instant(30);
-        });
-        var events = Events(ts);
-
-        Assert.HasCount(3, events);
-        CollectionAssert.AreEquivalent(new[] { 10, 20, 30 }, events.Select(e => e.Id).ToArray());
-        Assert.IsTrue(events.All(e => e.Kind == TraceEventKind.Instant));
-    }
-
-    [TestMethod]
     [DataRow(0L)]
     [DataRow(1L)]
-    [DataRow(100L)]
     [DataRow(-1L)]
     [DataRow(long.MaxValue)]
     [DataRow(long.MinValue)]
-    public void Counter_ValueIsPreservedExactly(long value)
+    public void Counter_PreservesTheValueExactly(long value)
     {
-        var ts = Run(s => s.Counter(5, value));
-        var e = Events(ts)[0];
+        var e = Record(s => s.Counter(5, value)).Single();
 
         Assert.AreEqual(TraceEventKind.Counter, e.Kind);
         Assert.AreEqual(5, e.Id);
         Assert.AreEqual(value, e.Value);
+        Assert.AreEqual(0L, e.FlowId);
     }
 
     [TestMethod]
-    public void Counter_FlowIdIsAlwaysZero()
+    public void Scope_EmitsBeginThenEndWithoutAsyncIdentity()
     {
-        var ts = Run(s => s.Counter(1, 42));
-
-        Assert.AreEqual(0L, Events(ts)[0].FlowId);
-    }
-
-    [TestMethod]
-    public void Counter_MultipleCallsSameId_EachRecordedSeparately()
-    {
-        var ts = Run(s =>
-        {
-            s.Counter(99, 10);
-            s.Counter(99, 20);
-            s.Counter(99, 30);
-        });
-        var events = Events(ts).Where(e => e.Id == 99).ToArray();
-
-        Assert.HasCount(3, events);
-        CollectionAssert.AreEqual(new long[] { 10, 20, 30 }, events.Select(e => e.Value).ToArray());
-    }
-
-    [TestMethod]
-    public void Counter_WithoutRunningSession_ProducesNoEvents()
-    {
-        var ts = new TracingSession();
-        ts.Counter(1, 42);
-        ts.Start();
-        var session = ts.Stop();
-
-        Assert.AreEqual(0L, session.EventCount);
-    }
-
-    [TestMethod]
-    public void Scope_EmitsBeginThenEnd()
-    {
-        var ts = Run(s =>
+        var events = Record(s =>
         {
             using var _ = s.Scope(3);
         });
-        var events = Events(ts);
 
-        Assert.HasCount(2, events);
-        Assert.AreEqual(TraceEventKind.Begin, events[0].Kind);
-        Assert.AreEqual(TraceEventKind.End, events[1].Kind);
-        Assert.AreEqual(3, events[0].Id);
-        Assert.AreEqual(3, events[1].Id);
+        CollectionAssert.AreEqual(
+            new[] { (3, TraceEventKind.Begin), (3, TraceEventKind.End) },
+            events.Select(e => (e.Id, e.Kind)).ToArray());
+        Assert.IsTrue(events.All(e => e.AsyncScopeId == 0 && e.AsyncContextId == 0));
     }
 
     [TestMethod]
-    public void FlowStart_EmitsFlowStartKindWithFlowId()
+    public void FlowApis_EmitTheirKindsUnderTheGivenFlowId()
     {
-        var ts = Run(s =>
+        long flowId = 0;
+        var events = Record(s =>
         {
-            var flowId = s.NewFlowId();
+            flowId = s.NewFlowId();
             s.FlowStart(11, flowId);
+            s.FlowStep(11, flowId);
+            s.FlowEnd(11, flowId);
         });
-        var e = Events(ts).Single(x => x.Kind == TraceEventKind.FlowStart);
 
-        Assert.AreEqual(11, e.Id);
-        Assert.AreNotEqual(0L, e.FlowId);
+        Assert.AreNotEqual(0L, flowId);
+        CollectionAssert.AreEqual(
+            new[] { TraceEventKind.FlowStart, TraceEventKind.FlowStep, TraceEventKind.FlowEnd },
+            events.Select(e => e.Kind).ToArray());
+        Assert.IsTrue(events.All(e => e.Id == 11 && e.FlowId == flowId && e.Value == 0));
     }
 
     [TestMethod]
-    public void FlowStep_EmitsFlowStepKind()
+    public void FlowStartNew_ReturnsTheFlowIdItRecorded()
     {
-        var ts = Run(s =>
-        {
-            var flowId = s.NewFlowId();
-            s.FlowStart(1, flowId);
-            s.FlowStep(1, flowId);
-        });
-        var step = Events(ts).Single(x => x.Kind == TraceEventKind.FlowStep);
-
-        Assert.AreEqual(1, step.Id);
-    }
-
-    [TestMethod]
-    public void FlowEnd_EmitsFlowEndKind()
-    {
-        var ts = Run(s =>
-        {
-            var flowId = s.NewFlowId();
-            s.FlowStart(1, flowId);
-            s.FlowEnd(1, flowId);
-        });
-        var end = Events(ts).Single(x => x.Kind == TraceEventKind.FlowEnd);
-
-        Assert.AreEqual(1, end.Id);
-    }
-
-    [TestMethod]
-    public void FlowStartNew_ProducesFlowStartWithNonZeroFlowId()
-    {
-        var ts = Run(s => s.FlowStartNew(7));
-        var e = Events(ts).Single();
+        long flowId = 0;
+        var e = Record(s => flowId = s.FlowStartNew(7)).Single();
 
         Assert.AreEqual(TraceEventKind.FlowStart, e.Kind);
-        Assert.AreNotEqual(0L, e.FlowId);
+        Assert.AreNotEqual(0L, flowId);
+        Assert.AreEqual(flowId, e.FlowId);
     }
 
     [TestMethod]
-    public void FlowStart_ZeroFlowId_ProducesNoEvent()
+    [DataRow(TraceEventKind.FlowStart)]
+    [DataRow(TraceEventKind.FlowStep)]
+    [DataRow(TraceEventKind.FlowEnd)]
+    public void FlowApis_WithZeroFlowId_RecordNothing(TraceEventKind kind)
     {
-        var ts = Run(s => s.FlowStart(1, 0));
-
-        Assert.AreEqual(0L, ts.EventCount, "FlowStart with flowId=0 must be silently ignored");
-    }
-
-    [TestMethod]
-    public void FlowEvents_ShareSameFlowId()
-    {
-        var ts = Run(s =>
+        var events = Record(s =>
         {
-            var flowId = s.NewFlowId();
-            s.FlowStart(1, flowId);
-            s.FlowStep(1, flowId);
-            s.FlowEnd(1, flowId);
+            switch (kind)
+            {
+                case TraceEventKind.FlowStart:
+                    s.FlowStart(1, 0);
+                    break;
+                case TraceEventKind.FlowStep:
+                    s.FlowStep(1, 0);
+                    break;
+                default:
+                    s.FlowEnd(1, 0);
+                    break;
+            }
         });
-        var events = Events(ts);
 
-        Assert.HasCount(3, events);
-        var firstFlowId = events[0].FlowId;
-        Assert.IsTrue(events.All(e => e.FlowId == firstFlowId),
-            "All flow events for the same flow should carry the same FlowId");
+        Assert.IsEmpty(events);
     }
 
     [TestMethod]
-    public void MixedKinds_AllRecordedWithCorrectKinds()
+    public void MixedKinds_AreRecordedInCallOrder()
     {
-        var ts = Run(s =>
+        var events = Record(s =>
         {
             s.Instant(1);
             s.Counter(2, 99);
-            using var _ = s.Scope(3);
-            var flowId = s.NewFlowId();
-            s.FlowStart(4, flowId);
-            s.FlowEnd(4, flowId);
+            using (s.Scope(3))
+            {
+                var flowId = s.NewFlowId();
+                s.FlowStart(4, flowId);
+                s.FlowEnd(4, flowId);
+            }
         });
 
-        var events = Events(ts);
-
-        Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.Instant));
-        Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.Counter));
-        Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.Begin));
-        Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.End));
-        Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.FlowStart));
-        Assert.IsTrue(events.Any(e => e.Kind == TraceEventKind.FlowEnd));
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                (1, TraceEventKind.Instant),
+                (2, TraceEventKind.Counter),
+                (3, TraceEventKind.Begin),
+                (4, TraceEventKind.FlowStart),
+                (4, TraceEventKind.FlowEnd),
+                (3, TraceEventKind.End)
+            },
+            events.Select(e => (e.Id, e.Kind)).ToArray());
     }
 
-    private static TraceSession Run(Action<TracingSession> action)
+    [TestMethod]
+    public async Task EveryApi_BeforeStart_RecordsNothingAndHandsOutInertHandles()
     {
-        var ts = new TracingSession();
-        ts.Start(new SessionOptions { ChunkCapacity = 256 });
-        action(ts);
-        return ts.Stop();
+        using var tracing = new TracingSession();
+
+        tracing.Instant(1);
+        tracing.Counter(1, 42);
+        tracing.FlowStart(1, 5);
+        using (tracing.Scope(1))
+        {
+        }
+
+        await using (tracing.ScopeAsync(1))
+        {
+        }
+
+        var flow = tracing.Flow(1);
+        var handle = tracing.FlowStartNewHandle(1);
+        flow.Step();
+        flow.Dispose();
+        handle.Step();
+
+        Assert.IsFalse(flow.IsValid);
+        Assert.IsFalse(handle.IsValid);
+        Assert.IsFalse(handle.TryEnd());
+
+        tracing.Start();
+        Assert.AreEqual(0L, tracing.Stop().EventCount);
     }
 
-    private static TraceEventRecord[] Events(TraceSession session)
+    private static List<TraceEventRecord> Record(Action<TracingSession> body)
     {
-        var list = new List<TraceEventRecord>();
-        foreach (var e in session.EnumerateEventsSorted())
-            list.Add(e);
-        return list.ToArray();
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 256 });
+        body(tracing);
+        return tracing.Stop().SortedEvents();
     }
 }

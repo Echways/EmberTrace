@@ -6,59 +6,29 @@ namespace EmberTrace.Generator.Tests;
 public class TraceDecoratorGeneratorTests
 {
     [TestMethod]
-    public void TwoInterfaces_WithoutAnExplicitChoice_ReportETG014()
+    [DataRow(": IA, IB", "", 1)]
+    [DataRow("", "", 1)]
+    [DataRow(": IA, IB", "(Interface = typeof(IA))", 0)]
+    public void InterfaceChoice_MustBeUnambiguous(string bases, string arguments, int expectedErrors)
     {
-        var diagnostics = GeneratorTestHost.Run("""
-                                                using EmberTrace.Abstractions.Attributes;
+        var output = GeneratorTestHost.Run($$"""
+                                             using EmberTrace.Abstractions.Attributes;
 
-                                                public interface IA { void M(); }
-                                                public interface IB { void N(); }
+                                             public interface IA { void M(); }
+                                             public interface IB { void N(); }
 
-                                                [Trace]
-                                                public partial class S : IA, IB
-                                                {
-                                                    public void M() { }
-                                                    public void N() { }
-                                                }
-                                                """).Diagnostics;
+                                             [Trace{{arguments}}]
+                                             public partial class S {{bases}}
+                                             {
+                                                 public void M() { }
+                                                 public void N() { }
+                                             }
+                                             """);
 
-        Assert.IsTrue(diagnostics.Any(d => d.Id == "ETG014" && d.Severity == DiagnosticSeverity.Error));
-    }
-
-    [TestMethod]
-    public void NoInterface_ReportsETG014()
-    {
-        var diagnostics = GeneratorTestHost.Run("""
-                                                using EmberTrace.Abstractions.Attributes;
-
-                                                [Trace]
-                                                public partial class S
-                                                {
-                                                    public void M() { }
-                                                }
-                                                """).Diagnostics;
-
-        Assert.IsTrue(diagnostics.Any(d => d.Id == "ETG014"));
-    }
-
-    [TestMethod]
-    public void ExplicitInterface_ResolvesTheAmbiguity()
-    {
-        var diagnostics = GeneratorTestHost.Run("""
-                                                using EmberTrace.Abstractions.Attributes;
-
-                                                public interface IA { void M(); }
-                                                public interface IB { void N(); }
-
-                                                [Trace(Interface = typeof(IA))]
-                                                public partial class S : IA, IB
-                                                {
-                                                    public void M() { }
-                                                    public void N() { }
-                                                }
-                                                """).Diagnostics;
-
-        Assert.IsEmpty(diagnostics.Where(d => d.Id == "ETG014"));
+        Assert.HasCount(expectedErrors,
+            output.Diagnostics.Where(d => d.Id == "ETG014" && d.Severity == DiagnosticSeverity.Error));
+        Assert.AreEqual(expectedErrors == 0,
+            output.Sources.Keys.Any(key => key.StartsWith("EmberTrace.Decorator.", StringComparison.Ordinal)));
     }
 
     [TestMethod]
@@ -156,26 +126,16 @@ public class TraceDecoratorGeneratorTests
     }
 
     [TestMethod]
-    public void WithServiceCollection_ARegistrationIsEmitted()
+    [DataRow(0, false)]
+    [DataRow(1, true)]
+    [DataRow(2, true)]
+    public void ServiceCollectionRegistration_IsEmittedWhenAnyReferenceDefinesIServiceCollection(
+        int references, bool expected)
     {
-        var source = Decorator(GeneratorTestHost.Library("Di", ServiceCollectionSource));
+        var libraries = Enumerable.Range(0, references)
+            .Select(i => GeneratorTestHost.Library("Di" + i, ServiceCollectionSource))
+            .ToArray();
 
-        StringAssert.Contains(source, "AddTracedOrderService(");
-    }
-
-    [TestMethod]
-    public void ServiceCollectionInSeveralReferences_StillEmitsTheRegistration()
-    {
-        var source = Decorator(
-            GeneratorTestHost.Library("Di.Abstractions", ServiceCollectionSource),
-            GeneratorTestHost.Library("Di.Shared", ServiceCollectionSource));
-
-        StringAssert.Contains(source, "AddTracedOrderService(");
-    }
-
-    [TestMethod]
-    public void WithoutServiceCollection_NoRegistrationIsEmitted()
-    {
         var source = GeneratorTestHost.Run("""
                                            using EmberTrace.Abstractions.Attributes;
 
@@ -188,10 +148,11 @@ public class TraceDecoratorGeneratorTests
                                            {
                                                public void Save() { }
                                            }
-                                           """).Sources
-            .First(pair => pair.Key.StartsWith("EmberTrace.Decorator.", StringComparison.Ordinal)).Value;
+                                           """, false, libraries).Sources
+            .Single(pair => pair.Key.StartsWith("EmberTrace.Decorator.", StringComparison.Ordinal)).Value;
 
-        Assert.DoesNotContain("IServiceCollection", source);
+        Assert.AreEqual(expected, source.Contains("AddTracedOrderService("));
+        Assert.AreEqual(expected, source.Contains("IServiceCollection"));
     }
 
     [TestMethod]
@@ -289,22 +250,4 @@ public class TraceDecoratorGeneratorTests
                                                        public interface IServiceCollection { }
                                                    }
                                                    """;
-
-    private static string Decorator(params MetadataReference[] references)
-    {
-        return GeneratorTestHost.Run("""
-                                     using EmberTrace.Abstractions.Attributes;
-
-                                     namespace Acme;
-
-                                     public interface IOrderService { void Save(); }
-
-                                     [Trace]
-                                     public partial class OrderService : IOrderService
-                                     {
-                                         public void Save() { }
-                                     }
-                                     """, false, references).Sources
-            .First(pair => pair.Key.StartsWith("EmberTrace.Decorator.", StringComparison.Ordinal)).Value;
-    }
 }

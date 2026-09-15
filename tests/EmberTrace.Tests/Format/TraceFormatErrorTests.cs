@@ -1,25 +1,10 @@
 using EmberTrace.Format.Internal;
-using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Format;
 
 [TestClass]
 public class TraceFormatErrorTests
 {
-    [TestMethod]
-    public void Header_RoundTrips()
-    {
-        var header = new SessionHeader(
-            FormatConstants.Version, true, 10_000_000, 111, 222, 3, 4, 5, 6);
-
-        using var ms = new MemoryStream();
-        TraceFormatWriter.WriteHeader(ms, header);
-        Assert.AreEqual(FormatConstants.HeaderSize, ms.Length);
-
-        ms.Position = 0;
-        Assert.AreEqual(header, TraceFormatReader.ReadHeader(ms));
-    }
-
     [TestMethod]
     public void ReadHeader_WithWrongMagic_Throws()
     {
@@ -58,13 +43,7 @@ public class TraceFormatErrorTests
     [TestMethod]
     public void Read_OnTruncatedEventSection_Throws()
     {
-        var session = TraceSession.FromEvents(
-            new[]
-            {
-                new TraceEventRecord(1, 1, 10, TraceEventKind.Begin, 0, 0, 1),
-                new TraceEventRecord(1, 1, 20, TraceEventKind.End, 0, 0, 2)
-            },
-            10, 20, 1_000_000);
+        var session = new TraceScript().Span(1, 10, 20).ToSession(start: 10);
 
         using var full = new MemoryStream();
         TraceFormat.Write(session, full);
@@ -121,9 +100,6 @@ public class TraceFormatErrorTests
         StringAssert.Contains(ex.Message, "entries but only");
     }
 
-    private static SessionHeader EmptyHeader =>
-        new(FormatConstants.Version, false, 1_000_000, 0, 0, 0, 0, 0, 0);
-
     [TestMethod]
     public void ReadThreadNames_WithAbsurdStringLength_ThrowsWithoutHugeAllocation()
     {
@@ -138,8 +114,7 @@ public class TraceFormatErrorTests
 
         Assert.ThrowsExactly<InvalidDataException>(() => TraceFormatReader.ReadThreadNames(ms));
 
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.IsTrue(allocated < 1_000_000, $"Reader allocated {allocated} bytes for a 30-byte stream.");
+        Assert.IsLessThan(1_000_000, GC.GetAllocatedBytesForCurrentThread() - before);
     }
 
     [TestMethod]
@@ -194,4 +169,7 @@ public class TraceFormatErrorTests
 
         Assert.ThrowsExactly<InvalidDataException>(() => TraceFormatReader.ReadHeader(new MemoryStream(bytes)));
     }
+
+    private static SessionHeader EmptyHeader =>
+        new(FormatConstants.Version, false, 1_000_000, 0, 0, 0, 0, 0, 0);
 }

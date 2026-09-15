@@ -8,83 +8,99 @@ namespace EmberTrace.Tests.Buffering;
 public class SessionCollectorTests
 {
     [TestMethod]
-    public async Task AddChunk_IsThreadSafe()
+    public async Task TryRentChunk_ConcurrentRenters_RegistersEveryChunk()
     {
-        var pool = new ChunkPool(8);
-        var options = new SessionOptions
+        const int renters = 6;
+        const int chunksPerRenter = 500;
+
+        var collector = Collectors.Create(capacity: 8);
+
+        await Task.WhenAll(Enumerable.Range(0, renters).Select(renter => Task.Run(() =>
         {
-            ChunkCapacity = 8,
-            OverflowPolicy = OverflowPolicy.DropNew
-        };
-        var collector = new SessionCollector(options, pool, options.ChunkCapacity);
+            for (var i = 0; i < chunksPerRenter; i++)
+                collector.TryRentChunk(out _);
+        })));
 
-        const int chunkTasks = 6;
-        const int chunksPerTask = 500;
-
-        var addChunkTasks = Enumerable.Range(0, chunkTasks)
-            .Select(_idx => Task.Run(() =>
-            {
-                for (var i = 0; i < chunksPerTask; i++)
-                    collector.TryRentChunk(out _);
-            }));
-
-        await Task.WhenAll(addChunkTasks);
-
-        Assert.HasCount(chunkTasks * chunksPerTask, collector.Chunks);
+        Assert.HasCount(renters * chunksPerRenter, collector.Chunks);
+        Assert.HasCount(renters * chunksPerRenter, collector.Chunks.Distinct());
     }
 
     [TestMethod]
-    public void Clear_ResetsCollections()
+    public void NoEventLimit_AcceptsEveryEvent()
     {
-        var pool = new ChunkPool(4);
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 4,
-            OverflowPolicy = OverflowPolicy.DropNew
-        };
-        var collector = new SessionCollector(options, pool, options.ChunkCapacity);
+        var collector = Collectors.Create();
 
+        for (var i = 0; i < 1024; i++)
+            Assert.IsTrue(collector.TryAcceptEvent());
+
+        Assert.AreEqual(0L, collector.DroppedEvents);
+        Assert.IsFalse(collector.WasOverflow);
+    }
+
+    [TestMethod]
+    public void Close_RejectsEventsAndChunks()
+    {
+        var collector = Collectors.Create();
+
+        collector.Close();
+
+        Assert.IsTrue(collector.IsClosed);
+        Assert.IsFalse(collector.TryAcceptEvent());
+        Assert.IsFalse(collector.TryRentChunk(out var chunk));
+        Assert.IsNull(chunk);
+    }
+
+    [TestMethod]
+    public void Clear_ResetsChunksCountersAndClosedState()
+    {
+        var collector = Collectors.Create(maxEvents: 1);
         collector.TryRentChunk(out _);
+        collector.TryAcceptEvent();
+        collector.TryAcceptEvent();
+        collector.RecordSampledOutEvent();
+        collector.RegisterThreadName(1, "worker");
+        collector.Close();
 
         collector.Clear();
 
         Assert.IsEmpty(collector.Chunks);
+        Assert.IsEmpty(collector.ThreadNames);
         Assert.IsFalse(collector.IsClosed);
+        Assert.IsFalse(collector.WasOverflow);
+        Assert.AreEqual(0L, collector.DroppedEvents);
+        Assert.AreEqual(0L, collector.SampledOutEvents);
+        Assert.IsTrue(collector.TryAcceptEvent());
     }
 
     [TestMethod]
-    public void Reset_BumpsChunkVersion()
+    public void RecordSampledOutEvent_AccumulatesWithoutMarkingOverflow()
     {
-        var chunk = new Chunk(4);
-        var before = chunk.Version;
+        var collector = Collectors.Create();
 
-        chunk.Reset();
+        for (var i = 0; i < 3; i++)
+            collector.RecordSampledOutEvent();
 
-        Assert.AreNotEqual(before, chunk.Version);
+        Assert.AreEqual(3L, collector.SampledOutEvents);
+        Assert.IsFalse(collector.WasOverflow);
     }
 
     [TestMethod]
-    public void PoolRoundTrip_BumpsChunkVersion()
+    [DataRow("worker", true)]
+    [DataRow("   ", false)]
+    [DataRow("", false)]
+    public void RegisterThreadName_IgnoresBlankNames(string name, bool registered)
     {
-        var pool = new ChunkPool(4);
-        var chunk = pool.Rent();
-        var before = chunk.Version;
+        var collector = Collectors.Create();
 
-        pool.Return(chunk);
+        collector.RegisterThreadName(9, name);
 
-        Assert.IsTrue(chunk.Version > before);
+        Assert.AreEqual(registered, collector.ThreadNames.ContainsKey(9));
     }
 
     [TestMethod]
     public void BeginSnapshot_CapturesCurrentCounts()
     {
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 4,
-            OverflowPolicy = OverflowPolicy.DropNew
-        };
-
-        var collector = new SessionCollector(options, new ChunkPool(4), 4);
+        var collector = Collectors.Create(capacity: 4);
         var writer = new ThreadWriter(collector, default, 1);
 
         writer.Write(7, TraceEventKind.Instant, 0, 0);
@@ -107,16 +123,9 @@ public class SessionCollectorTests
     }
 
     [TestMethod]
-    public void BeginSnapshot_KeepsCapturedChunkAliveWhileOpen()
+    public void BeginSnapshot_KeepsCapturedChunkAliveUntilEndSnapshot()
     {
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 2,
-            MaxTotalChunks = 2,
-            OverflowPolicy = OverflowPolicy.DropOldest
-        };
-
-        var collector = new SessionCollector(options, new ChunkPool(2), 2);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 2, capacity: 2);
         var writer = new ThreadWriter(collector, default, 1);
 
         for (var i = 0; i < 3; i++)
@@ -135,20 +144,13 @@ public class SessionCollectorTests
         collector.EndSnapshot();
 
         Assert.AreEqual(0, oldest.Chunk.Count);
-        Assert.IsTrue(oldest.Chunk.Version > oldest.Version);
+        Assert.IsGreaterThan(oldest.Version, oldest.Chunk.Version);
     }
 
     [TestMethod]
-    public void Quarantine_StaysBoundedWhileSnapshotIsOpen()
+    public void Quarantine_StaysBoundedWhileASnapshotIsOpen()
     {
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 2,
-            MaxTotalChunks = 2,
-            OverflowPolicy = OverflowPolicy.DropOldest
-        };
-
-        var collector = new SessionCollector(options, new ChunkPool(2), 2);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 2, capacity: 2);
         var writer = new ThreadWriter(collector, default, 1);
 
         for (var i = 0; i < 3; i++)
@@ -162,7 +164,7 @@ public class SessionCollectorTests
                 writer.Write(7, TraceEventKind.Instant, 0, 0);
 
             Assert.AreEqual(captures[0].Version, captures[0].Chunk.Version);
-            Assert.IsTrue(collector.Chunks.Count <= 2);
+            Assert.IsLessThanOrEqualTo(2, collector.Chunks.Count);
         }
         finally
         {
@@ -171,76 +173,39 @@ public class SessionCollectorTests
     }
 
     [TestMethod]
-    public void Retention_DropsChunksOlderThanTheWindow()
+    [DataRow(1, 5, 1, 1)]
+    [DataRow(10, 1, 2, 0)]
+    public void Retention_DropsOnlyChunksOlderThanTheWindow(
+        int windowSeconds, int elapsedSeconds, int expectedChunks, int expectedDroppedChunks)
     {
         var now = 1_000_000L;
-
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 2,
-            OverflowPolicy = OverflowPolicy.DropOldest,
-            MaxRetentionWindow = TimeSpan.FromSeconds(1)
-        };
-
-        var collector = new SessionCollector(options, new ChunkPool(2), 2, () => now);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, capacity: 2,
+            retention: TimeSpan.FromSeconds(windowSeconds), clock: () => now);
         var writer = new ThreadWriter(collector, default, 1);
 
         writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
         writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
 
-        now += Timestamp.Frequency * 5;
+        now += Timestamp.Frequency * elapsedSeconds;
 
         writer.WriteAt(2, TraceEventKind.Instant, 0, 0, now);
 
-        Assert.HasCount(1, collector.Chunks);
-        Assert.AreEqual(1L, collector.DroppedChunks);
+        Assert.HasCount(expectedChunks, collector.Chunks);
+        Assert.AreEqual(expectedDroppedChunks, collector.DroppedChunks);
+        Assert.AreEqual(expectedDroppedChunks * 2L, collector.DroppedEvents);
         Assert.IsFalse(collector.WasOverflow);
-    }
-
-    [TestMethod]
-    public void Retention_KeepsChunksInsideTheWindow()
-    {
-        var now = 1_000_000L;
-
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 2,
-            OverflowPolicy = OverflowPolicy.DropOldest,
-            MaxRetentionWindow = TimeSpan.FromSeconds(10)
-        };
-
-        var collector = new SessionCollector(options, new ChunkPool(2), 2, () => now);
-        var writer = new ThreadWriter(collector, default, 1);
-
-        writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
-        writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
-
-        now += Timestamp.Frequency;
-
-        writer.WriteAt(2, TraceEventKind.Instant, 0, 0, now);
-
-        Assert.HasCount(2, collector.Chunks);
-        Assert.AreEqual(0L, collector.DroppedChunks);
     }
 
     [TestMethod]
     public void Retention_StopsAfterTheSessionIsClosed()
     {
         var now = 1_000_000L;
-
-        var options = new SessionOptions
-        {
-            ChunkCapacity = 2,
-            OverflowPolicy = OverflowPolicy.DropOldest,
-            MaxRetentionWindow = TimeSpan.FromSeconds(1)
-        };
-
-        var collector = new SessionCollector(options, new ChunkPool(2), 2, () => now);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, capacity: 2,
+            retention: TimeSpan.FromSeconds(1), clock: () => now);
         var writer = new ThreadWriter(collector, default, 1);
 
-        writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
-        writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
-        writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
+        for (var i = 0; i < 3; i++)
+            writer.WriteAt(1, TraceEventKind.Instant, 0, 0, now);
 
         now += Timestamp.Frequency * 5;
         collector.Close();

@@ -1,6 +1,3 @@
-using EmberTrace.Metadata;
-using EmberTrace.Sessions;
-
 namespace EmberTrace.Tests.ReportText;
 
 [TestClass]
@@ -9,76 +6,59 @@ public class CollapsedStackTests
     [TestMethod]
     public void NestedScopes_ProduceOneLinePerPathWithExclusiveMicroseconds()
     {
-        var lines = Collapse(Meta((1, "Outer"), (2, "Inner")),
-            new(1, 1, 0, TraceEventKind.Begin, 0, 0, 1),
-            new(2, 1, 1_000, TraceEventKind.Begin, 0, 0, 2),
-            new(2, 1, 5_000, TraceEventKind.End, 0, 0, 3),
-            new(1, 1, 10_000, TraceEventKind.End, 0, 0, 4));
+        var script = new TraceScript().Begin(1, 0).Span(2, 1_000, 5_000).End(1, 10_000);
 
-        Assert.AreEqual(6_000, lines["Outer"]);
-        Assert.AreEqual(4_000, lines["Outer;Inner"]);
-        Assert.HasCount(2, lines);
+        Assert.AreEqual("Outer 6000\nOuter;Inner 4000\n", Collapse(script, (1, "Outer"), (2, "Inner")));
     }
 
     [TestMethod]
     public void SamePathOnDifferentThreads_IsMerged()
     {
-        var lines = Collapse(Meta((1, "Work")),
-            new(1, 1, 0, TraceEventKind.Begin, 0, 0, 1),
-            new(1, 1, 1_000, TraceEventKind.End, 0, 0, 2),
-            new(1, 2, 0, TraceEventKind.Begin, 0, 0, 1),
-            new(1, 2, 3_000, TraceEventKind.End, 0, 0, 2));
+        var script = new TraceScript().Span(1, 0, 1_000).Span(1, 0, 3_000, 2);
 
-        Assert.AreEqual(4_000, lines["Work"]);
+        Assert.AreEqual("Work 4000\n", Collapse(script, (1, "Work")));
     }
 
     [TestMethod]
     public void FrameNames_CannotBreakTheFormat()
     {
-        var lines = Collapse(Meta((1, "a;b\nc")),
-            new(1, 1, 0, TraceEventKind.Begin, 0, 0, 1),
-            new(1, 1, 1_000, TraceEventKind.End, 0, 0, 2));
+        var script = new TraceScript().Span(1, 0, 1_000);
 
-        Assert.AreEqual(1_000, lines["a:b c"]);
+        Assert.AreEqual("a:b  c 1000\n", Collapse(script, (1, "a;b\r\nc")));
     }
 
     [TestMethod]
-    public void FullyCoveredParent_IsOmitted_AndLinesEndWithLineFeed()
+    public void FullyCoveredParent_IsOmitted()
     {
-        var trace = TraceSession.FromEvents(
-        [
-            new(1, 1, 0, TraceEventKind.Begin, 0, 0, 1),
-            new(2, 1, 0, TraceEventKind.Begin, 0, 0, 2),
-            new(2, 1, 2_000, TraceEventKind.End, 0, 0, 3),
-            new(1, 1, 2_000, TraceEventKind.End, 0, 0, 4)
-        ], 0, 2_000, 1_000_000).Process();
+        var script = new TraceScript().Begin(1, 0).Span(2, 0, 2_000).End(1, 2_000);
 
-        using var writer = new StringWriter();
-        TraceText.WriteCollapsedStacks(trace, writer, Meta((1, "Outer"), (2, "Inner")));
-
-        Assert.AreEqual("Outer;Inner 2000\n", writer.ToString());
+        Assert.AreEqual("Outer;Inner 2000\n", Collapse(script, (1, "Outer"), (2, "Inner")));
     }
 
-    private static Dictionary<string, long> Collapse(ITraceMetadataProvider meta, params TraceEventRecord[] events)
+    [TestMethod]
+    public void WithoutMetadata_FramesAreNamedByTheirId()
     {
-        var end = events.Max(e => e.Timestamp);
-        var trace = TraceSession.FromEvents(events, 0, end, 1_000_000).Process();
-
         using var writer = new StringWriter();
-        TraceText.WriteCollapsedStacks(trace, writer, meta);
 
-        var lines = new Dictionary<string, long>(StringComparer.Ordinal);
-        foreach (var line in writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var separator = line.LastIndexOf(' ');
-            lines.Add(line[..separator], long.Parse(line[(separator + 1)..]));
-        }
+        TraceText.WriteCollapsedStacks(new TraceScript().Span(42, 0, 500).ToSession().Process(), writer);
 
-        return lines;
+        Assert.AreEqual("42 500\n", writer.ToString());
     }
 
-    private static ITraceMetadataProvider Meta(params (int Id, string Name)[] entries)
+    [TestMethod]
+    public void NullArguments_Throw()
     {
-        return TraceMetadata.FromEntries(entries.Select(e => new TraceMeta(e.Id, e.Name, null)));
+        var trace = new TraceScript().ToSession().Process();
+
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceText.WriteCollapsedStacks(null!, TextWriter.Null));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceText.WriteCollapsedStacks(trace, null!));
+    }
+
+    private static string Collapse(TraceScript script, params (int Id, string Name)[] names)
+    {
+        using var writer = new StringWriter();
+        TraceText.WriteCollapsedStacks(script.ToSession().Process(), writer,
+            Meta.Of(names.Select(n => (n.Id, n.Name, (string?)null)).ToArray()));
+        return writer.ToString();
     }
 }

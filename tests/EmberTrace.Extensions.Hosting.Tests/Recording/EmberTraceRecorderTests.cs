@@ -80,17 +80,31 @@ public sealed class EmberTraceRecorderTests
     }
 
     [TestMethod]
-    public void TryStop_IsIdempotent()
+    public void TryStop_IsIdempotent_AndTheRecorderCanStartAgain()
     {
         var recorder = Create(new EmberTraceOptions());
         recorder.TryStart();
         recorder.TryStop();
 
         Assert.IsNull(recorder.TryStop());
+        Assert.IsTrue(recorder.TryStart());
+        Assert.IsFalse(recorder.TryStart());
     }
 
     [TestMethod]
-    public void Snapshot_DoesNotStopTheSession()
+    public void TryStart_UsesTheConfiguredSessionOptions()
+    {
+        var recorder = Create(new EmberTraceOptions { ChunkCapacity = 2048, MaxTotalChunks = 7 });
+        recorder.TryStart();
+
+        var session = recorder.TryStop()!;
+
+        Assert.AreEqual(2048, session.Options.ChunkCapacity);
+        Assert.AreEqual(7, session.Options.MaxTotalChunks);
+    }
+
+    [TestMethod]
+    public void Snapshot_CapturesEventsWithoutStoppingTheSession()
     {
         var recorder = Create(new EmberTraceOptions());
         recorder.TryStart();
@@ -99,7 +113,9 @@ public sealed class EmberTraceRecorderTests
         var snapshot = recorder.Snapshot(TimeSpan.Zero);
 
         Assert.IsTrue(snapshot.IsSnapshot);
+        Assert.AreEqual(1L, snapshot.EventCount);
         Assert.IsTrue(recorder.IsRunning);
+        Assert.IsTrue(recorder.OwnsSession);
     }
 
     [TestMethod]

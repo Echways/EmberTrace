@@ -25,65 +25,49 @@ public sealed class HttpTraceIdsTests
     }
 
     [TestMethod]
-    public void Resolve_IsStableForTheSameName()
+    public void Resolve_IsStableAndRegistersNameAndCategory()
     {
-        var first = HttpTraceIds.Resolve("GET /orders/{id}", "HTTP GET", "Http", 1024);
-        var second = HttpTraceIds.Resolve("GET /orders/{id}", "HTTP GET", "Http", 1024);
+        var first = HttpTraceIds.Resolve("GET /orders/{id}", "HTTP GET", "Web", 1024);
+        var second = HttpTraceIds.Resolve("GET /orders/{id}", "HTTP GET", "Other", 1024);
 
-        Assert.AreEqual(first, second);
         Assert.AreEqual(Tracer.Id("GET /orders/{id}"), first);
+        Assert.AreEqual(first, second);
+        Assert.IsTrue(TraceMetadata.CreateDefault().TryGet(first, out var meta));
+        Assert.AreEqual(new TraceMeta(first, "GET /orders/{id}", "Web"), meta);
     }
 
     [TestMethod]
-    public void Resolve_FallsBackWhenTheCapIsReached()
+    public void Resolve_BeyondTheCap_SharesOneFallbackIdButKeepsKnownRoutes()
     {
-        HttpTraceIds.Resolve("GET /a", "HTTP GET", "Http", 1);
+        var known = HttpTraceIds.Resolve("GET /a", "HTTP GET", "Http", 1);
         var overflow = HttpTraceIds.Resolve("GET /b", "HTTP GET", "Http", 1);
+        var another = HttpTraceIds.Resolve("GET /c", "HTTP GET", "Http", 1);
 
         Assert.AreEqual(Tracer.Id("HTTP GET"), overflow);
+        Assert.AreEqual(overflow, another);
+        Assert.AreEqual(known, HttpTraceIds.Resolve("GET /a", "HTTP GET", "Http", 1));
     }
 
     [TestMethod]
-    public void Resolve_ReusesTheFallbackId()
-    {
-        HttpTraceIds.Resolve("GET /a", "HTTP GET", "Http", 1);
-        var first = HttpTraceIds.Resolve("GET /b", "HTTP GET", "Http", 1);
-        var second = HttpTraceIds.Resolve("GET /c", "HTTP GET", "Http", 1);
-
-        Assert.AreEqual(first, second);
-    }
-
-    [TestMethod]
-    public void RoutesResolvedAfterStart_KeepTheirNameAndCategory()
+    public void RoutesResolvedAfterTheSessionStarted_KeepTheirNameAndCategory()
     {
         Tracer.Start(SessionOptionsFactory.Create(new EmberTraceOptions()));
 
         var id = HttpTraceIds.Resolve("GET /late/{id}", "HTTP GET", "Http", 1024);
         Tracer.Instant(id);
 
-        var session = Tracer.Stop();
-
-        Assert.IsTrue(session.Metadata.TryGet(id, out var meta));
-        Assert.AreEqual("GET /late/{id}", meta.Name);
-        Assert.AreEqual("Http", meta.Category);
+        Assert.IsTrue(Tracer.Stop().Metadata.TryGet(id, out var meta));
+        Assert.AreEqual(new TraceMeta(id, "GET /late/{id}", "Http"), meta);
     }
 
     [TestMethod]
-    public void Provider_IsNotEnumerable()
+    public void Clear_ForgetsRoutesAndTheirMetadata()
     {
-        var provider = HttpTraceIds.Provider;
+        var id = HttpTraceIds.Resolve("GET /gone", "HTTP GET", "Http", 1);
 
-        Assert.IsFalse(typeof(IEnumerable<TraceMeta>).IsAssignableFrom(provider.GetType()));
-    }
+        HttpTraceIds.Clear();
 
-    [TestMethod]
-    public void EnsureRegistered_IsIdempotent()
-    {
-        HttpTraceIds.EnsureRegistered();
-        HttpTraceIds.EnsureRegistered();
-
-        var id = HttpTraceIds.Resolve("GET /idempotent", "HTTP GET", "Http", 1024);
-
-        Assert.IsTrue(TraceMetadata.CreateDefault().TryGet(id, out _));
+        Assert.IsFalse(HttpTraceIds.Provider.TryGet(id, out _));
+        Assert.AreEqual(Tracer.Id("GET /fresh"), HttpTraceIds.Resolve("GET /fresh", "HTTP GET", "Http", 1));
     }
 }

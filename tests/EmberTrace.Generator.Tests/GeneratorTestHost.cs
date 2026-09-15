@@ -13,16 +13,14 @@ internal sealed record GeneratorOutput(
 {
     internal string Source(string hintName)
     {
-        Assert.IsTrue(Sources.ContainsKey(hintName),
-            $"Expected generated source '{hintName}', got [{string.Join(", ", Sources.Keys)}]");
+        Assert.IsTrue(Sources.ContainsKey(hintName), string.Join(", ", Sources.Keys));
         return Sources[hintName];
     }
 
     internal string SourceEndingWith(string suffix)
     {
         var matches = Sources.Where(pair => pair.Key.EndsWith(suffix, StringComparison.Ordinal)).ToList();
-        Assert.AreEqual(1, matches.Count,
-            $"Expected exactly one generated source ending with '{suffix}', got [{string.Join(", ", Sources.Keys)}]");
+        Assert.HasCount(1, matches, string.Join(", ", Sources.Keys));
         return matches[0].Value;
     }
 }
@@ -58,8 +56,7 @@ internal static class GeneratorTestHost
             .ToList();
 
         Assert.IsEmpty(problems,
-            "Generated code must compile without errors or warnings:\n"
-            + string.Join("\n", problems.Select(d => d.ToString()))
+            string.Join("\n", problems)
             + "\n--- generated ---\n"
             + string.Join("\n", result.GeneratedSources.Select(s => s.HintName + ":\n" + s.SourceText)));
 

@@ -8,22 +8,17 @@ namespace EmberTrace.Generator.Tests;
 public class MethodSignatureTests
 {
     [TestMethod]
-    public void Modifiers_MoveThePartialKeywordLast()
+    [DataRow("public partial void M();", "public partial", "private async")]
+    [DataRow("public static new partial void M();", "public static new partial", "private static async")]
+    [DataRow("partial public void M();", "public partial", "private async")]
+    [DataRow("internal protected partial void M();", "internal protected partial", "private async")]
+    public void Modifiers_MoveThePartialKeywordLastAndDeriveTheHelperModifiers(
+        string declaration, string expectedModifiers, string expectedHelperModifiers)
     {
-        var (method, node) = Find("public partial class C { public partial void M(); }", "M");
+        var (_, node) = Find("public partial class C { " + declaration + " }", "M");
 
-        Assert.AreEqual("public partial", MethodSignature.Modifiers(node));
-        Assert.AreEqual("private async", MethodSignature.HelperModifiers(node));
-        Assert.IsNotNull(method);
-    }
-
-    [TestMethod]
-    public void Modifiers_PreserveNewAndStatic()
-    {
-        var (_, node) = Find("public partial class C { public static new partial void M(); }", "M");
-
-        Assert.AreEqual("public static new partial", MethodSignature.Modifiers(node));
-        Assert.AreEqual("private static async", MethodSignature.HelperModifiers(node));
+        Assert.AreEqual(expectedModifiers, MethodSignature.Modifiers(node));
+        Assert.AreEqual(expectedHelperModifiers, MethodSignature.HelperModifiers(node));
     }
 
     [TestMethod]

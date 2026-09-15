@@ -9,13 +9,6 @@ namespace EmberTrace.Tests.Buffering;
 [TestClass]
 public class ProfilingStateWriterTests
 {
-    private static ProfilingState CreateState()
-    {
-        var options = new SessionOptions { ChunkCapacity = 1024 };
-        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
-        return new ProfilingState(options, collector, TraceMetadata.CreateDefault(), null, default, 0, DateTimeOffset.UnixEpoch);
-    }
-
     [TestMethod]
     public void GetWriter_SameThread_ReturnsSameInstance()
     {
@@ -26,7 +19,7 @@ public class ProfilingStateWriterTests
         for (var i = 0; i < 100; i++)
             Assert.AreSame(first, state.GetWriter());
 
-        Assert.HasCount(1, state.Writers.ToArray());
+        Assert.HasCount(1, state.Writers);
     }
 
     [TestMethod]
@@ -42,12 +35,12 @@ public class ProfilingStateWriterTests
     [TestMethod]
     public async Task GetWriter_OneWriterPerThread_UnderConcurrency()
     {
-        var state = CreateState();
-
         const int tasks = 8;
         const int callsPerTask = 500;
 
-        var observed = await Task.WhenAll(Enumerable.Range(0, tasks).Select(_idx => Task.Run(() =>
+        var state = CreateState();
+
+        var observed = await Task.WhenAll(Enumerable.Range(0, tasks).Select(_ => Task.Run(() =>
         {
             var writer = state.GetWriter();
             for (var i = 0; i < callsPerTask; i++)
@@ -56,19 +49,33 @@ public class ProfilingStateWriterTests
             return (Thread: Environment.CurrentManagedThreadId, Writer: writer);
         })));
 
-        var threads = new HashSet<int>(observed.Select(o => o.Thread));
-        var writers = new HashSet<ThreadWriter>(observed.Select(o => o.Writer));
+        var threads = observed.Select(o => o.Thread).Distinct().Count();
 
-        Assert.HasCount(threads.Count, writers);
-        Assert.HasCount(threads.Count, state.Writers.ToArray());
+        Assert.HasCount(threads, observed.Select(o => o.Writer).Distinct());
+        Assert.HasCount(threads, state.Writers);
+    }
+
+    [TestMethod]
+    public void GetWriter_AssignsDistinctTrackIdsPerThread()
+    {
+        var state = CreateState();
+        state.GetWriter().Write(1, TraceEventKind.Instant, 0, 0);
+
+        var worker = new Thread(() => state.GetWriter().Write(1, TraceEventKind.Instant, 0, 0));
+        worker.Start();
+        worker.Join();
+
+        var tracks = state.Collector.Chunks.Select(c => c.Events[0].TrackId).ToArray();
+
+        Assert.HasCount(2, tracks);
+        Assert.AreNotEqual(tracks[0], tracks[1]);
     }
 
     [TestMethod]
     public void WriteAt_UsesTheSuppliedTimestamp()
     {
-        var options = new SessionOptions { ChunkCapacity = 1024 };
-        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
-        var writer = new ThreadWriter(collector, new SamplingPolicy(0, null, 0), 1);
+        var collector = Collectors.Create(capacity: 1024);
+        var writer = new ThreadWriter(collector, default, 1);
 
         writer.WriteAt(42, TraceEventKind.Begin, 0, 0, 123_456);
         writer.WriteAt(42, TraceEventKind.End, 0, 0, 123_999);
@@ -81,19 +88,43 @@ public class ProfilingStateWriterTests
     }
 
     [TestMethod]
-    public void Write_StillUsesTheCurrentClock()
+    public void Write_StampsTheCurrentClockAndIncrementsTheSequence()
     {
-        var options = new SessionOptions { ChunkCapacity = 1024 };
-        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
-        var writer = new ThreadWriter(collector, new SamplingPolicy(0, null, 0), 1);
+        var collector = Collectors.Create(capacity: 1024);
+        var writer = new ThreadWriter(collector, default, 5);
 
         var before = Timestamp.Now();
         writer.Write(42, TraceEventKind.Instant, 0, 0);
+        writer.Write(42, TraceEventKind.Instant, 0, 0);
         var after = Timestamp.Now();
 
-        var recorded = collector.Chunks.Single().Events[0].Timestamp;
+        var events = collector.Chunks.Single().Events;
 
-        Assert.IsTrue(recorded >= before && recorded <= after,
-            $"timestamp {recorded} must fall inside [{before}, {after}]");
+        Assert.IsGreaterThanOrEqualTo(before, events[0].Timestamp);
+        Assert.IsLessThanOrEqualTo(after, events[1].Timestamp);
+        Assert.AreEqual(1L, events[0].Sequence);
+        Assert.AreEqual(2L, events[1].Sequence);
+        Assert.AreEqual(5, events[0].TrackId);
+    }
+
+    [TestMethod]
+    public void Write_AfterDrainAndDetach_IsIgnored()
+    {
+        var collector = Collectors.Create(capacity: 1024);
+        var writer = new ThreadWriter(collector, default, 1);
+        writer.Write(1, TraceEventKind.Instant, 0, 0);
+
+        writer.DrainAndDetach();
+        writer.Write(1, TraceEventKind.Instant, 0, 0);
+
+        Assert.AreEqual(1, collector.Chunks.Single().Count);
+    }
+
+    private static ProfilingState CreateState()
+    {
+        var options = new SessionOptions { ChunkCapacity = 1024 };
+        var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
+        return new ProfilingState(options, collector, TraceMetadata.CreateDefault(), null, default, 0,
+            DateTimeOffset.UnixEpoch);
     }
 }
