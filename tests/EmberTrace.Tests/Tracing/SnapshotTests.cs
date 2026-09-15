@@ -8,20 +8,20 @@ public class SnapshotTests
     [TestMethod]
     public void Snapshot_KeepsTheSessionRunningAndAccumulating()
     {
-        using var session = new TracingSession();
-        session.Start(new SessionOptions { ChunkCapacity = 1024 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
 
         for (var i = 0; i < 100; i++)
-            session.Instant(7);
+            tracing.Instant(7);
 
-        var snapshot = session.Snapshot();
+        var snapshot = tracing.Snapshot();
 
-        Assert.IsTrue(session.IsRunning);
+        Assert.IsTrue(tracing.IsRunning);
 
         for (var i = 0; i < 100; i++)
-            session.Instant(7);
+            tracing.Instant(7);
 
-        var stopped = session.Stop();
+        var stopped = tracing.Stop();
 
         Assert.AreEqual(100L, snapshot.EventCount);
         Assert.AreEqual(200L, stopped.EventCount);
@@ -32,43 +32,52 @@ public class SnapshotTests
     [TestMethod]
     public void Snapshot_TakenTwice_OverlapsRatherThanDrains()
     {
-        using var session = new TracingSession();
-        session.Start(new SessionOptions { ChunkCapacity = 1024 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
 
         for (var i = 0; i < 10; i++)
-            session.Instant(7);
+            tracing.Instant(7);
 
-        var first = session.Snapshot();
-        var second = session.Snapshot();
-
-        Assert.AreEqual(10L, first.EventCount);
-        Assert.AreEqual(10L, second.EventCount);
+        Assert.AreEqual(10L, tracing.Snapshot().EventCount);
+        Assert.AreEqual(10L, tracing.Snapshot().EventCount);
     }
 
     [TestMethod]
-    public void Snapshot_EndTimestampBoundsEveryEvent()
+    public void Snapshot_IsDetachedFromLaterWrites()
     {
-        using var session = new TracingSession();
-        session.Start(new SessionOptions { ChunkCapacity = 1024 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
+        tracing.Instant(1);
+
+        var snapshot = tracing.Snapshot();
+
+        for (var i = 0; i < 10; i++)
+            tracing.Instant(2);
+
+        CollectionAssert.AreEqual(new[] { 1 }, snapshot.Events().Select(e => e.Id).ToArray());
+    }
+
+    [TestMethod]
+    public void Snapshot_TimestampsBoundEveryEvent()
+    {
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
 
         for (var i = 0; i < 100; i++)
-            session.Instant(7);
+            tracing.Instant(7);
 
-        var snapshot = session.Snapshot();
+        var snapshot = tracing.Snapshot();
 
-        foreach (var e in snapshot.EnumerateEvents())
-        {
-            Assert.IsTrue(e.Timestamp >= snapshot.StartTimestamp);
-            Assert.IsTrue(e.Timestamp <= snapshot.EndTimestamp);
-        }
+        Assert.IsTrue(snapshot.Events().All(e =>
+            e.Timestamp >= snapshot.StartTimestamp && e.Timestamp <= snapshot.EndTimestamp));
     }
 
     [TestMethod]
     public void Snapshot_WhenNotRunning_ReturnsAnEmptySnapshotSession()
     {
-        using var session = new TracingSession();
+        using var tracing = new TracingSession();
 
-        var snapshot = session.Snapshot();
+        var snapshot = tracing.Snapshot();
 
         Assert.AreEqual(0L, snapshot.EventCount);
         Assert.IsTrue(snapshot.IsSnapshot);
@@ -77,51 +86,39 @@ public class SnapshotTests
     [TestMethod]
     public void Snapshot_WithNegativeWindow_Throws()
     {
-        using var session = new TracingSession();
-        session.Start();
+        using var tracing = new TracingSession();
+        tracing.Start();
 
-        try
-        {
-            session.Snapshot(TimeSpan.FromSeconds(-1));
-            Assert.Fail("Expected ArgumentOutOfRangeException.");
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-        }
-        finally
-        {
-            session.Stop();
-        }
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => tracing.Snapshot(TimeSpan.FromSeconds(-1)));
+        Assert.IsTrue(tracing.IsRunning);
     }
 
     [TestMethod]
     public void Snapshot_WithWindow_KeepsOnlyRecentEvents()
     {
-        using var session = new TracingSession();
-        session.Start(new SessionOptions { ChunkCapacity = 1024 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
 
         for (var i = 0; i < 50; i++)
-            session.Instant(7);
+            tracing.Instant(7);
 
         Thread.Sleep(300);
 
         for (var i = 0; i < 50; i++)
-            session.Instant(8);
+            tracing.Instant(8);
 
-        var snapshot = session.Snapshot(TimeSpan.FromMilliseconds(100));
-        session.Stop();
-
-        foreach (var e in snapshot.EnumerateEvents())
-            Assert.AreEqual(8, e.Id);
+        var snapshot = tracing.Snapshot(TimeSpan.FromMilliseconds(100));
 
         Assert.AreEqual(50L, snapshot.EventCount);
+        Assert.IsTrue(snapshot.Events().All(e => e.Id == 8));
+        Assert.IsGreaterThan(tracing.Stop().StartTimestamp, snapshot.StartTimestamp);
     }
 
     [TestMethod]
     public void Snapshot_UnderConcurrentWritersAndRecycling_StaysConsistent()
     {
-        using var session = new TracingSession();
-        session.Start(new SessionOptions
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions
         {
             ChunkCapacity = 512,
             MaxTotalChunks = 8,
@@ -134,14 +131,14 @@ public class SnapshotTests
         var workers = Enumerable.Range(0, 4)
             .Select(_ => Task.Run(() =>
             {
-                using (session.Scope(4242))
+                using (tracing.Scope(4242))
                 {
                 }
 
                 ready.Signal();
 
                 while (!stop.IsCancellationRequested)
-                    using (session.Scope(4242))
+                    using (tracing.Scope(4242))
                     {
                     }
             }))
@@ -155,17 +152,15 @@ public class SnapshotTests
 
             for (var i = 0; i < 100; i++)
             {
-                var snapshot = session.Snapshot();
+                var snapshot = tracing.Snapshot();
 
-                Assert.IsTrue(session.IsRunning);
-                Assert.IsTrue(snapshot.IsSnapshot);
+                Assert.IsTrue(tracing.IsRunning);
 
                 foreach (var e in snapshot.EnumerateEvents())
                 {
                     Assert.AreEqual(4242, e.Id);
                     Assert.IsTrue(e.Kind is TraceEventKind.Begin or TraceEventKind.End);
-                    Assert.IsTrue(e.Timestamp >= snapshot.StartTimestamp);
-                    Assert.IsTrue(e.Timestamp <= snapshot.EndTimestamp);
+                    Assert.IsTrue(e.Timestamp >= snapshot.StartTimestamp && e.Timestamp <= snapshot.EndTimestamp);
                     observed++;
                 }
             }
@@ -174,31 +169,28 @@ public class SnapshotTests
         {
             stop.Cancel();
             Task.WaitAll(workers);
-            session.Stop();
         }
 
-        Assert.IsTrue(observed > 0);
+        Assert.IsGreaterThan(0L, observed);
     }
 
     [TestMethod]
-    public void Start_WithRetentionWindowAndWrongPolicy_Throws()
+    public void Start_WithAnInvalidRetentionWindow_ThrowsAndStaysStopped()
     {
-        using var session = new TracingSession();
+        using var tracing = new TracingSession();
 
-        try
+        Assert.ThrowsExactly<ArgumentException>(() => tracing.Start(new SessionOptions
         {
-            session.Start(new SessionOptions
-            {
-                MaxRetentionWindow = TimeSpan.FromSeconds(5),
-                OverflowPolicy = OverflowPolicy.DropNew
-            });
+            MaxRetentionWindow = TimeSpan.FromSeconds(5),
+            OverflowPolicy = OverflowPolicy.DropNew
+        }));
 
-            Assert.Fail("Expected ArgumentException.");
-        }
-        catch (ArgumentException)
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => tracing.Start(new SessionOptions
         {
-        }
+            MaxRetentionWindow = TimeSpan.FromDays(2),
+            OverflowPolicy = OverflowPolicy.DropOldest
+        }));
 
-        Assert.IsFalse(session.IsRunning);
+        Assert.IsFalse(tracing.IsRunning);
     }
 }

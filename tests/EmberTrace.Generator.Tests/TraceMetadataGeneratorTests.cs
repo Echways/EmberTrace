@@ -28,8 +28,7 @@ public class TraceMetadataGeneratorTests
     {
         var result = Run("class C { }");
 
-        Assert.IsEmpty(result.Sources,
-            "An assembly without trace metadata must not carry a provider or module initializer");
+        Assert.IsEmpty(result.Sources);
     }
 
     [TestMethod]
@@ -49,8 +48,7 @@ public class TraceMetadataGeneratorTests
 
         Assert.AreEqual(
             Run(declaredAscending, true).Source("TraceIds.g.cs"),
-            Run(declaredDescending, true).Source("TraceIds.g.cs"),
-            "Declaration order must not rename generated constants");
+            Run(declaredDescending, true).Source("TraceIds.g.cs"));
     }
 
     [TestMethod]
@@ -83,15 +81,19 @@ public class TraceMetadataGeneratorTests
     }
 
     [TestMethod]
-    public void DuplicateId_ReportsETG001()
+    [DataRow("[assembly: TraceId(7, \"First\")] [assembly: TraceId(7, \"Second\")]", "ETG001", 1)]
+    [DataRow("[assembly: TraceId(7, \"Same\", \"C\")] [assembly: TraceId(7, \"Same\", \"C\")]", "ETG001", 0)]
+    [DataRow("[assembly: TraceId(7, \" \")]", "ETG002", 1)]
+    [DataRow("[assembly: TraceId(7, \"Name\", \"\")]", "ETG003", 1)]
+    [DataRow("[assembly: TraceId(7, \"Name\", null)]", "ETG003", 0)]
+    [DataRow("[assembly: TraceId(\"x\", \"Broken\")]", "ETG004", 1)]
+    [DataRow("static class Ids { [TraceName(\"Cpu\")] public static int Cpu = 10; }", "ETG005", 1)]
+    [DataRow("static class Ids { [TraceName(\"Cpu\")] public const int Cpu = 10; }", "ETG005", 0)]
+    public void Declarations_ReportTheExpectedDiagnostics(string declarations, string id, int expected)
     {
-        var result = Run("""
-                         using EmberTrace.Abstractions.Attributes;
-                         [assembly: TraceId(7, "First")]
-                         [assembly: TraceId(7, "Second")]
-                         """);
+        var diagnostics = Run("using EmberTrace.Abstractions.Attributes;\n" + declarations).Diagnostics;
 
-        Assert.HasCount(1, result.Diagnostics.Where(d => d.Id == "ETG001").ToArray());
+        Assert.HasCount(expected, diagnostics.Where(d => d.Id == id));
     }
 
     [TestMethod]
@@ -129,22 +131,7 @@ public class TraceMetadataGeneratorTests
                          }
                          """, true);
 
-        Assert.IsFalse(result.Sources.ContainsKey("TraceIds.g.cs"), "Fields already are the constants");
-    }
-
-    [TestMethod]
-    public void NonConstantField_ReportsETG005()
-    {
-        var result = Run("""
-                         using EmberTrace.Abstractions.Attributes;
-                         static class Ids
-                         {
-                             [TraceName("Cpu Work")]
-                             public static int Cpu = 10;
-                         }
-                         """);
-
-        Assert.HasCount(1, result.Diagnostics.Where(d => d.Id == "ETG005").ToArray());
+        Assert.IsFalse(result.Sources.ContainsKey("TraceIds.g.cs"));
     }
 
     [TestMethod]
@@ -161,8 +148,7 @@ public class TraceMetadataGeneratorTests
                          }
                          """);
 
-        Assert.IsFalse(result.Diagnostics.Any(d => d.Id == "ETG005"),
-            "A category on a type is metadata for [Trace] methods, not a malformed field annotation");
+        Assert.IsEmpty(result.Diagnostics);
         StringAssert.Contains(
             result.Source("EmberTrace.GeneratedTraceMetadataProvider.g.cs"),
             @"[4100] = new global::EmberTrace.Metadata.TraceMeta(4100, @""Fetch"", null)");
@@ -221,16 +207,8 @@ public class TraceMetadataGeneratorTests
     [TestMethod]
     public void RunAndCompile_FailsWhenTheCompilationDoesNot()
     {
-        try
-        {
-            GeneratorTestHost.RunAndCompile("class C { int X => \"not an int\"; }");
-        }
-        catch (AssertFailedException)
-        {
-            return;
-        }
-
-        Assert.Fail("RunAndCompile must surface compiler errors in the input as a test failure");
+        Assert.ThrowsExactly<AssertFailedException>(
+            () => GeneratorTestHost.RunAndCompile("class C { int X => \"not an int\"; }"));
     }
 
     private static IReadOnlyList<IncrementalStepRunReason> OutputStepReasons(GeneratorDriver driver)

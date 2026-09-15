@@ -218,9 +218,7 @@ public class AsyncScopeTests
             session = ts.Stop();
         }
 
-        var events = new List<TraceEventRecord>();
-        foreach (var e in session.EnumerateEventsSorted())
-            events.Add(e);
+        var events = session.SortedEvents();
 
         var asyncEvents = events.Where(e => e.Id == asyncId).ToArray();
         Assert.HasCount(2, asyncEvents);
@@ -235,20 +233,22 @@ public class AsyncScopeTests
     }
 
     [TestMethod]
-    public async Task ScopeAsync_AfterSessionStopped_DoesNotThrow()
+    public async Task ScopeAsync_StoppedBeforeDisposal_KeepsTheBeginAsAnUnmatchedScope()
     {
         const int id = 7011;
 
         var ts = new TracingSession();
         ts.Start(new SessionOptions { ChunkCapacity = 256 });
 
+        TraceSession session;
         await using (ts.ScopeAsync(id))
         {
             await Task.Delay(1);
-            ts.Stop();
+            session = ts.Stop();
         }
 
-        Assert.IsFalse(ts.IsRunning);
+        Assert.AreEqual(TraceEventKind.Begin, session.Events().Single().Kind);
+        Assert.AreEqual(1, session.Analyze().UnmatchedBeginCount);
     }
 
     private static CallTreeNode Child(CallTreeNode node, int id)

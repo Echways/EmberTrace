@@ -4,90 +4,79 @@ using EmberTrace.Sessions;
 namespace EmberTrace.Extensions.Hosting.Tests.Configuration;
 
 [TestClass]
-[DoNotParallelize]
 public sealed class SessionOptionsFactoryTests
 {
     [TestMethod]
-    public void Defaults_AreFlightRecorderShaped()
+    public void Defaults_AreFlightRecorderShapedAndAcceptedByTheProfiler()
     {
-        var session = SessionOptionsFactory.Create(new EmberTraceOptions());
+        var options = SessionOptionsFactory.Create(new EmberTraceOptions());
 
-        Assert.AreEqual(OverflowPolicy.DropOldest, session.OverflowPolicy);
-        Assert.AreEqual(TimeSpan.FromSeconds(30), session.MaxRetentionWindow);
-        Assert.AreEqual(256, session.MaxTotalChunks);
-        Assert.IsTrue(session.EnableRuntimeMetadata);
+        Assert.AreEqual(OverflowPolicy.DropOldest, options.OverflowPolicy);
+        Assert.AreEqual(TimeSpan.FromSeconds(30), options.MaxRetentionWindow);
+        Assert.AreEqual(256, options.MaxTotalChunks);
+        Assert.AreEqual(16_384, options.ChunkCapacity);
+        Assert.IsTrue(options.EnableRuntimeMetadata);
+        Assert.IsNull(options.EnabledCategoryIds);
+        Assert.IsNull(options.DisabledCategoryIds);
+
+        using var tracing = new TracingSession();
+        tracing.Start(options);
+        Assert.AreSame(options, tracing.Stop().Options);
     }
 
     [TestMethod]
-    public void ScalarOptions_AreCopied()
+    public void EveryScalarOption_IsCopied()
     {
-        var options = new EmberTraceOptions
+        var options = SessionOptionsFactory.Create(new EmberTraceOptions
         {
             ChunkCapacity = 4096,
             MaxTotalEvents = 1_000_000,
             MaxTotalChunks = 32,
+            MaxRetentionWindow = TimeSpan.Zero,
+            OverflowPolicy = OverflowPolicy.StopSession,
+            EnableRuntimeMetadata = false,
             SampleEveryNGlobal = 4,
             MaxEventsPerSecond = 5000,
             RuntimeCounters = RuntimeCounters.Gc | RuntimeCounters.Memory,
             RuntimeCounterInterval = TimeSpan.FromMilliseconds(200)
-        };
+        });
 
-        var session = SessionOptionsFactory.Create(options);
-
-        Assert.AreEqual(4096, session.ChunkCapacity);
-        Assert.AreEqual(1_000_000L, session.MaxTotalEvents);
-        Assert.AreEqual(32, session.MaxTotalChunks);
-        Assert.AreEqual(4, session.SampleEveryNGlobal);
-        Assert.AreEqual(5000, session.MaxEventsPerSecond);
-        Assert.AreEqual(RuntimeCounters.Gc | RuntimeCounters.Memory, session.RuntimeCounters);
-        Assert.AreEqual(TimeSpan.FromMilliseconds(200), session.RuntimeCounterInterval);
+        Assert.AreEqual(4096, options.ChunkCapacity);
+        Assert.AreEqual(1_000_000L, options.MaxTotalEvents);
+        Assert.AreEqual(32, options.MaxTotalChunks);
+        Assert.AreEqual(TimeSpan.Zero, options.MaxRetentionWindow);
+        Assert.AreEqual(OverflowPolicy.StopSession, options.OverflowPolicy);
+        Assert.IsFalse(options.EnableRuntimeMetadata);
+        Assert.AreEqual(4, options.SampleEveryNGlobal);
+        Assert.AreEqual(5000, options.MaxEventsPerSecond);
+        Assert.AreEqual(RuntimeCounters.Gc | RuntimeCounters.Memory, options.RuntimeCounters);
+        Assert.AreEqual(TimeSpan.FromMilliseconds(200), options.RuntimeCounterInterval);
     }
 
     [TestMethod]
-    public void CategoryNames_BecomeCategoryIds()
+    public void CategoryNames_BecomeCategoryIdsSkippingBlanks()
     {
-        var options = new EmberTraceOptions
+        var options = SessionOptionsFactory.Create(new EmberTraceOptions
         {
-            EnabledCategories = ["Http", "Db"],
-            DisabledCategories = ["Noise"]
-        };
+            EnabledCategories = ["Http", "  ", "Db"],
+            DisabledCategories = ["", "Noise"]
+        });
 
-        var session = SessionOptionsFactory.Create(options);
-
-        CollectionAssert.AreEqual(
-            new[] { Tracer.CategoryId("Http"), Tracer.CategoryId("Db") },
-            session.EnabledCategoryIds);
-        CollectionAssert.AreEqual(new[] { Tracer.CategoryId("Noise") }, session.DisabledCategoryIds);
+        CollectionAssert.AreEqual(new[] { Tracer.CategoryId("Http"), Tracer.CategoryId("Db") }, options.EnabledCategoryIds);
+        CollectionAssert.AreEqual(new[] { Tracer.CategoryId("Noise") }, options.DisabledCategoryIds);
     }
 
     [TestMethod]
-    public void EmptyCategoryLists_BecomeNull()
+    public void OnlyBlankCategoryNames_BecomeNull()
     {
-        var session = SessionOptionsFactory.Create(new EmberTraceOptions());
+        var options = SessionOptionsFactory.Create(new EmberTraceOptions { EnabledCategories = ["", " "] });
 
-        Assert.IsNull(session.EnabledCategoryIds);
-        Assert.IsNull(session.DisabledCategoryIds);
+        Assert.IsNull(options.EnabledCategoryIds);
     }
 
     [TestMethod]
-    public void BlankCategoryNames_AreIgnored()
+    public void NullOptions_Throw()
     {
-        var options = new EmberTraceOptions { EnabledCategories = ["Http", "  ", ""] };
-
-        var session = SessionOptionsFactory.Create(options);
-
-        Assert.AreEqual(1, session.EnabledCategoryIds!.Length);
-    }
-
-    [TestMethod]
-    public void ProducedOptions_AreAcceptedByTheProfiler()
-    {
-        var session = SessionOptionsFactory.Create(new EmberTraceOptions());
-
-        using var tracing = new TracingSession();
-        tracing.Start(session);
-        var stopped = tracing.Stop();
-
-        Assert.AreEqual(TimeSpan.FromSeconds(30), stopped.Options.MaxRetentionWindow);
+        Assert.ThrowsExactly<ArgumentNullException>(() => SessionOptionsFactory.Create(null!));
     }
 }

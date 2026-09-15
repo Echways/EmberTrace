@@ -6,80 +6,65 @@ namespace EmberTrace.Tests.Tracing;
 public class StressTests
 {
     [TestMethod]
-    public async Task MixedScopesAndFlows_AreStableUnderLoad()
+    public async Task MixedScopesAndFlows_KeepEveryEventAndStayBalanced()
     {
-        const int scopeIdBase = 7000;
-        const int flowId = 7100;
+        const int flowEventId = 7100;
         const int tasks = 8;
         const int iterations = 3000;
         const int flowEvery = 50;
 
-        var ts = new TracingSession();
-        ts.Start(new SessionOptions { ChunkCapacity = 256 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 256 });
 
-        try
+        await Task.WhenAll(Enumerable.Range(0, tasks).Select(task => Task.Run(() =>
         {
-            var runners = Enumerable.Range(0, tasks)
-                .Select(taskIndex => Task.Run(() =>
+            for (var i = 0; i < iterations; i++)
+                using (tracing.Scope(7000 + task % 3))
                 {
-                    for (var i = 0; i < iterations; i++)
-                    {
-                        var scopeId = scopeIdBase + taskIndex % 3;
-                        using (ts.Scope(scopeId))
-                        {
-                            if (i % flowEvery == 0)
-                            {
-                                var id = ts.NewFlowId();
-                                ts.FlowStart(flowId, id);
-                                ts.FlowStep(flowId, id);
-                                ts.FlowEnd(flowId, id);
-                            }
-                        }
-                    }
-                }));
+                    if (i % flowEvery != 0)
+                        continue;
 
-            await Task.WhenAll(runners);
-        }
-        finally
-        {
-            var session = ts.Stop();
+                    var flowId = tracing.NewFlowId();
+                    tracing.FlowStart(flowEventId, flowId);
+                    tracing.FlowStep(flowEventId, flowId);
+                    tracing.FlowEnd(flowEventId, flowId);
+                }
+        })));
 
-            var flowPerTask = (iterations + flowEvery - 1) / flowEvery;
-            var expectedScopeEvents = tasks * iterations * 2;
-            var expectedFlowEvents = tasks * flowPerTask * 3;
+        var session = tracing.Stop();
+        var stats = session.Analyze();
 
-            Assert.AreEqual(expectedScopeEvents + expectedFlowEvents, session.EventCount);
-        }
+        var flowsPerTask = (iterations + flowEvery - 1) / flowEvery;
+        Assert.AreEqual(tasks * iterations * 2 + tasks * flowsPerTask * 3, session.EventCount);
+        Assert.AreEqual(tasks * iterations, stats.ByTotalTimeDesc.Sum(row => row.Count));
+        Assert.AreEqual(0, stats.UnmatchedBeginCount + stats.UnmatchedEndCount + stats.MismatchedEndCount);
+        Assert.HasCount(tasks * flowsPerTask, session.AnalyzeFlows(int.MaxValue));
     }
 
     [TestMethod]
-    public async Task MixedAsyncScopes_DoNotLeakEvents()
+    public async Task ConcurrentAsyncScopeChains_KeepEveryEventAndStayBalanced()
     {
         const int id = 7200;
         const int tasks = 6;
         const int iterations = 400;
 
-        var ts = new TracingSession();
-        ts.Start(new SessionOptions { ChunkCapacity = 256 });
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 256 });
 
-        try
+        await Task.WhenAll(Enumerable.Range(0, tasks).Select(_ => Task.Run(async () =>
         {
-            var runners = Enumerable.Range(0, tasks)
-                .Select(_ => Task.Run(async () =>
+            for (var i = 0; i < iterations; i++)
+                await using (tracing.ScopeAsync(id))
                 {
-                    for (var i = 0; i < iterations; i++)
-                        await using (ts.ScopeAsync(id))
-                        {
-                            await Task.Delay(1);
-                        }
-                }));
+                    await Task.Yield();
+                }
+        })));
 
-            await Task.WhenAll(runners);
-        }
-        finally
-        {
-            var session = ts.Stop();
-            Assert.AreEqual(tasks * iterations * 2, session.EventCount);
-        }
+        var session = tracing.Stop();
+        var stats = session.Analyze();
+
+        Assert.AreEqual(tasks * iterations * 2, session.EventCount);
+        Assert.AreEqual(tasks * iterations, stats.ByTotalTimeDesc.Single().Count);
+        Assert.AreEqual(0, stats.UnmatchedBeginCount + stats.UnmatchedEndCount + stats.MismatchedEndCount);
     }
 }

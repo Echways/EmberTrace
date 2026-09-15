@@ -5,62 +5,23 @@ namespace EmberTrace.Tests.Metadata;
 [TestClass]
 public class TraceMetadataResolutionTests
 {
-    private sealed class StubProvider : ITraceMetadataProvider
+    [TestMethod]
+    [DataRow(42, "Work", "Jobs")]
+    [DataRow(43, "Idle", "")]
+    [DataRow(7, "7", "")]
+    [DataRow(-3, "-3", "")]
+    public void Resolve_ReturnsNameAndCategoryOrFallsBackToTheId(int id, string expectedName, string expectedCategory)
     {
-        private readonly TraceMeta? _meta;
+        var provider = Meta.Of((42, "Work", "Jobs"), (43, "Idle", null));
 
-        public StubProvider(TraceMeta? meta)
-        {
-            _meta = meta;
-        }
+        provider.Resolve(id, out var name, out var category);
 
-        public bool TryGet(int id, out TraceMeta metadata)
-        {
-            if (_meta is { } m && m.Id == id)
-            {
-                metadata = m;
-                return true;
-            }
-
-            metadata = default;
-            return false;
-        }
+        Assert.AreEqual(expectedName, name);
+        Assert.AreEqual(expectedCategory, category);
     }
 
     [TestMethod]
-    public void Resolve_KnownId_ReturnsNameAndCategory()
-    {
-        var provider = new StubProvider(new TraceMeta(42, "Work", "Jobs"));
-
-        provider.Resolve(42, out var name, out var category);
-
-        Assert.AreEqual("Work", name);
-        Assert.AreEqual("Jobs", category);
-    }
-
-    [TestMethod]
-    public void Resolve_NullCategory_ReturnsEmptyString()
-    {
-        var provider = new StubProvider(new TraceMeta(42, "Work", null));
-
-        provider.Resolve(42, out _, out var category);
-
-        Assert.AreEqual(string.Empty, category);
-    }
-
-    [TestMethod]
-    public void Resolve_UnknownId_FallsBackToIdString()
-    {
-        var provider = new StubProvider(null);
-
-        provider.Resolve(7, out var name, out var category);
-
-        Assert.AreEqual("7", name);
-        Assert.AreEqual(string.Empty, category);
-    }
-
-    [TestMethod]
-    public void Resolve_NullProvider_FallsBackToIdString()
+    public void Resolve_WithoutAProvider_FallsBackToTheId()
     {
         ITraceMetadataProvider? provider = null;
 

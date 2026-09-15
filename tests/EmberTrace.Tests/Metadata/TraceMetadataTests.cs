@@ -18,14 +18,13 @@ public class TraceMetadataTests
         try
         {
             var snapshot = TraceMetadata.CreateDefault();
-            Assert.AreSame(snapshot, TraceMetadata.CreateDefault(),
-                "repeated resolves must reuse the flattened snapshot");
+            Assert.AreSame(snapshot, TraceMetadata.CreateDefault());
 
             var other = new EnumerableProvider((Second, "Second"));
             TraceMetadata.Register(other);
             try
             {
-                Assert.AreNotSame(snapshot, TraceMetadata.CreateDefault(), "registering must invalidate the snapshot");
+                Assert.AreNotSame(snapshot, TraceMetadata.CreateDefault());
             }
             finally
             {
@@ -54,7 +53,7 @@ public class TraceMetadataTests
             Assert.AreEqual("First", first.Name);
             Assert.IsTrue(meta.TryGet(Second, out var second));
             Assert.AreEqual("Second", second.Name);
-            Assert.AreEqual(0, a.Lookups + b.Lookups, "flattened entries must not fall back to the source providers");
+            Assert.AreEqual(0, a.Lookups + b.Lookups);
         }
         finally
         {
@@ -92,6 +91,38 @@ public class TraceMetadataTests
     }
 
     [TestMethod]
+    public void CreateDefault_PrefersTheFirstRegisteredEntryForADuplicateId()
+    {
+        var first = new EnumerableProvider((First, "Winner"));
+        var second = new EnumerableProvider((First, "Loser"));
+
+        TraceMetadata.Register(first);
+        TraceMetadata.Register(second);
+        try
+        {
+            Assert.IsTrue(TraceMetadata.CreateDefault().TryGet(First, out var meta));
+            Assert.AreEqual("Winner", meta.Name);
+        }
+        finally
+        {
+            TraceMetadata.Unregister(first);
+            TraceMetadata.Unregister(second);
+        }
+    }
+
+    [TestMethod]
+    public void FromEntries_BuildsALookupKeepingNullCategories()
+    {
+        var provider = TraceMetadata.FromEntries([new TraceMeta(10, "Load", "App"), new TraceMeta(20, "Parse", null)]);
+
+        Assert.IsTrue(provider.TryGet(10, out var load));
+        Assert.AreEqual(new TraceMeta(10, "Load", "App"), load);
+        Assert.IsTrue(provider.TryGet(20, out var parse));
+        Assert.IsNull(parse.Category);
+        Assert.IsFalse(provider.TryGet(30, out _));
+    }
+
+    [TestMethod]
     public void Reset_DropsEveryRegistration()
     {
         TraceMetadata.Register(new EnumerableProvider((First, "First")));
@@ -101,9 +132,11 @@ public class TraceMetadataTests
     }
 
     [TestMethod]
-    public void Register_NullProvider_Throws()
+    public void NullArguments_Throw()
     {
         Assert.ThrowsExactly<ArgumentNullException>(() => TraceMetadata.Register(null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceMetadata.Unregister(null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceMetadata.FromEntries(null!));
     }
 
     private sealed class EnumerableProvider : ITraceMetadataProvider, IEnumerable<TraceMeta>

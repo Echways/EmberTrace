@@ -6,139 +6,94 @@ namespace EmberTrace.Generator.Tests;
 public class TraceMethodDiagnosticsTests
 {
     [TestMethod]
-    public void NonPartialMethod_ReportsETG010()
+    [DataRow("ETG010", """
+                       public partial class C
+                       {
+                           [Trace]
+                           public void M() { }
+                       }
+                       """)]
+    [DataRow("ETG011", """
+                       public partial class C
+                       {
+                           [Trace]
+                           public partial void M();
+                       }
+                       """)]
+    [DataRow("ETG011", """
+                       public partial class C
+                       {
+                           [Trace]
+                           public partial void M(int a);
+                           private void MCore(string a) { }
+                       }
+                       """)]
+    [DataRow("ETG012", """
+                       public partial class C
+                       {
+                           private int _value;
+                           [Trace]
+                           public partial ref int M();
+                           private ref int MCore() => ref _value;
+                       }
+                       """)]
+    [DataRow("ETG012", """
+                       public partial class C
+                       {
+                           [Trace]
+                           public partial Task M(ref int a);
+                           private Task MCore(ref int a) => Task.CompletedTask;
+                       }
+                       """)]
+    [DataRow("ETG012", """
+                       public partial interface I
+                       {
+                           [Trace]
+                           public partial void M();
+                       }
+                       """)]
+    [DataRow("ETG012", """
+                       public partial class C
+                       {
+                           [Trace]
+                           public partial IAsyncEnumerable<int> M();
+                           private IAsyncEnumerable<int> MCore() => null!;
+                       }
+                       """)]
+    [DataRow("ETG012", """
+                       public partial struct S
+                       {
+                           [Trace]
+                           public readonly partial Task M();
+                           private readonly Task MCore() => Task.CompletedTask;
+                       }
+                       """)]
+    [DataRow("ETG013", """
+                       public class C
+                       {
+                           [Trace]
+                           public partial void M();
+                           private void MCore() { }
+                       }
+                       """)]
+    [DataRow("ETG013", """
+                       public class Outer
+                       {
+                           public partial class Inner
+                           {
+                               [Trace]
+                               public partial void M();
+                               private void MCore() { }
+                           }
+                       }
+                       """)]
+    public void UnsupportedTraceMethod_ReportsAnErrorAndEmitsNoWrapper(string id, string declaration)
     {
-        AssertDiagnostic("ETG010", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial class C
-                                   {
-                                       [Trace]
-                                       public void M() { }
-                                   }
-                                   """);
-    }
+        var output = GeneratorTestHost.Run(
+            "using System.Collections.Generic;\nusing System.Threading.Tasks;\nusing EmberTrace.Abstractions.Attributes;\n"
+            + declaration);
 
-    [TestMethod]
-    public void MissingCoreMethod_ReportsETG011()
-    {
-        AssertDiagnostic("ETG011", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial class C
-                                   {
-                                       [Trace]
-                                       public partial void M();
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void CoreWithADifferentSignature_ReportsETG011()
-    {
-        AssertDiagnostic("ETG011", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial class C
-                                   {
-                                       [Trace]
-                                       public partial void M(int a);
-                                       private void MCore(string a) { }
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void RefReturn_ReportsETG012()
-    {
-        AssertDiagnostic("ETG012", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial class C
-                                   {
-                                       private int _value;
-                                       [Trace]
-                                       public partial ref int M();
-                                       private ref int MCore() => ref _value;
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void RefParameterOnAnAsyncMethod_ReportsETG012()
-    {
-        AssertDiagnostic("ETG012", """
-                                   using System.Threading.Tasks;
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial class C
-                                   {
-                                       [Trace]
-                                       public partial Task M(ref int a);
-                                       private Task MCore(ref int a) => Task.CompletedTask;
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void MethodOnAnInterface_ReportsETG012()
-    {
-        AssertDiagnostic("ETG012", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial interface I
-                                   {
-                                       [Trace]
-                                       public partial void M();
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void AsyncEnumerableReturn_ReportsETG012()
-    {
-        AssertDiagnostic("ETG012", """
-                                   using System.Collections.Generic;
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public partial class C
-                                   {
-                                       [Trace]
-                                       public partial IAsyncEnumerable<int> M();
-                                       private IAsyncEnumerable<int> MCore() => null!;
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void NonPartialContainingType_ReportsETG013()
-    {
-        AssertDiagnostic("ETG013", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public class C
-                                   {
-                                       [Trace]
-                                       public partial void M();
-                                       private void MCore() { }
-                                   }
-                                   """);
-    }
-
-    [TestMethod]
-    public void NonPartialOuterType_ReportsETG013()
-    {
-        AssertDiagnostic("ETG013", """
-                                   using EmberTrace.Abstractions.Attributes;
-                                   public class Outer
-                                   {
-                                       public partial class Inner
-                                       {
-                                           [Trace]
-                                           public partial void M();
-                                           private void MCore() { }
-                                       }
-                                   }
-                                   """);
-    }
-
-    private static void AssertDiagnostic(string id, string code)
-    {
-        var diagnostics = GeneratorTestHost.Run(code).Diagnostics;
-
-        Assert.IsTrue(diagnostics.Any(d => d.Id == id && d.Severity == DiagnosticSeverity.Error),
-            $"Expected {id}, got [{string.Join(", ", diagnostics.Select(d => d.Id))}]");
+        Assert.AreEqual(id, output.Diagnostics.Single(d => d.Severity == DiagnosticSeverity.Error).Id);
+        Assert.IsFalse(output.Sources.Keys.Any(key => key.StartsWith("EmberTrace.Trace.", StringComparison.Ordinal)));
     }
 }

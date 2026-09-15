@@ -5,18 +5,13 @@ namespace EmberTrace.Extensions.Hosting.Tests.Recording;
 [TestClass]
 public sealed class DumpFileNameTests
 {
-    private static readonly DateTimeOffset Moment = new(2026, 9, 15, 13, 4, 5, 678, TimeSpan.FromHours(3));
-
     [TestMethod]
-    public void WithKind_IncludesKindAndUtcStampWithMilliseconds()
+    [DataRow("embertrace", "slow", ".ember", "embertrace-slow-20260915-100405-678.ember")]
+    [DataRow("app", null, ".json", "app-20260915-100405-678.json")]
+    public void Create_StampsTheUtcMomentWithMilliseconds(string prefix, string? kind, string extension, string expected)
     {
-        Assert.AreEqual("embertrace-slow-20260915-100405-678.ember",
-            DumpFileName.Create("embertrace", "slow", Moment, ".ember"));
-    }
+        var moment = new DateTimeOffset(2026, 9, 15, 13, 4, 5, 678, TimeSpan.FromHours(3));
 
-    [TestMethod]
-    public void WithoutKind_OmitsTheKindSegment()
-    {
-        Assert.AreEqual("app-20260915-100405-678.json", DumpFileName.Create("app", null, Moment, ".json"));
+        Assert.AreEqual(expected, DumpFileName.Create(prefix, kind, moment, extension));
     }
 }

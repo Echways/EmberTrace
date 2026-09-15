@@ -8,6 +8,21 @@ namespace EmberTrace.Tests.Format;
 public class TraceFormatRoundTripTests
 {
     [TestMethod]
+    public void Header_RoundTripsEveryField()
+    {
+        var header = new SessionHeader(
+            FormatConstants.Version, true, 10_000_000, 111, 222, 3, 4, 5, 6, true, 638_000_000_000_000_000);
+
+        using var ms = new MemoryStream();
+        TraceFormatWriter.WriteHeader(ms, header);
+
+        Assert.AreEqual(FormatConstants.HeaderSize, ms.Length);
+
+        ms.Position = 0;
+        Assert.AreEqual(header, TraceFormatReader.ReadHeader(ms));
+    }
+
+    [TestMethod]
     public void ThreadNames_RoundTrip()
     {
         var names = new Dictionary<int, string> { [1] = "main", [7] = "поток-7", [-3] = "" };
@@ -17,12 +32,7 @@ public class TraceFormatRoundTripTests
         ms.Position = 0;
 
         Assert.AreEqual(FormatConstants.Section.ThreadNames, ms.ReadByte());
-        var read = TraceFormatReader.ReadThreadNames(ms);
-
-        Assert.HasCount(3, read);
-        Assert.AreEqual("main", read[1]);
-        Assert.AreEqual("поток-7", read[7]);
-        Assert.AreEqual("", read[-3]);
+        CollectionAssert.AreEquivalent(names, TraceFormatReader.ReadThreadNames(ms).ToArray());
     }
 
     [TestMethod]
@@ -40,9 +50,7 @@ public class TraceFormatRoundTripTests
         ms.Position = 0;
 
         Assert.AreEqual(FormatConstants.Section.Metadata, ms.ReadByte());
-        var read = TraceFormatReader.ReadMetadata(ms);
-
-        CollectionAssert.AreEqual(entries, read);
+        CollectionAssert.AreEqual(entries, TraceFormatReader.ReadMetadata(ms));
     }
 
     [TestMethod]
@@ -54,7 +62,9 @@ public class TraceFormatRoundTripTests
             new(2000, 7, 250, TraceEventKind.Begin, 55, 66, 2, 3),
             new(2000, 9, 400, TraceEventKind.End, 55, 66, 1, 4),
             new(3000, 7, 900, TraceEventKind.Counter, 0, -12345, 3, 3),
-            new(1000, 7, 901, TraceEventKind.End, 0, 0, 4, 3)
+            new(4000, 7, 900, TraceEventKind.Instant, 0, 0, 7, 3),
+            new(5000, 9, 950, TraceEventKind.FlowStep, long.MaxValue, 0, 2, 4),
+            new(1000, 7, 960, TraceEventKind.End, 0, 0, 8, 3)
         };
 
         using var ms = new MemoryStream();
@@ -62,34 +72,31 @@ public class TraceFormatRoundTripTests
         ms.Position = 0;
 
         Assert.AreEqual(FormatConstants.Section.Events, ms.ReadByte());
-        var read = TraceFormatReader.ReadEvents(ms);
-
-        CollectionAssert.AreEqual(events, read);
-    }
-
-    [TestMethod]
-    public void Events_TypicalScopePairsStayUnderEightBytesEach()
-    {
-        var events = new List<TraceEventRecord>();
-        for (var i = 0; i < 1000; i++)
-            events.Add(new TraceEventRecord(1000, 7, 100 + i, TraceEventKind.Begin, 0, 0, i + 1, 3));
-
-        using var ms = new MemoryStream();
-        TraceFormatWriter.WriteEvents(ms, events, events.Count);
-
-        var bytesPerEvent = (double)(ms.Length - 1) / events.Count;
-        Assert.IsLessThan(8.0, bytesPerEvent, $"expected dense encoding, got {bytesPerEvent:F2} bytes/event");
+        CollectionAssert.AreEqual(events, TraceFormatReader.ReadEvents(ms));
     }
 
     [TestMethod]
     public void Events_EmptySequence_RoundTrips()
     {
         using var ms = new MemoryStream();
-        TraceFormatWriter.WriteEvents(ms, Array.Empty<TraceEventRecord>(), 0);
+        TraceFormatWriter.WriteEvents(ms, [], 0);
         ms.Position = 0;
 
         Assert.AreEqual(FormatConstants.Section.Events, ms.ReadByte());
         Assert.IsEmpty(TraceFormatReader.ReadEvents(ms));
+    }
+
+    [TestMethod]
+    public void Events_TypicalScopePairsStayUnderEightBytesEach()
+    {
+        var events = Enumerable.Range(0, 1000)
+            .Select(i => new TraceEventRecord(1000, 7, 100 + i, TraceEventKind.Begin, 0, 0, i + 1, 3))
+            .ToList();
+
+        using var ms = new MemoryStream();
+        TraceFormatWriter.WriteEvents(ms, events, events.Count);
+
+        Assert.IsLessThan(8.0, (double)(ms.Length - 1) / events.Count);
     }
 
     [TestMethod]
@@ -103,8 +110,7 @@ public class TraceFormatRoundTripTests
 
         using var ms = new MemoryStream();
 
-        Assert.ThrowsExactly<InvalidOperationException>(
-            () => TraceFormatWriter.WriteEvents(ms, events, events.Count));
+        Assert.ThrowsExactly<InvalidOperationException>(() => TraceFormatWriter.WriteEvents(ms, events, events.Count));
     }
 
     [TestMethod]
@@ -120,98 +126,105 @@ public class TraceFormatRoundTripTests
             new(1000, 7, 900, TraceEventKind.End, 0, 0, 4, 3)
         };
 
-        var metadata = TraceMetadata.FromEntries(new[]
-        {
-            new TraceMeta(1000, "App", "App"),
-            new TraceMeta(2100, "CpuWork", "CPU"),
-            new TraceMeta(3000, "JobFlow", "Flow")
-        });
-
         var original = TraceSession.FromEvents(
             events, 100, 900, 1_000_000,
             new Dictionary<int, string> { [7] = "main", [9] = "worker" },
-            metadata,
+            Meta.Of((1000, "App", "App"), (2100, "CpuWork", "CPU"), (9999, "Unused", null)),
             droppedEvents: 2, droppedChunks: 1, sampledOutEvents: 3, wasOverflow: true);
 
-        using var ms = new MemoryStream();
-        TraceFormat.Write(original, ms);
-        ms.Position = 0;
-        var loaded = TraceFormat.Read(ms);
+        var loaded = RoundTrip(original);
 
         Assert.AreEqual(original.StartTimestamp, loaded.StartTimestamp);
         Assert.AreEqual(original.EndTimestamp, loaded.EndTimestamp);
         Assert.AreEqual(original.TimestampFrequency, loaded.TimestampFrequency);
-        Assert.AreEqual(original.EventCount, loaded.EventCount);
         Assert.AreEqual(original.DroppedEvents, loaded.DroppedEvents);
         Assert.AreEqual(original.DroppedChunks, loaded.DroppedChunks);
         Assert.AreEqual(original.SampledOutEvents, loaded.SampledOutEvents);
         Assert.AreEqual(original.WasOverflow, loaded.WasOverflow);
-        Assert.AreEqual("main", loaded.ThreadNames[7]);
-        Assert.AreEqual("worker", loaded.ThreadNames[9]);
+        CollectionAssert.AreEquivalent(original.ThreadNames.ToArray(), loaded.ThreadNames.ToArray());
+        CollectionAssert.AreEqual(original.SortedEvents(), loaded.SortedEvents());
 
         Assert.IsTrue(loaded.Metadata.TryGet(2100, out var cpu));
-        Assert.AreEqual("CpuWork", cpu.Name);
-        Assert.AreEqual("CPU", cpu.Category);
-
-        CollectionAssert.AreEqual(Sorted(original), Sorted(loaded));
+        Assert.AreEqual(new TraceMeta(2100, "CpuWork", "CPU"), cpu);
+        Assert.IsFalse(loaded.Metadata.TryGet(3000, out _));
+        Assert.IsFalse(loaded.Metadata.TryGet(9999, out _));
     }
 
     [TestMethod]
     public void Session_RoundTrip_ProducesIdenticalAnalysis()
     {
-        var events = new List<TraceEventRecord>();
-        long timestamp = 0;
+        var script = new TraceScript();
         for (var i = 0; i < 500; i++)
-        {
-            events.Add(new TraceEventRecord(1000, 7, timestamp, TraceEventKind.Begin, 0, 0, events.Count + 1, 3));
-            timestamp += 1000;
-            events.Add(new TraceEventRecord(1000, 7, timestamp, TraceEventKind.End, 0, 0, events.Count + 1, 3));
-            timestamp += 500;
-        }
+            script.Span(1000, i * 1500L, i * 1500L + 1000);
 
-        var original = TraceSession.FromEvents(events, 0, timestamp, 1_000_000);
+        var original = script.ToSession();
+        var loaded = RoundTrip(original);
 
-        using var ms = new MemoryStream();
-        TraceFormat.Write(original, ms);
-        ms.Position = 0;
-        var loaded = TraceFormat.Read(ms);
+        var before = original.Analyze().ByTotalTimeDesc.Single();
+        var after = loaded.Analyze().ByTotalTimeDesc.Single();
 
-        var before = original.Analyze();
-        var after = loaded.Analyze();
-
-        Assert.AreEqual(before.DurationMs, after.DurationMs, 0.0001);
-        Assert.AreEqual(before.ByTotalTimeDesc[0].Count, after.ByTotalTimeDesc[0].Count);
-        Assert.AreEqual(before.ByTotalTimeDesc[0].TotalMs, after.ByTotalTimeDesc[0].TotalMs, 0.0001);
+        Assert.AreEqual(original.DurationMs, loaded.DurationMs, 1e-9);
+        Assert.AreEqual(before.Count, after.Count);
+        Assert.AreEqual(before.TotalMs, after.TotalMs, 1e-9);
+        Assert.AreEqual(before.P95Ms, after.P95Ms, 1e-9);
     }
 
     [TestMethod]
-    public void Write_ThenRead_ViaFilePath()
+    [DataRow(true)]
+    [DataRow(false)]
+    public void RecordedSession_RoundTripKeepsTheSnapshotFlagAndTheStartAnchor(bool snapshot)
     {
-        var path = Path.Combine(Path.GetTempPath(), $"embertrace-{Guid.NewGuid():N}{TraceFormat.FileExtension}");
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
+        tracing.Instant(11);
+        tracing.Instant(12);
+
+        var session = snapshot ? tracing.Snapshot() : tracing.Stop();
+        var loaded = RoundTrip(session);
+
+        Assert.AreEqual(snapshot, loaded.IsSnapshot);
+        Assert.AreEqual(session.StartedAtUtc, loaded.StartedAtUtc);
+        CollectionAssert.AreEqual(session.SortedEvents(), loaded.SortedEvents());
+    }
+
+    [TestMethod]
+    public void WriteToAPath_CreatesMissingDirectoriesAndReadsBack()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"embertrace-{Guid.NewGuid():N}");
+        var path = Path.Combine(root, "nested", "trace" + TraceFormat.FileExtension);
 
         try
         {
-            var original = TraceSession.FromEvents(
-                new[] { new TraceEventRecord(1, 1, 10, TraceEventKind.Instant, 0, 0, 1) },
-                10, 10, 1_000_000);
+            var original = new TraceScript().Instant(1, 10).ToSession(start: 10);
 
             TraceFormat.Write(original, path);
-            var loaded = TraceFormat.Read(path);
 
-            Assert.AreEqual(1, loaded.EventCount);
+            CollectionAssert.AreEqual(original.SortedEvents(), TraceFormat.Read(path).SortedEvents());
         }
         finally
         {
-            if (File.Exists(path))
-                File.Delete(path);
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
         }
     }
 
-    private static TraceEventRecord[] Sorted(TraceSession session)
+    [TestMethod]
+    public void NullArguments_Throw()
     {
-        var list = new List<TraceEventRecord>();
-        foreach (var e in session.EnumerateEventsSorted())
-            list.Add(e);
-        return list.ToArray();
+        var session = new TraceScript().ToSession();
+
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceFormat.Write(null!, Stream.Null));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceFormat.Write(session, (Stream)null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceFormat.Write(session, (string)null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceFormat.Read((Stream)null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceFormat.Read((string)null!));
+    }
+
+    private static TraceSession RoundTrip(TraceSession session)
+    {
+        using var ms = new MemoryStream();
+        TraceFormat.Write(session, ms);
+        ms.Position = 0;
+        return TraceFormat.Read(ms);
     }
 }

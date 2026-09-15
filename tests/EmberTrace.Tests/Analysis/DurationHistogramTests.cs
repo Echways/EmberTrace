@@ -54,7 +54,7 @@ public class DurationHistogramTests
         while (value > 0 && value < long.MaxValue / 3)
         {
             var upper = DurationHistogram.UpperBoundOf(DurationHistogram.BucketIndexOf(value));
-            Assert.IsTrue(upper >= value, $"bucket upper bound {upper} is below value {value}");
+            Assert.IsGreaterThanOrEqualTo(value, upper);
             value = value * 3 + 1;
         }
     }
@@ -68,7 +68,7 @@ public class DurationHistogramTests
             var reported = DurationHistogram.UpperBoundOf(DurationHistogram.BucketIndexOf(value));
             var error = (double)(reported - value) / value;
 
-            Assert.IsLessThan(0.0313, error, $"value {value} reported as {reported}");
+            Assert.IsLessThan(0.0313, error);
             value = (long)(value * 1.37) + 1;
         }
     }
@@ -89,17 +89,19 @@ public class DurationHistogramTests
         Assert.IsLessThan(1032L, histogram.PercentileTicks(50));
         Assert.IsLessThan(1032L, histogram.PercentileTicks(95));
         Assert.IsLessThan(1032L, histogram.PercentileTicks(99));
-        Assert.IsTrue(histogram.PercentileTicks(100) >= 1_000_000);
+        Assert.AreEqual(1_000_000L, histogram.PercentileTicks(100));
     }
 
     [TestMethod]
-    public void Percentile_OutOfRange_Throws()
+    [DataRow(-0.001)]
+    [DataRow(100.001)]
+    [DataRow(double.NaN)]
+    public void Percentile_OutsideZeroToHundred_Throws(double percentile)
     {
         var histogram = new DurationHistogram();
         histogram.Add(10);
 
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => histogram.PercentileTicks(-1));
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => histogram.PercentileTicks(101));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => histogram.PercentileTicks(percentile));
     }
 
     [TestMethod]

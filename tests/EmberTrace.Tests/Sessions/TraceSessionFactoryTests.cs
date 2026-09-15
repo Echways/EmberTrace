@@ -1,6 +1,5 @@
 using EmberTrace.Internal.Buffering;
 using EmberTrace.Internal.Time;
-using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Sessions;
@@ -9,28 +8,17 @@ namespace EmberTrace.Tests.Sessions;
 public class TraceSessionFactoryTests
 {
     [TestMethod]
-    public void TimestampFrequency_WhenExplicit_IsUsedForDurations()
+    [DataRow(1_000_000L, 1_000_000L, 500.0)]
+    [DataRow(0L, 0L, 0.0)]
+    public void TimestampFrequency_FallsBackToTheStopwatchWhenNotPositive(
+        long frequency, long expectedFrequency, double expectedDurationMs)
     {
-        var chunk = new Chunk(1);
-
         var session = new TraceSession(
-            new[] { chunk }, 0, 500_000, new SessionOptions(), new Dictionary<int, string>(),
-            0, 0, 0, false, null, 1_000_000);
+            [new Chunk(1)], 0, frequency / 2, new SessionOptions(), new Dictionary<int, string>(),
+            0, 0, 0, false, null, frequency);
 
-        Assert.AreEqual(1_000_000, session.TimestampFrequency);
-        Assert.AreEqual(500.0, session.DurationMs, 0.001);
-    }
-
-    [TestMethod]
-    public void TimestampFrequency_WhenZero_FallsBackToStopwatchFrequency()
-    {
-        var chunk = new Chunk(1);
-
-        var session = new TraceSession(
-            new[] { chunk }, 0, 0, new SessionOptions(), new Dictionary<int, string>(),
-            0, 0, 0, false);
-
-        Assert.AreEqual(Timestamp.Frequency, session.TimestampFrequency);
+        Assert.AreEqual(expectedFrequency == 0 ? Timestamp.Frequency : expectedFrequency, session.TimestampFrequency);
+        Assert.AreEqual(expectedDurationMs, session.DurationMs, 0.001);
     }
 
     [TestMethod]
@@ -45,62 +33,65 @@ public class TraceSessionFactoryTests
         var session = TraceSession.FromEvents(
             events, 100, 200, 1_000_000,
             new Dictionary<int, string> { [7] = "worker" },
-            droppedEvents: 5, droppedChunks: 1, sampledOutEvents: 9, wasOverflow: true);
+            droppedEvents: 5, droppedChunks: 1, sampledOutEvents: 9, wasOverflow: true, isSnapshot: true);
 
-        Assert.AreEqual(2, session.EventCount);
-        Assert.AreEqual(1_000_000, session.TimestampFrequency);
-        Assert.AreEqual(5, session.DroppedEvents);
-        Assert.AreEqual(1, session.DroppedChunks);
-        Assert.AreEqual(9, session.SampledOutEvents);
+        Assert.AreEqual(100L, session.StartTimestamp);
+        Assert.AreEqual(200L, session.EndTimestamp);
+        Assert.AreEqual(1_000_000L, session.TimestampFrequency);
+        Assert.AreEqual(5L, session.DroppedEvents);
+        Assert.AreEqual(1L, session.DroppedChunks);
+        Assert.AreEqual(9L, session.SampledOutEvents);
         Assert.IsTrue(session.WasOverflow);
+        Assert.IsTrue(session.IsSnapshot);
         Assert.AreEqual("worker", session.ThreadNames[7]);
-
-        var roundTripped = Sorted(session);
-
-        Assert.HasCount(2, roundTripped);
-        Assert.AreEqual(TraceEventKind.Begin, roundTripped[0].Kind);
-        Assert.AreEqual(3, roundTripped[0].TrackId);
-        Assert.AreEqual(TraceEventKind.End, roundTripped[1].Kind);
+        CollectionAssert.AreEqual(events, session.SortedEvents());
     }
 
     [TestMethod]
-    public void FromEvents_SpansMultipleChunksWhenCapacityExceeded()
+    public void FromEvents_SpansMultipleChunksAndKeepsEveryEvent()
     {
-        var events = new List<TraceEventRecord>();
-        for (var i = 0; i < 3000; i++)
-            events.Add(new TraceEventRecord(i, 1, i, TraceEventKind.Instant, 0, 0, i + 1));
+        var events = Enumerable.Range(0, 3000)
+            .Select(i => new TraceEventRecord(i, 1, i, TraceEventKind.Instant, 0, 0, i + 1))
+            .ToArray();
 
         var session = TraceSession.FromEvents(
             events, 0, 3000, 1_000_000, options: new SessionOptions { ChunkCapacity = 1024 });
 
-        Assert.AreEqual(3000, session.EventCount);
-        Assert.HasCount(3000, Sorted(session));
+        Assert.AreEqual(3000L, session.EventCount);
+        CollectionAssert.AreEqual(events, session.SortedEvents());
     }
 
     [TestMethod]
-    public void FromEntries_BuildsLookupProvider()
+    public void FromEvents_WithNullEvents_Throws()
     {
-        var provider = TraceMetadata.FromEntries(new[]
-        {
-            new TraceMeta(10, "Load", "App"),
-            new TraceMeta(20, "Parse", null)
-        });
-
-        Assert.IsTrue(provider.TryGet(10, out var load));
-        Assert.AreEqual("Load", load.Name);
-        Assert.AreEqual("App", load.Category);
-
-        Assert.IsTrue(provider.TryGet(20, out var parse));
-        Assert.IsNull(parse.Category);
-
-        Assert.IsFalse(provider.TryGet(30, out _));
+        Assert.ThrowsExactly<ArgumentNullException>(() => TraceSession.FromEvents(null!, 0, 0));
     }
 
-    private static TraceEventRecord[] Sorted(TraceSession session)
+    [TestMethod]
+    public void EnumerateEventsSorted_MergesChunksByTimestampThenTrackThenSequence()
     {
-        var list = new List<TraceEventRecord>();
-        foreach (var e in session.EnumerateEventsSorted())
-            list.Add(e);
-        return list.ToArray();
+        var session = new TraceSession(
+            [
+                Chunk(Event(3, 10, 1, 2), Event(2, 10, 2, 2), Event(1, 20, 3, 2)),
+                Chunk(Event(4, 10, 1, 1), Event(5, 30, 2, 1))
+            ],
+            0, 30, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false);
+
+        CollectionAssert.AreEqual(new[] { 4, 3, 2, 1, 5 }, session.SortedEvents().Select(e => e.Id).ToArray());
+        CollectionAssert.AreEqual(new[] { 3, 2, 1, 4, 5 }, session.Events().Select(e => e.Id).ToArray());
+    }
+
+    private static Chunk Chunk(params TraceEvent[] events)
+    {
+        var chunk = new Chunk(events.Length);
+        foreach (var e in events)
+            chunk.TryWrite(e);
+
+        return chunk;
+    }
+
+    private static TraceEvent Event(int id, long timestamp, long sequence, int trackId)
+    {
+        return new TraceEvent(id, 1, timestamp, TraceEventKind.Instant, 0, 0, sequence, trackId);
     }
 }

@@ -15,29 +15,22 @@ public class DecoratorTests
     }
 
     [TestMethod]
-    public void Decorator_RecordsAScopeAndForwardsTheResult()
+    public async Task Decorator_TracesMethodsForwardsResultsAndLeavesPropertiesUntraced()
     {
         IInventoryService service = new TracedInventoryService(new InventoryService());
 
         Tracer.Start(new SessionOptions());
         var reserved = service.Reserve(7);
-        var session = Tracer.Stop();
-
-        Assert.AreEqual(7, reserved);
-        Assert.IsTrue(HasScope(session, Tracer.Id("InventoryService.Reserve")));
-    }
-
-    [TestMethod]
-    public void ForwardedProperty_IsNotTraced()
-    {
-        IInventoryService service = new TracedInventoryService(new InventoryService());
-
-        Tracer.Start(new SessionOptions());
+        var reservedAsync = await service.ReserveAsync(3);
         var available = service.Available;
         var session = Tracer.Stop();
 
+        Assert.AreEqual(7, reserved);
+        Assert.AreEqual(3, reservedAsync);
         Assert.AreEqual(100, available);
-        Assert.IsFalse(HasScope(session, Tracer.Id("InventoryService.Available")));
+        CollectionAssert.AreEqual(
+            new[] { Tracer.Id("InventoryService.Reserve"), Tracer.Id("InventoryService.ReserveAsync") },
+            Scopes(session));
     }
 
     [TestMethod]
@@ -87,12 +80,13 @@ public class DecoratorTests
         Assert.AreEqual(1, log.Async);
     }
 
-    private static bool HasScope(TraceSession session, int id)
+    private static List<int> Scopes(TraceSession session)
     {
-        foreach (var e in session.EnumerateEvents())
-            if (e.Id == id && e.Kind == TraceEventKind.Begin)
-                return true;
+        var ids = new List<int>();
+        foreach (var e in session.EnumerateEventsSorted())
+            if (e.Kind == TraceEventKind.Begin)
+                ids.Add(e.Id);
 
-        return false;
+        return ids;
     }
 }

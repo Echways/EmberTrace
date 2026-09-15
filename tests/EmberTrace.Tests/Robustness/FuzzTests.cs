@@ -1,5 +1,4 @@
 using System.Text.Json;
-using EmberTrace.Internal.Buffering;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Tests.Robustness;
@@ -8,96 +7,71 @@ namespace EmberTrace.Tests.Robustness;
 public class FuzzTests
 {
     [TestMethod]
-    public void Randomized_BeginEnd_DoesNotThrow_And_ExportsValidJson()
+    [DataRow(1337, false)]
+    [DataRow(1337, true)]
+    [DataRow(4242, false)]
+    [DataRow(4242, true)]
+    [DataRow(90210, false)]
+    public void RandomScopeStreams_KeepEveryEventAccountedFor(int seed, bool strict)
     {
-        var events = GenerateRandomEvents(1337, 4, 600);
-        var session = CreateSession(events);
+        var session = RandomSession(seed, threads: 4, events: 600);
+        var events = session.Events();
+        var begins = events.Count(e => e.Kind == TraceEventKind.Begin);
+        var ends = events.Count(e => e.Kind == TraceEventKind.End);
 
-        var stats = session.Analyze(false);
-        var processed = session.Process(false, false);
+        var stats = session.Analyze(strict);
+        var processed = session.Process(strict, groupByThread: false);
+        var closed = stats.ByTotalTimeDesc.Sum(r => r.Count);
 
-        Assert.IsGreaterThanOrEqualTo(0, stats.UnmatchedBeginCount);
-        Assert.IsGreaterThanOrEqualTo(0, stats.UnmatchedEndCount);
-        Assert.IsGreaterThanOrEqualTo(0, stats.MismatchedEndCount);
-        Assert.IsGreaterThanOrEqualTo(0, processed.UnmatchedBeginCount);
-        Assert.IsGreaterThanOrEqualTo(0, processed.UnmatchedEndCount);
-        Assert.IsGreaterThanOrEqualTo(0, processed.MismatchedEndCount);
+        Assert.AreEqual(begins, closed + stats.UnmatchedBeginCount);
+        Assert.AreEqual(ends, closed + stats.UnmatchedEndCount + (strict ? stats.MismatchedEndCount : 0));
+        Assert.AreEqual(closed, processed.HotspotsByInclusiveDesc.Sum(h => h.Count));
+        Assert.AreEqual(stats.UnmatchedBeginCount, processed.UnmatchedBeginCount);
+        Assert.AreEqual(stats.UnmatchedEndCount, processed.UnmatchedEndCount);
+        Assert.AreEqual(stats.MismatchedEndCount, processed.MismatchedEndCount);
+        Assert.IsTrue(stats.ByTotalTimeDesc.All(r => r.MinMs >= 0 && r.MinMs <= r.MaxMs));
 
-        using var ms = new MemoryStream();
-        TraceExport.WriteChromeBeginEnd(session, ms, sortByTimestamp: true);
-        ms.Position = 0;
-        using var doc = JsonDocument.Parse(ms);
-        Assert.AreEqual(JsonValueKind.Object, doc.RootElement.ValueKind);
-
-        ms.SetLength(0);
-        TraceExport.WriteChromeComplete(session, ms, sortByStartTimestamp: true);
-        ms.Position = 0;
-        using var doc2 = JsonDocument.Parse(ms);
-        Assert.AreEqual(JsonValueKind.Object, doc2.RootElement.ValueKind);
+        Assert.AreEqual(begins + ends, PhaseCount(stream => TraceExport.WriteChromeBeginEnd(session, stream), "B", "E"));
+        Assert.AreEqual(session.Analyze().ByTotalTimeDesc.Sum(r => r.Count),
+            PhaseCount(stream => TraceExport.WriteChromeComplete(session, stream), "X"));
     }
 
-    private static List<TraceEvent> GenerateRandomEvents(int seed, int threads, int totalEvents)
+    private static TraceSession RandomSession(int seed, int threads, int events)
     {
         var rng = new Random(seed);
-        var list = new List<TraceEvent>(totalEvents);
-        var stacks = new List<int>[threads];
-        var sequences = new long[threads];
-
-        for (var i = 0; i < threads; i++)
-            stacks[i] = new List<int>(64);
-
+        var script = new TraceScript();
+        var stacks = Enumerable.Range(0, threads).Select(_ => new Stack<int>()).ToArray();
         long timestamp = 0;
 
-        for (var i = 0; i < totalEvents; i++)
+        for (var i = 0; i < events; i++)
         {
-            var threadIndex = rng.Next(threads);
-            var threadId = threadIndex + 1;
+            var thread = rng.Next(threads);
+            var stack = stacks[thread];
             timestamp += rng.Next(1, 5);
 
-            var stack = stacks[threadIndex];
-            var doEnd = stack.Count > 0 && rng.NextDouble() < 0.45;
-            int id;
-            TraceEventKind kind;
-
-            if (doEnd)
+            if (stack.Count > 0 && rng.NextDouble() < 0.45)
             {
-                kind = TraceEventKind.End;
-                if (rng.NextDouble() < 0.2)
-                {
-                    id = rng.Next(50, 75);
-                }
-                else
-                {
-                    id = stack[^1];
-                    stack.RemoveAt(stack.Count - 1);
-                }
-            }
-            else
-            {
-                kind = TraceEventKind.Begin;
-                id = rng.Next(1, 10);
-                stack.Add(id);
+                var id = rng.NextDouble() < 0.2 ? rng.Next(50, 75) : stack.Pop();
+                script.End(id, timestamp, thread + 1);
+                continue;
             }
 
-            var sequence = ++sequences[threadIndex];
-            list.Add(new TraceEvent(id, threadId, timestamp, kind, 0, 0, sequence));
+            var begin = rng.Next(1, 10);
+            stack.Push(begin);
+            script.Begin(begin, timestamp, thread + 1);
         }
 
-        return list;
+        return script.ToSession();
     }
 
-    private static TraceSession CreateSession(List<TraceEvent> events)
+    private static long PhaseCount(Action<Stream> write, params string[] phases)
     {
-        var capacity = Math.Max(1, events.Count);
-        var chunk = new Chunk(capacity);
-        for (var i = 0; i < events.Count; i++)
-            chunk.Events[i] = events[i];
-        chunk.Count = events.Count;
+        using var stream = new MemoryStream();
+        write(stream);
+        stream.Position = 0;
 
-        var options = new SessionOptions { ChunkCapacity = capacity };
-        var start = events.Count > 0 ? events[0].Timestamp : 0;
-        var end = events.Count > 0 ? events[^1].Timestamp : start;
-
-        return new TraceSession(new[] { chunk }, start, end, options, new Dictionary<int, string>(), 0, 0, 0, false);
+        using var document = JsonDocument.Parse(stream);
+        return document.RootElement.GetProperty("traceEvents").EnumerateArray()
+            .Count(e => phases.Contains(e.GetProperty("ph").GetString()));
     }
 }

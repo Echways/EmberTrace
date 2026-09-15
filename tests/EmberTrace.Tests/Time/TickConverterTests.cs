@@ -7,39 +7,33 @@ namespace EmberTrace.Tests.Time;
 public class TickConverterTests
 {
     [TestMethod]
-    public void ToMs_ConvertsUsingFrequency()
+    [DataRow(4_000L, 2_000L, 500.0, 500_000.0)]
+    [DataRow(1_000_000_000L, 3L, 0.000003, 0.003)]
+    [DataRow(4_000L, -2_000L, -500.0, -500_000.0)]
+    public void ToMsAndToUs_ScaleByTheFrequency(long frequency, long ticks, double expectedMs, double expectedUs)
     {
-        var converter = new TickConverter(1000);
+        var converter = new TickConverter(frequency);
 
-        Assert.AreEqual(2000.0, converter.ToMs(2000), 1e-9);
+        Assert.AreEqual(expectedMs, converter.ToMs(ticks), 1e-9);
+        Assert.AreEqual(expectedUs, converter.ToUs(ticks), 1e-9);
     }
 
     [TestMethod]
-    public void ToUs_ConvertsUsingFrequency()
+    public void ToUtc_AddsTheElapsedTimeToTheBase()
     {
-        var converter = new TickConverter(1_000_000);
+        var baseUtc = new DateTimeOffset(2024, 6, 1, 15, 0, 0, TimeSpan.FromHours(3));
 
-        Assert.AreEqual(1000.0, converter.ToUs(1000), 1e-9);
+        var result = new TickConverter(4_000).ToUtc(baseUtc, 2_000);
+
+        Assert.AreEqual(DateTimeKind.Utc, result.Kind);
+        Assert.AreEqual(new DateTime(2024, 6, 1, 12, 0, 0, 500, DateTimeKind.Utc), result);
     }
 
     [TestMethod]
-    public void ToUtc_AddsElapsedToBase()
+    public void FromSession_UsesTheSessionFrequency()
     {
-        var converter = new TickConverter(1000);
-        var baseUtc = new DateTimeOffset(2024, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        var session = TraceSession.FromEvents([], 0, 0, 4_000);
 
-        var result = converter.ToUtc(baseUtc, 500);
-
-        Assert.AreEqual(baseUtc.UtcDateTime.AddMilliseconds(500), result);
-    }
-
-    [TestMethod]
-    public void FromSession_UsesSessionFrequency()
-    {
-        var session = TraceSession.FromEvents(Array.Empty<TraceEventRecord>(), 0, 0, 1_000_000);
-
-        var converter = TickConverter.FromSession(session);
-
-        Assert.AreEqual(1000.0, converter.ToUs(1000), 1e-9);
+        Assert.AreEqual(500.0, TickConverter.FromSession(session).ToMs(2_000), 1e-9);
     }
 }
