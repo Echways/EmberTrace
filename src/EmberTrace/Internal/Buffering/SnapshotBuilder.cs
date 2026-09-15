@@ -33,6 +33,21 @@ internal static class SnapshotBuilder
         return result.ToArray();
     }
 
+    public static Chunk[] HandOver(IReadOnlyList<Chunk> chunks)
+    {
+        var result = new List<Chunk>(chunks.Count);
+
+        foreach (var chunk in chunks)
+        {
+            if (chunk.Count == 0)
+                continue;
+
+            result.Add(chunk.IsFull ? chunk : CopyAll(chunk, chunk.Count));
+        }
+
+        return result.ToArray();
+    }
+
     private static Chunk CopyAll(Chunk source, int count)
     {
         var copy = new Chunk(count);

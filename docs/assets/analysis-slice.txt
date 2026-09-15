@@ -1,24 +1,36 @@
 Summary
-Duration: 34.476 ms
+Duration: 34.293 ms
 Events: 16
 ScopeEvents: 16
 Threads: 1
+DroppedEvents: 0
+DroppedChunks: 0
+SampledOut: 0
+UnmatchedBegin: 0
+UnmatchedEnd: 0
 MismatchedEnd: 0
 
 Hotspots (by inclusive)
 Id    Name     Category  Count  Incl ms  Excl ms  Excl%
 --    ----     --------  -----  -------  -------  -----
-2200  IoWait   IO        1      25.167   25.167   73.00
-1000  App      App       1      9.142    0.005    0.01 
-2300  Sort     CPU       3      8.598    8.598    24.94
-2100  CpuWork  CPU       3      0.539    0.539    1.56 
+2200  IoWait   IO        1      25.199   25.199   73.48
+1000  App      App       1      8.637    0.005    0.02 
+2300  Sort     CPU       3      8.034    8.034    23.43
+2100  CpuWork  CPU       3      0.597    0.597    1.74 
+
+Categories (by inclusive)
+Category  Count  Incl ms  Excl ms  Excl%
+--------  -----  -------  -------  -----
+IO        1      25.199   25.199   73.48
+App       1      8.637    0.005    0.02 
+CPU       6      8.631    8.631    25.17
 
 Call trees
 
-Thread 5
+Thread 7 (.NET TP Worker)
 Id      Name     Category  Count  Incl ms  Excl ms
 --      ----     --------  -----  -------  -------
-2200    IoWait   IO        1      25.167   25.167 
-1000    App      App       1      9.142    0.005  
-  2300  Sort     CPU       3      8.598    8.598  
-  2100  CpuWork  CPU       3      0.539    0.539  
+2200    IoWait   IO        1      25.199   25.199 
+1000    App      App       1      8.637    0.005  
+  2300  Sort     CPU       3      8.034    8.034  
+  2100  CpuWork  CPU       3      0.597    0.597  

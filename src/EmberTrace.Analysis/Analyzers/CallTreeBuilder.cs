@@ -42,7 +42,7 @@ internal static class CallTreeBuilder
 
             if (!hotspots.TryGetValue(step.Id, out var agg))
             {
-                agg = new HotAgg();
+                agg = new HotAgg(session.TimestampFrequency);
                 hotspots.Add(step.Id, agg);
             }
 
@@ -60,12 +60,17 @@ internal static class CallTreeBuilder
 
         var threadList = new List<ThreadTrace>(roots.Count);
         foreach (var kv in roots)
+        {
+            var threadId = reader.Tracks.TryGetValue(kv.Key, out var id) ? id : kv.Key;
+
             threadList.Add(new ThreadTrace
             {
                 TrackId = kv.Key,
-                ThreadId = reader.Tracks.TryGetValue(kv.Key, out var threadId) ? threadId : kv.Key,
+                ThreadId = threadId,
+                Name = session.ThreadNames.TryGetValue(threadId, out var name) ? name : null,
                 Root = Freeze(kv.Value, conv)
             });
+        }
 
         threadList.Sort((a, b) => a.TrackId.CompareTo(b.TrackId));
 
@@ -108,9 +113,9 @@ internal static class CallTreeBuilder
                 InclusiveMs = conv.ToMs(a.InclusiveTicks),
                 ExclusiveMs = conv.ToMs(a.ExclusiveTicks),
                 Durations = a.Histogram,
-                P50Ms = conv.ToMs(a.Histogram.PercentileTicks(50)),
-                P95Ms = conv.ToMs(a.Histogram.PercentileTicks(95)),
-                P99Ms = conv.ToMs(a.Histogram.PercentileTicks(99))
+                P50Ms = a.Histogram.PercentileMs(50),
+                P95Ms = a.Histogram.PercentileMs(95),
+                P99Ms = a.Histogram.PercentileMs(99)
             });
         }
 
@@ -225,9 +230,9 @@ internal static class CallTreeBuilder
         public long ChildTicks { get; set; }
     }
 
-    private sealed class HotAgg
+    private sealed class HotAgg(long timestampFrequency)
     {
-        public readonly DurationHistogram Histogram = new();
+        public readonly DurationHistogram Histogram = new(timestampFrequency);
         public long Count;
         public long ExclusiveTicks;
         public long InclusiveTicks;

@@ -86,4 +86,25 @@ public class PercentileStatsTests
         Assert.AreEqual(2.0, hotspot.P95Ms, 0.1);
         Assert.AreEqual(2.0, hotspot.P99Ms, 0.1);
     }
+
+    [TestMethod]
+    public void Analyze_HistogramsCarryTheSessionFrequency()
+    {
+        var events = new List<TraceEventRecord>
+        {
+            new(1, 1, 0, TraceEventKind.Begin, 0, 0, 1, 1),
+            new(1, 1, 2_500, TraceEventKind.End, 0, 0, 2, 1)
+        };
+
+        var session = TraceSession.FromEvents(events, 0, 2_500, 1_000_000);
+        var row = session.Analyze().ByTotalTimeDesc.Single();
+        var hotspot = session.Process().HotspotsByInclusiveDesc.Single();
+
+        Assert.AreEqual(1_000_000, row.Durations!.TimestampFrequency);
+        Assert.AreEqual(1_000_000, hotspot.Durations!.TimestampFrequency);
+        Assert.AreEqual(row.P95Ms, row.Durations.PercentileMs(95), 1e-9);
+        Assert.AreEqual(2.5, row.MinMs, 1e-9);
+        Assert.AreEqual(2.5, row.MaxMs, 1e-9);
+        Assert.AreEqual(2.5, row.TotalMs, 1e-9);
+    }
 }

@@ -109,4 +109,32 @@ public class DurationHistogramTests
 
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => histogram.Add(-1));
     }
+
+    [TestMethod]
+    public void PercentileMs_ConvertsWithTheHistogramFrequency()
+    {
+        var histogram = new DurationHistogram(1_000_000);
+        for (var i = 0; i < 100; i++)
+            histogram.Add(5_000);
+
+        Assert.AreEqual(1_000_000, histogram.TimestampFrequency);
+        Assert.AreEqual(histogram.PercentileTicks(95) / 1_000.0, histogram.PercentileMs(95), 1e-9);
+    }
+
+    [TestMethod]
+    public void PercentileMs_WithoutFrequency_Throws()
+    {
+        var histogram = new DurationHistogram();
+        histogram.Add(5_000);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => histogram.PercentileMs(50));
+    }
+
+    [TestMethod]
+    [DataRow(0L)]
+    [DataRow(-1L)]
+    public void Constructor_RejectsNonPositiveFrequency(long frequency)
+    {
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new DurationHistogram(frequency));
+    }
 }

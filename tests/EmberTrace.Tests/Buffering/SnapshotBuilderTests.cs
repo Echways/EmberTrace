@@ -152,4 +152,23 @@ public class SnapshotBuilderTests
 
         Assert.AreEqual(0L, collector.SnapshotDiscardedChunks);
     }
+
+    [TestMethod]
+    public void HandOver_KeepsFullChunks_TrimsPartialOnes_DropsEmptyOnes()
+    {
+        var full = new Chunk(4);
+        for (var i = 0; i < 4; i++)
+            full.TryWrite(new TraceEvent(1, 1, i, TraceEventKind.Instant, 0, 0));
+
+        var partial = new Chunk(4);
+        partial.TryWrite(new TraceEvent(2, 1, 9, TraceEventKind.Instant, 0, 0));
+
+        var handedOver = SnapshotBuilder.HandOver([full, partial, new Chunk(4)]);
+
+        Assert.HasCount(2, handedOver);
+        Assert.AreSame(full, handedOver[0]);
+        Assert.AreNotSame(partial, handedOver[1]);
+        Assert.HasCount(1, handedOver[1].Events);
+        Assert.AreEqual(2, handedOver[1].Events[0].Id);
+    }
 }

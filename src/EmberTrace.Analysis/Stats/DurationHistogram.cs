@@ -1,4 +1,5 @@
 using System.Numerics;
+using EmberTrace.Internal.Time;
 
 namespace EmberTrace.Analysis.Stats;
 
@@ -13,6 +14,18 @@ public sealed class DurationHistogram
     internal const int BucketCount = SubBucketCount + (MaxMagnitude - MinMagnitude + 1) * BucketsPerMagnitude;
 
     private int[] _counts = Array.Empty<int>();
+
+    public DurationHistogram()
+    {
+    }
+
+    public DurationHistogram(long timestampFrequency)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(timestampFrequency);
+        TimestampFrequency = timestampFrequency;
+    }
+
+    public long TimestampFrequency { get; }
 
     public long Count { get; private set; }
     public long MinTicks { get; private set; }
@@ -56,6 +69,15 @@ public sealed class DurationHistogram
         }
 
         return MaxTicks;
+    }
+
+    public double PercentileMs(double percentile)
+    {
+        if (TimestampFrequency == 0)
+            throw new InvalidOperationException(
+                "The histogram has no timestamp frequency; create it with DurationHistogram(long) or produce it with Analyze().");
+
+        return new TickConverter(TimestampFrequency).ToMs(PercentileTicks(percentile));
     }
 
     internal static int BucketIndexOf(long value)

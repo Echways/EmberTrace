@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using EmberTrace.Extensions.Hosting.Configuration;
 using EmberTrace.Extensions.Hosting.Recording;
 using Microsoft.AspNetCore.Http;
@@ -75,16 +74,7 @@ public sealed class EmberTraceMiddleware
 
     private static long ResolveFlowId()
     {
-        var activity = Activity.Current;
-
-        if (activity is { IdFormat: ActivityIdFormat.W3C })
-        {
-            var flowId = ActivityFlow.FlowIdFromTraceId(activity.TraceId.ToHexString());
-            if (flowId != 0)
-                return flowId;
-        }
-
-        return Tracer.NewFlowId();
+        return ActivityFlow.TryGetCurrentFlowId(out var flowId) ? flowId : Tracer.NewFlowId();
     }
 
     private static bool IsIgnored(PathString path, string[] ignored)
