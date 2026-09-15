@@ -103,7 +103,7 @@ public class MethodSignatureTests
     {
         var (method, _) = Find("public partial class C { public partial " + signature + "; }", "M");
 
-        Assert.AreEqual((TraceReturnKind)expected, MethodSignature.ReturnKind(method!));
+        Assert.AreEqual((TraceReturnKind)expected, TraceMethodShape.ReturnKind(method!));
     }
 
     [TestMethod]

@@ -194,6 +194,9 @@
       "embertrace.abstractions": {
         "type": "Project"
       },
+      "embertrace.generator": {
+        "type": "Project"
+      },
       "embertrace.roslynanalyzers": {
         "type": "Project"
       },

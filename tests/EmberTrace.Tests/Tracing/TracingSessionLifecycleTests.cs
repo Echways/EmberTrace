@@ -117,4 +117,21 @@ public class TracingSessionLifecycleTests
             Session = session;
         }
     }
+
+    [TestMethod]
+    public void Stop_DoesNotCopyFullChunks()
+    {
+        using var session = new TracingSession();
+        session.Start(new SessionOptions { ChunkCapacity = 16_384 });
+
+        for (var i = 0; i < 200_000; i++)
+            session.Instant(1);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var stopped = session.Stop();
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.AreEqual(200_000, stopped.EventCount);
+        Assert.IsTrue(allocated < 1_000_000, $"Stop allocated {allocated} bytes for 200000 recorded events.");
+    }
 }

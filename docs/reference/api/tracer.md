@@ -115,7 +115,8 @@ Writes `FlowStep` for the specified `flowId`.
 Writes `FlowEnd` for the specified `flowId`.
 
 ### `long Tracer.FlowFromActivityCurrent(int id)`
-If `Activity.Current` exists, creates a flow using its trace id.
+If `Activity.Current` is a W3C activity, writes `FlowStart`, `FlowStep` and `FlowEnd` under a flow id
+derived from its trace id and returns that id; otherwise returns `0`. Trimming- and Native AOT-safe.
 
 ### `FlowHandle Tracer.FlowStartNewHandle(int id)`
 Convenient wrapper over flow:

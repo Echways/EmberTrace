@@ -115,7 +115,8 @@ Flows — связанный набор событий (start/step/end), кот�
 Пишет `FlowEnd` для указанного `flowId`.
 
 ### `long Tracer.FlowFromActivityCurrent(int id)`
-Если есть `Activity.Current`, создаёт flow, используя её trace id.
+Если `Activity.Current` — W3C-активность, пишет `FlowStart`, `FlowStep` и `FlowEnd` под flow id,
+выведенным из её trace id, и возвращает этот id; иначе возвращает `0`. Безопасно для trimming и Native AOT.
 
 ### `FlowHandle Tracer.FlowStartNewHandle(int id)`
 Удобная обёртка над flow:

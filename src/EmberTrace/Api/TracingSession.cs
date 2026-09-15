@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using EmberTrace.Flow;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -100,22 +99,9 @@ public sealed class TracingSession : IDisposable
         _profiler.FlowEnd(id, flowId);
     }
 
-    [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
     public long FlowFromActivityCurrent(int id)
     {
-        if (!IsRunning)
-            return 0;
-
-        if (!ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
-            return 0;
-
-        if (flowId == 0)
-            return 0;
-
-        _profiler.FlowStart(id, flowId);
-        _profiler.FlowStep(id, flowId);
-        _profiler.FlowEnd(id, flowId);
-        return flowId;
+        return _profiler.FlowFromActivityCurrent(id);
     }
 
     public void Instant(int id)

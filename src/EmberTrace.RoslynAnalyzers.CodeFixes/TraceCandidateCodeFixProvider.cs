@@ -43,26 +43,47 @@ public sealed class TraceCandidateCodeFixProvider : CodeFixProvider
 
     private static Task<Document> Apply(Document document, SyntaxNode root, MethodDeclarationSyntax method)
     {
-        var withoutScope = method.Body!.WithStatements(
-            SyntaxFactory.List(method.Body.Statements.Skip(1)));
+        return Task.FromResult(document.WithSyntaxRoot(
+            root.ReplaceNode(method, new SyntaxNode[] { Declaration(method), Core(method) })));
+    }
 
-        var core = method
-            .WithIdentifier(SyntaxFactory.Identifier(method.Identifier.Text + "Core"))
-            .WithBody(withoutScope)
-            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
-            .WithAttributeLists(default)
-            .WithAdditionalAnnotations(Formatter.Annotation);
+    private static MethodDeclarationSyntax Declaration(MethodDeclarationSyntax method)
+    {
+        var modifiers = method.Modifiers.Where(static modifier => !modifier.IsKind(SyntaxKind.AsyncKeyword)).ToList();
 
-        var declaration = method
+        if (!modifiers.Any(static modifier => IsAccessibility(modifier.Kind())))
+            modifiers.Insert(0, SyntaxFactory.Token(SyntaxKind.PrivateKeyword));
+
+        modifiers.Add(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+
+        return method
+            .WithModifiers(SyntaxFactory.TokenList(modifiers))
             .WithBody(null)
             .WithExpressionBody(null)
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
-            .AddModifiers(SyntaxFactory.Token(SyntaxKind.PartialKeyword))
             .AddAttributeLists(SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(
                 SyntaxFactory.Attribute(SyntaxFactory.ParseName("Trace")))))
             .WithAdditionalAnnotations(Formatter.Annotation);
+    }
 
-        return Task.FromResult(document.WithSyntaxRoot(
-            root.ReplaceNode(method, new SyntaxNode[] { declaration, core })));
+    private static MethodDeclarationSyntax Core(MethodDeclarationSyntax method)
+    {
+        var kinds = method.Modifiers
+            .Select(static modifier => modifier.Kind())
+            .Where(static kind => kind is SyntaxKind.StaticKeyword or SyntaxKind.AsyncKeyword or SyntaxKind.ReadOnlyKeyword)
+            .Prepend(SyntaxKind.PrivateKeyword);
+
+        return method
+            .WithIdentifier(SyntaxFactory.Identifier(method.Identifier.Text + "Core"))
+            .WithModifiers(SyntaxFactory.TokenList(kinds.Select(static kind => SyntaxFactory.Token(kind))))
+            .WithBody(method.Body!.WithStatements(SyntaxFactory.List(method.Body.Statements.Skip(1))))
+            .WithAttributeLists(default)
+            .WithAdditionalAnnotations(Formatter.Annotation);
+    }
+
+    private static bool IsAccessibility(SyntaxKind kind)
+    {
+        return kind is SyntaxKind.PublicKeyword or SyntaxKind.PrivateKeyword or SyntaxKind.ProtectedKeyword
+            or SyntaxKind.InternalKeyword;
     }
 }

@@ -122,28 +122,6 @@ internal static class MethodSignature
                + "(" + string.Join(", ", method.Parameters.Select(p => p.Type.ToDisplayString(Short))) + ")";
     }
 
-    internal static TraceReturnKind ReturnKind(IMethodSymbol method)
-    {
-        if (method.ReturnsVoid)
-            return TraceReturnKind.Void;
-
-        var name = method.ReturnType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-
-        switch (name)
-        {
-            case "global::System.Threading.Tasks.Task":
-                return TraceReturnKind.Task;
-            case "global::System.Threading.Tasks.Task<TResult>":
-                return TraceReturnKind.TaskOfT;
-            case "global::System.Threading.Tasks.ValueTask":
-                return TraceReturnKind.ValueTask;
-            case "global::System.Threading.Tasks.ValueTask<TResult>":
-                return TraceReturnKind.ValueTaskOfT;
-            default:
-                return TraceReturnKind.Value;
-        }
-    }
-
     private static string Modifier(IParameterSymbol parameter)
     {
         if (parameter.IsParams)

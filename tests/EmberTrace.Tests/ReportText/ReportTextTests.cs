@@ -112,4 +112,50 @@ public class ReportTextTests
             return false;
         }
     }
+
+    [TestMethod]
+    public void Write_CategoryFilter_AppliesBeforeTheTopLimit()
+    {
+        var events = new List<TraceEventRecord>();
+        long ts = 0;
+        long sequence = 0;
+
+        for (var id = 1; id <= 11; id++)
+        {
+            events.Add(new TraceEventRecord(id, 1, ts, TraceEventKind.Begin, 0, 0, ++sequence, 1));
+            ts += id == 11 ? 1 : 1_000;
+            events.Add(new TraceEventRecord(id, 1, ts, TraceEventKind.End, 0, 0, ++sequence, 1));
+        }
+
+        var trace = TraceSession.FromEvents(events, 0, ts, 1_000_000).Process();
+        var meta = TraceMetadata.FromEntries(Enumerable.Range(1, 11)
+            .Select(id => new TraceMeta(id, "scope-" + id, id == 11 ? "IO" : "CPU")));
+
+        var report = TraceText.Write(trace, meta, topHotspots: 10, categoryFilter: "IO");
+        var hotspots = report[..report.IndexOf("Call trees", StringComparison.Ordinal)];
+
+        Assert.Contains("scope-11", hotspots);
+    }
+
+    [TestMethod]
+    public void Write_NamesThreadsThatHaveAName()
+    {
+        var events = new List<TraceEventRecord>
+        {
+            new(1, 7, 0, TraceEventKind.Begin, 0, 0, 1),
+            new(1, 7, 1_000, TraceEventKind.End, 0, 0, 2),
+            new(1, 8, 0, TraceEventKind.Begin, 0, 0, 1),
+            new(1, 8, 1_000, TraceEventKind.End, 0, 0, 2)
+        };
+
+        var trace = TraceSession.FromEvents(events, 0, 1_000, 1_000_000,
+            threadNames: new Dictionary<int, string> { [7] = "Worker-7" }).Process();
+
+        var report = TraceText.Write(trace);
+
+        Assert.AreEqual("Worker-7", trace.Threads.Single(t => t.ThreadId == 7).Name);
+        Assert.IsNull(trace.Threads.Single(t => t.ThreadId == 8).Name);
+        Assert.Contains("Thread 7 (Worker-7)", report);
+        Assert.Contains("Thread 8" + Environment.NewLine, report);
+    }
 }

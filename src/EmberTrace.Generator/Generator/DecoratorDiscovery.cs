@@ -16,36 +16,41 @@ internal readonly record struct DecoratorItem(
     EquatableArray<string> Forwarded,
     EquatableArray<string> Untraced,
     LocationInfo? Location,
-    int InterfaceCount);
+    int InterfaceCount,
+    bool IsDisposable,
+    bool IsAsyncDisposable);
 
 internal static class DecoratorDiscovery
 {
+    private const string DisposableName = "System.IDisposable";
+    private const string AsyncDisposableName = "System.IAsyncDisposable";
+
     internal static DecoratorItem? From(GeneratorAttributeSyntaxContext context)
     {
         if (context.TargetSymbol is not INamedTypeSymbol type)
             return null;
 
         var location = LocationInfo.From(context.TargetNode);
-        var target = Target(type, context);
+        var candidates = type.Interfaces.Where(static candidate => !IsDisposal(candidate)).ToImmutableArray();
+        var target = Target(context, candidates);
 
         if (target is null)
             return new DecoratorItem(string.Empty, "public", type.Name, "Traced" + type.Name, string.Empty,
-                string.Empty, string.Empty, default, default, default, location,
-                type.Interfaces.Length);
+                string.Empty, string.Empty, default, default, default, location, candidates.Length, false, false);
 
         var methods = ImmutableArray.CreateBuilder<TraceMethodItem>();
         var forwarded = ImmutableArray.CreateBuilder<string>();
         var untraced = ImmutableArray.CreateBuilder<string>();
 
-        foreach (var member in target.GetMembers())
+        foreach (var member in MembersOf(target))
             switch (member)
             {
-                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method when IsTraceable(method):
+                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method when TraceMethodShape.HasTraceableSignature(method):
                     methods.Add(Method(type, method));
                     break;
                 case IMethodSymbol { MethodKind: MethodKind.Ordinary } method:
                     forwarded.Add(ForwardMethod(method));
-                    untraced.Add(target.Name + "." + method.Name);
+                    untraced.Add(method.ContainingType.Name + "." + method.Name);
                     break;
                 case IPropertySymbol property:
                     forwarded.Add(ForwardProperty(property));
@@ -67,7 +72,9 @@ internal static class DecoratorDiscovery
             new EquatableArray<string>(forwarded.ToImmutable()),
             new EquatableArray<string>(untraced.ToImmutable()),
             location,
-            type.Interfaces.Length);
+            candidates.Length,
+            Implements(type, DisposableName),
+            Implements(type, AsyncDisposableName));
     }
 
     internal static ImmutableArray<Diagnostic> Diagnose(DecoratorItem item)
@@ -88,30 +95,51 @@ internal static class DecoratorDiscovery
         return builder.ToImmutable();
     }
 
-    private static INamedTypeSymbol? Target(INamedTypeSymbol type, GeneratorAttributeSyntaxContext context)
+    private static INamedTypeSymbol? Target(GeneratorAttributeSyntaxContext context,
+        ImmutableArray<INamedTypeSymbol> candidates)
     {
         foreach (var attribute in context.Attributes)
             foreach (var argument in attribute.NamedArguments)
                 if (argument.Key == "Interface" && argument.Value.Value is INamedTypeSymbol chosen)
                     return chosen;
 
-        return type.Interfaces.Length == 1 ? type.Interfaces[0] : null;
+        return candidates.Length == 1 ? candidates[0] : null;
     }
 
-    private static bool IsTraceable(IMethodSymbol method)
+    private static IEnumerable<ISymbol> MembersOf(INamedTypeSymbol target)
     {
-        if (method.RefKind != RefKind.None || TraceMethodDiscovery.IsAsyncEnumerable(method.ReturnType))
-            return false;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        var kind = MethodSignature.ReturnKind(method);
-        if (kind == TraceReturnKind.Void || kind == TraceReturnKind.Value)
-            return true;
+        foreach (var declaring in target.AllInterfaces.Insert(0, target))
+        {
+            if (IsDisposal(declaring))
+                continue;
 
-        foreach (var parameter in method.Parameters)
-            if (parameter.RefKind != RefKind.None || parameter.Type.IsRefLikeType)
-                return false;
+            foreach (var member in declaring.GetMembers())
+                if (seen.Add(MemberKey(member)))
+                    yield return member;
+        }
+    }
 
-        return true;
+    private static string MemberKey(ISymbol member)
+    {
+        return member switch
+        {
+            IMethodSymbol method => "M:" + MethodSignature.SignatureKey(method),
+            IPropertySymbol { IsIndexer: true } indexer =>
+                "I:" + string.Join(",", indexer.Parameters.Select(p => MethodSignature.Render(p.Type))),
+            _ => member.Kind + ":" + member.Name
+        };
+    }
+
+    private static bool IsDisposal(INamedTypeSymbol type)
+    {
+        return type.ToDisplayString() is DisposableName or AsyncDisposableName;
+    }
+
+    private static bool Implements(INamedTypeSymbol type, string interfaceName)
+    {
+        return type.AllInterfaces.Any(candidate => candidate.ToDisplayString() == interfaceName);
     }
 
     private static TraceMethodItem Method(INamedTypeSymbol type, IMethodSymbol method)
@@ -126,7 +154,7 @@ internal static class DecoratorDiscovery
             "public",
             "private async",
             MethodSignature.Render(method.ReturnType),
-            MethodSignature.ReturnKind(method),
+            TraceMethodShape.ReturnKind(method),
             MethodSignature.TypeParameters(method),
             MethodSignature.Constraints(method),
             new EquatableArray<ParameterInfo>(MethodSignature.Parameters(method)),

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using EmberTrace.Flow;
 using EmberTrace.Internal;
 using EmberTrace.Metadata;
@@ -95,22 +94,9 @@ public static class Tracer
         Default.FlowEnd(id, flowId);
     }
 
-    [RequiresUnreferencedCode("Uses Activity reflection through EmberTrace.ActivityBridge.")]
     public static long FlowFromActivityCurrent(int id)
     {
-        if (!IsRunning)
-            return 0;
-
-        if (!ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
-            return 0;
-
-        if (flowId == 0)
-            return 0;
-
-        Default.FlowStart(id, flowId);
-        Default.FlowStep(id, flowId);
-        Default.FlowEnd(id, flowId);
-        return flowId;
+        return Default.FlowFromActivityCurrent(id);
     }
 
     public static void Instant(int id)

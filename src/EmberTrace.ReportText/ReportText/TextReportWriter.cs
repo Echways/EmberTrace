@@ -56,45 +56,40 @@ internal static class TextReportWriter
 
         t.AddSeparator();
 
-        var list = trace.HotspotsByInclusiveDesc;
-        var n = Math.Min(top, list.Count);
-
-        for (var i = 0; i < n; i++)
+        var shown = 0;
+        foreach (var r in trace.HotspotsByInclusiveDesc)
         {
-            var r = list[i];
-            var exclPct = trace.DurationMs <= 0 ? 0 : r.ExclusiveMs / trace.DurationMs * 100.0;
-            var inclPct = trace.DurationMs <= 0 ? 0 : r.InclusiveMs / trace.DurationMs * 100.0;
+            if (shown >= top)
+                break;
 
             meta.Resolve(r.Id, out var name, out var cat);
-            if (!MatchesCategory(categoryFilter, cat))
-                continue;
-            if (minPercent > 0 && inclPct < minPercent)
+            if (!MatchesCategory(categoryFilter, cat) || Percent(r.InclusiveMs, trace.DurationMs) < minPercent)
                 continue;
 
+            var cells = new List<string>(10)
+            {
+                r.Id.ToString(),
+                name,
+                cat,
+                r.Count.ToString(),
+                r.InclusiveMs.ToString("F3"),
+                r.ExclusiveMs.ToString("F3"),
+                Percent(r.ExclusiveMs, trace.DurationMs).ToString("F2")
+            };
+
             if (includePercentiles)
-                t.AddRow(
-                    r.Id.ToString(),
-                    name,
-                    cat,
-                    r.Count.ToString(),
-                    r.InclusiveMs.ToString("F3"),
-                    r.ExclusiveMs.ToString("F3"),
-                    exclPct.ToString("F2"),
-                    r.P50Ms.ToString("F3"),
-                    r.P95Ms.ToString("F3"),
-                    r.P99Ms.ToString("F3"));
-            else
-                t.AddRow(
-                    r.Id.ToString(),
-                    name,
-                    cat,
-                    r.Count.ToString(),
-                    r.InclusiveMs.ToString("F3"),
-                    r.ExclusiveMs.ToString("F3"),
-                    exclPct.ToString("F2"));
+                cells.AddRange([r.P50Ms.ToString("F3"), r.P95Ms.ToString("F3"), r.P99Ms.ToString("F3")]);
+
+            t.AddRow(cells.ToArray());
+            shown++;
         }
 
         t.WriteTo(sb);
+    }
+
+    private static double Percent(double part, double total)
+    {
+        return total <= 0 ? 0 : part / total * 100.0;
     }
 
     private static void WriteThreads(
@@ -111,7 +106,7 @@ internal static class TextReportWriter
         {
             var th = trace.Threads[i];
             sb.AppendLine();
-            sb.AppendLine($"Thread {th.ThreadId}");
+            sb.AppendLine(th.Name is null ? $"Thread {th.ThreadId}" : $"Thread {th.ThreadId} ({th.Name})");
 
             var t = new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms");
             t.AddSeparator();

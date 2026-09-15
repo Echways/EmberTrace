@@ -84,7 +84,7 @@ internal sealed class Profiler
         foreach (var writer in state.Writers)
             writer.DrainAndDetach();
 
-        var chunks = CopySnapshot(collector, 0);
+        var chunks = SnapshotBuilder.HandOver(collector.Chunks);
 
         return new TraceSession(
             chunks,
@@ -131,22 +131,6 @@ internal sealed class Profiler
                 state.Metadata,
                 0,
                 true);
-        }
-        finally
-        {
-            collector.EndSnapshot();
-        }
-    }
-
-    private static Chunk[] CopySnapshot(SessionCollector collector, long minTimestamp)
-    {
-        var captures = collector.BeginSnapshot();
-
-        try
-        {
-            var chunks = SnapshotBuilder.Copy(captures, minTimestamp, out var discarded);
-            collector.RecordSnapshotDiscard(discarded);
-            return chunks;
         }
         finally
         {
@@ -262,6 +246,17 @@ internal sealed class Profiler
     {
         var flowId = NewFlowId();
         FlowStart(id, flowId);
+        return flowId;
+    }
+
+    public long FlowFromActivityCurrent(int id)
+    {
+        if (!IsRunning || !ActivityBridge.ActivityBridge.TryGetCurrentFlowId(out var flowId))
+            return 0;
+
+        FlowStart(id, flowId);
+        FlowStep(id, flowId);
+        FlowEnd(id, flowId);
         return flowId;
     }
 

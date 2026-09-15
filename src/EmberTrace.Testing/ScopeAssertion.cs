@@ -84,14 +84,14 @@ public readonly struct ScopeAssertion
         if (percentile is < 0 or > 100 || double.IsNaN(percentile))
             throw new ArgumentOutOfRangeException(nameof(percentile), percentile, "Percentile must be in [0, 100].");
 
-        var stats = Require();
-        var histogram = stats.Durations
+        var histogram = Require().Durations
                         ?? throw Failed($"{_label} carries no duration histogram; produce stats with Analyze()");
 
-        var msPerTick = histogram.MaxTicks == 0 ? 0 : stats.MaxMs / histogram.MaxTicks;
-        var actual = histogram.PercentileTicks(percentile) * msPerTick;
+        if (histogram.TimestampFrequency == 0)
+            throw Failed($"{_label} carries a histogram without a timestamp frequency; produce stats with Analyze()");
 
-        return Compare($"p{percentile.ToString("0.##", CultureInfo.InvariantCulture)}", actual, ms);
+        return Compare($"p{percentile.ToString("0.##", CultureInfo.InvariantCulture)}",
+            histogram.PercentileMs(percentile), ms);
     }
 
     private ScopeAssertion Compare(string metric, double actual, double limit)

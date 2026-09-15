@@ -130,9 +130,44 @@ public class ScopeAssertionTests
         Assert.Contains("Analyze()", ex.Message);
     }
 
-    private static TraceStats BuildStats()
+    [TestMethod]
+    public void PercentileMsUnder_WithHistogramWithoutFrequency_Fails()
     {
         var histogram = new DurationHistogram();
+        histogram.Add(5_000);
+
+        var stats = new TraceStats
+        {
+            DurationMs = 1000,
+            TotalEventCount = 2,
+            ScopeEventCount = 2,
+            ThreadsSeen = 1,
+            UnmatchedBeginCount = 0,
+            UnmatchedEndCount = 0,
+            MismatchedEndCount = 0,
+            ByTotalTimeDesc = new[]
+            {
+                new TraceIdStats
+                {
+                    Id = 1,
+                    Count = 1,
+                    TotalMs = 5,
+                    AverageMs = 5,
+                    MinMs = 5,
+                    MaxMs = 5,
+                    Durations = histogram
+                }
+            }
+        };
+
+        var ex = Assert.ThrowsExactly<TraceAssertionException>(() => stats.Scope(1).PercentileMsUnder(90, 10));
+
+        Assert.Contains("timestamp frequency", ex.Message);
+    }
+
+    private static TraceStats BuildStats()
+    {
+        var histogram = new DurationHistogram(1_000_000);
         for (var i = 0; i < 100; i++)
             histogram.Add(5_000);
 

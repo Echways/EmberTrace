@@ -55,6 +55,38 @@ public class DecoratorTests
         Assert.AreEqual(3, await service.ReserveAsync(3));
     }
 
+    [TestMethod]
+    public void RegisteredDecorator_DisposesTheServiceWithTheScope()
+    {
+        var log = new DisposalLog();
+        var services = new ServiceCollection();
+        services.AddSingleton(log);
+        services.AddTracedConnectionPool();
+
+        using (var provider = services.BuildServiceProvider())
+        using (var scope = provider.CreateScope())
+            Assert.AreEqual(1, scope.ServiceProvider.GetRequiredService<IConnectionPool>().Lease());
+
+        Assert.AreEqual(1, log.Sync);
+        Assert.AreEqual(0, log.Async);
+    }
+
+    [TestMethod]
+    public async Task RegisteredDecorator_DisposesTheServiceAsynchronously()
+    {
+        var log = new DisposalLog();
+        var services = new ServiceCollection();
+        services.AddSingleton(log);
+        services.AddTracedConnectionPool();
+
+        await using (var provider = services.BuildServiceProvider())
+        await using (var scope = provider.CreateAsyncScope())
+            Assert.AreEqual(1, scope.ServiceProvider.GetRequiredService<IConnectionPool>().Lease());
+
+        Assert.AreEqual(0, log.Sync);
+        Assert.AreEqual(1, log.Async);
+    }
+
     private static bool HasScope(TraceSession session, int id)
     {
         foreach (var e in session.EnumerateEvents())

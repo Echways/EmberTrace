@@ -36,6 +36,8 @@ internal static class DecoratorEmitter
             .Append(item.Accessibility).Append(" sealed class ")
             .Append(item.DecoratorName).Append(item.TypeParameters)
             .Append(" : ").Append(item.InterfaceType)
+            .Append(item.IsDisposable ? ", global::System.IDisposable" : string.Empty)
+            .Append(item.IsAsyncDisposable ? ", global::System.IAsyncDisposable" : string.Empty)
             .AppendLine(item.Constraints);
         WrapperEmitter.Indent(sb, indent).AppendLine("{");
 
@@ -61,6 +63,8 @@ internal static class DecoratorEmitter
             WrapperEmitter.Indent(sb, indent + 1).AppendLine(member);
         }
 
+        RenderDisposal(sb, indent + 1, item);
+
         WrapperEmitter.Indent(sb, indent).AppendLine("}");
 
         if (emitRegistration)
@@ -70,6 +74,27 @@ internal static class DecoratorEmitter
             sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    private static void RenderDisposal(StringBuilder sb, int indent, DecoratorItem item)
+    {
+        if (item.IsDisposable)
+        {
+            sb.AppendLine();
+            WrapperEmitter.Indent(sb, indent).AppendLine("public void Dispose()");
+            WrapperEmitter.Indent(sb, indent).AppendLine("{");
+            WrapperEmitter.Indent(sb, indent + 1).AppendLine("if (_inner is global::System.IDisposable disposable)");
+            WrapperEmitter.Indent(sb, indent + 2).AppendLine("disposable.Dispose();");
+            WrapperEmitter.Indent(sb, indent).AppendLine("}");
+        }
+
+        if (!item.IsAsyncDisposable)
+            return;
+
+        sb.AppendLine();
+        WrapperEmitter.Indent(sb, indent).AppendLine("public global::System.Threading.Tasks.ValueTask DisposeAsync()");
+        WrapperEmitter.Indent(sb, indent + 1)
+            .AppendLine("=> _inner is global::System.IAsyncDisposable disposable ? disposable.DisposeAsync() : default;");
     }
 
     private static void RenderRegistration(StringBuilder sb, int indent, DecoratorItem item)

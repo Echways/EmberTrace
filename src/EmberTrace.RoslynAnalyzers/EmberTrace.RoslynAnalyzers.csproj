@@ -29,8 +29,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AdditionalFiles Include="AnalyzerReleases.Shipped.md"/>
-        <AdditionalFiles Include="AnalyzerReleases.Unshipped.md"/>
+        <Compile Include="..\EmberTrace.Generator\Generator\TraceMethodShape.cs" Link="Shared\TraceMethodShape.cs"/>
     </ItemGroup>
 
     <ItemGroup>
