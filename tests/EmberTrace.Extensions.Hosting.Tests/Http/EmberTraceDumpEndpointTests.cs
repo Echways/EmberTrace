@@ -234,4 +234,60 @@ public sealed class EmberTraceDumpEndpointTests
             EmberTraceDumpEndpoint.ResolveWindow(context.Request, provider.GetRequiredService<
                 Microsoft.Extensions.Options.IOptions<EmberTraceOptions>>().Value.Dump));
     }
+
+    [TestMethod]
+    [DataRow("?window=NaN", 10)]
+    [DataRow("?window=abc", 10)]
+    [DataRow("?window=1e300", 300)]
+    [DataRow("?window=Infinity", 300)]
+    [DataRow("?window=-Infinity", 0)]
+    [DataRow("?window=-5", 0)]
+    public void WindowQuery_WithExtremeValues_IsClampedWithoutThrowing(string query, int expectedSeconds)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString(query);
+
+        var window = EmberTraceDumpEndpoint.ResolveWindow(context.Request, new EmberTraceDumpOptions
+        {
+            Window = TimeSpan.FromSeconds(10),
+            MaxWindow = TimeSpan.FromMinutes(5)
+        });
+
+        Assert.AreEqual(TimeSpan.FromSeconds(expectedSeconds), window);
+    }
+
+    [TestMethod]
+    [DataRow("X-Forwarded-For", "203.0.113.5")]
+    [DataRow("Forwarded", "for=203.0.113.5")]
+    public async Task LoopbackPeerWithForwardingHeader_Returns404(string header, string value)
+    {
+        using var provider = Build(static options => options.Dump.Enabled = true);
+        StartWithEvents(provider);
+        var context = Request(provider);
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers[header] = value;
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual(StatusCodes.Status404NotFound, context.Response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task ForwardingHeaderWithoutLoopbackRestriction_IsIgnored()
+    {
+        using var provider = Build(static options =>
+        {
+            options.Dump.Enabled = true;
+            options.Dump.RestrictToLoopback = false;
+            options.Dump.ApiKey = Key;
+        });
+        StartWithEvents(provider);
+        var context = Request(provider);
+        context.Request.Headers["X-Forwarded-For"] = "203.0.113.5";
+        context.Request.Headers[EmberTraceDumpOptions.ApiKeyHeader] = Key;
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
+    }
 }

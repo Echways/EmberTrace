@@ -29,3 +29,6 @@ updates:
         update-types: [minor, patch]
     ignore:
       - dependency-name: EmberTrace*
+      - dependency-name: System.Composition*
+      - dependency-name: System.Text.Json
+        update-types: ['version-update:semver-major']

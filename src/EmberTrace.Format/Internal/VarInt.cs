@@ -54,6 +54,10 @@ internal static class VarInt
     public static void WriteString(Stream stream, string value)
     {
         var bytes = Encoding.UTF8.GetBytes(value);
+        if (bytes.Length > FormatConstants.MaxStringBytes)
+            throw new InvalidOperationException(
+                $"A {bytes.Length}-byte string exceeds the {FormatConstants.MaxStringBytes}-byte format limit.");
+
         WriteUInt64(stream, (ulong)bytes.Length);
         stream.Write(bytes, 0, bytes.Length);
     }
@@ -61,8 +65,13 @@ internal static class VarInt
     public static string ReadString(Stream stream)
     {
         var length = ReadUInt64(stream);
-        if (length > int.MaxValue)
-            throw new InvalidDataException("String length exceeds the supported range.");
+        if (length > FormatConstants.MaxStringBytes)
+            throw new InvalidDataException(
+                $"String length {length} exceeds the {FormatConstants.MaxStringBytes}-byte format limit.");
+
+        if (stream.CanSeek && (long)length > stream.Length - stream.Position)
+            throw new InvalidDataException(
+                $"String declares {length} bytes but only {stream.Length - stream.Position} remain.");
 
         if (length == 0)
             return string.Empty;

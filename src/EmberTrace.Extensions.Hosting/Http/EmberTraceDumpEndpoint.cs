@@ -72,21 +72,31 @@ internal static class EmberTraceDumpEndpoint
 
     internal static TimeSpan ResolveWindow(HttpRequest request, EmberTraceDumpOptions options)
     {
-        var window = options.Window;
-        var raw = request.Query["window"].ToString();
-
-        if (!string.IsNullOrWhiteSpace(raw))
-        {
-            if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
-                window = TimeSpan.FromSeconds(seconds);
-            else if (TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out var parsed))
-                window = parsed;
-        }
+        var window = ParseWindow(request.Query["window"].ToString(), options.MaxWindow) ?? options.Window;
 
         if (window < TimeSpan.Zero)
             window = TimeSpan.Zero;
 
         return window > options.MaxWindow ? options.MaxWindow : window;
+    }
+
+    private static TimeSpan? ParseWindow(string raw, TimeSpan maxWindow)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+        {
+            if (double.IsNaN(seconds))
+                return null;
+
+            if (seconds <= 0)
+                return TimeSpan.Zero;
+
+            return seconds >= maxWindow.TotalSeconds ? maxWindow : TimeSpan.FromSeconds(seconds);
+        }
+
+        return TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
     }
 
     private static void WriteHeaders(
@@ -114,6 +124,9 @@ internal static class EmberTraceDumpEndpoint
     {
         if (!options.RestrictToLoopback)
             return true;
+
+        if (context.Request.Headers.ContainsKey("X-Forwarded-For") || context.Request.Headers.ContainsKey("Forwarded"))
+            return false;
 
         var address = context.Connection.RemoteIpAddress;
         if (address is null)

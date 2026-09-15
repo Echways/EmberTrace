@@ -83,4 +83,25 @@ public class VarIntTests
 
         Assert.ThrowsExactly<InvalidDataException>(() => VarInt.ReadUInt64(ms));
     }
+
+    [TestMethod]
+    public void WriteString_AboveTheFormatLimit_Throws()
+    {
+        using var ms = new MemoryStream();
+        var value = new string('x', FormatConstants.MaxStringBytes + 1);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => VarInt.WriteString(ms, value));
+    }
+
+    [TestMethod]
+    public void WriteString_AtTheFormatLimit_RoundTrips()
+    {
+        using var ms = new MemoryStream();
+        var value = new string('x', FormatConstants.MaxStringBytes);
+
+        VarInt.WriteString(ms, value);
+        ms.Position = 0;
+
+        Assert.AreEqual(value, VarInt.ReadString(ms));
+    }
 }

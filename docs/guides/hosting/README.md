@@ -139,6 +139,11 @@ Status codes: `404` when disabled or when the caller fails the loopback restrict
 does not advertise itself; `401` on a missing or wrong key; `503` when no session is running; `400`
 for an unknown `format`.
 
+`RestrictToLoopback` also rejects requests that still carry an `X-Forwarded-For` or `Forwarded`
+header: behind a reverse proxy on the same host every request comes from `127.0.0.1`, so the socket
+address alone proves nothing. Run `app.UseForwardedHeaders()` before the endpoint so the proxy's
+headers are consumed, or protect the endpoint with `ApiKey` or `AuthorizationPolicy` instead.
+
 To sit behind your own authentication instead:
 
 ```json
