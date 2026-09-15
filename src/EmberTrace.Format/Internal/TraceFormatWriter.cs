@@ -28,6 +28,7 @@ internal static class TraceFormatWriter
         BinaryPrimitives.WriteInt64LittleEndian(buffer[48..], header.DroppedEvents);
         BinaryPrimitives.WriteInt64LittleEndian(buffer[56..], header.DroppedChunks);
         BinaryPrimitives.WriteInt64LittleEndian(buffer[64..], header.SampledOutEvents);
+        BinaryPrimitives.WriteInt64LittleEndian(buffer[72..], header.StartedAtUtcTicks);
 
         stream.Write(buffer);
     }

@@ -25,7 +25,9 @@ public static class OpenTelemetryExport
         options ??= new OpenTelemetryExportOptions();
         meta ??= session.Metadata;
 
-        var baseUtc = options.BaseUtc ?? DateTimeOffset.UtcNow - TimeSpan.FromSeconds(session.DurationMs / 1000.0);
+        var baseUtc = options.BaseUtc
+                      ?? session.StartedAtUtc
+                      ?? DateTimeOffset.UtcNow - TimeSpan.FromSeconds(session.DurationMs / 1000.0);
         var spans = new List<Activity>((int)Math.Min(int.MaxValue, session.EventCount / 2));
         var live = new Dictionary<int, List<Activity>>();
         var reader = new ScopeReader(session);

@@ -21,7 +21,8 @@ public sealed class TraceSession
         bool wasOverflow,
         ITraceMetadataProvider? metadata = null,
         long timestampFrequency = 0,
-        bool isSnapshot = false)
+        bool isSnapshot = false,
+        DateTimeOffset? startedAtUtc = null)
     {
         _chunks = chunks;
         _metadata = metadata;
@@ -34,6 +35,7 @@ public sealed class TraceSession
         SampledOutEvents = sampledOutEvents;
         WasOverflow = wasOverflow;
         IsSnapshot = isSnapshot;
+        StartedAtUtc = startedAtUtc;
         TimestampFrequency = timestampFrequency > 0 ? timestampFrequency : Timestamp.Frequency;
     }
 
@@ -50,6 +52,25 @@ public sealed class TraceSession
         bool wasOverflow = false,
         SessionOptions? options = null,
         bool isSnapshot = false)
+    {
+        return FromEvents(events, startTimestamp, endTimestamp, timestampFrequency, threadNames, metadata,
+            droppedEvents, droppedChunks, sampledOutEvents, wasOverflow, options, isSnapshot, null);
+    }
+
+    internal static TraceSession FromEvents(
+        IEnumerable<TraceEventRecord> events,
+        long startTimestamp,
+        long endTimestamp,
+        long timestampFrequency,
+        IReadOnlyDictionary<int, string>? threadNames,
+        ITraceMetadataProvider? metadata,
+        long droppedEvents,
+        long droppedChunks,
+        long sampledOutEvents,
+        bool wasOverflow,
+        SessionOptions? options,
+        bool isSnapshot,
+        DateTimeOffset? startedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(events);
 
@@ -84,10 +105,12 @@ public sealed class TraceSession
             wasOverflow,
             metadata,
             timestampFrequency,
-            isSnapshot);
+            isSnapshot,
+            startedAtUtc);
     }
 
     public long StartTimestamp { get; }
+    public DateTimeOffset? StartedAtUtc { get; }
     public long EndTimestamp { get; }
     public SessionOptions Options { get; }
     public IReadOnlyDictionary<int, string> ThreadNames { get; }

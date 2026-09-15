@@ -13,7 +13,7 @@ public class ProfilingStateWriterTests
     {
         var options = new SessionOptions { ChunkCapacity = 1024 };
         var collector = new SessionCollector(options, new ChunkPool(options.ChunkCapacity), options.ChunkCapacity);
-        return new ProfilingState(options, collector, TraceMetadata.CreateDefault(), null, default, 0);
+        return new ProfilingState(options, collector, TraceMetadata.CreateDefault(), null, default, 0, DateTimeOffset.UnixEpoch);
     }
 
     [TestMethod]

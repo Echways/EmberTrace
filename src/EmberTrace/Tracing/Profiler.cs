@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using EmberTrace.Flow;
 using EmberTrace.Internal;
@@ -51,7 +52,8 @@ internal sealed class Profiler
         var sampling = new SamplingPolicy(opts.SampleEveryNGlobal, opts.SampleEveryNById, opts.MaxEventsPerSecond);
 
         _metadata = meta;
-        _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now());
+        _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now(),
+            DateTimeOffset.UtcNow);
 
         if (opts.RuntimeCounters != RuntimeCounters.None)
         {
@@ -96,7 +98,10 @@ internal sealed class Profiler
             collector.DroppedChunks,
             collector.SampledOutEvents,
             collector.WasOverflow,
-            state.Metadata);
+            state.Metadata,
+            0,
+            false,
+            state.StartedAtUtc);
     }
 
     public TraceSession Snapshot(TimeSpan window)
@@ -118,9 +123,11 @@ internal sealed class Profiler
             var chunks = SnapshotBuilder.Copy(captures, min, out var discarded);
             collector.RecordSnapshotDiscard(discarded);
 
+            var start = min > 0 ? Math.Max(state.StartTs, min) : state.StartTs;
+
             return new TraceSession(
                 chunks,
-                min > 0 ? Math.Max(state.StartTs, min) : state.StartTs,
+                start,
                 cut,
                 state.Options,
                 collector.ThreadNames,
@@ -130,7 +137,8 @@ internal sealed class Profiler
                 collector.WasOverflow,
                 state.Metadata,
                 0,
-                true);
+                true,
+                state.StartedAtUtc + Stopwatch.GetElapsedTime(state.StartTs, start));
         }
         finally
         {

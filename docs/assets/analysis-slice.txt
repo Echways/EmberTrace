@@ -1,4 +1,5 @@
 Summary
+Started: 2026-09-15T12:17:06.9358075+00:00
 Duration: 34.293 ms
 Events: 16
 ScopeEvents: 16

@@ -34,7 +34,8 @@ event, is several times smaller, and reloads into the same analysis pipeline you
 
 ## What is stored
 
-- Header: format version, timestamp frequency, session window, event count, and the drop/sampling counters.
+- Header: format version, timestamp frequency, session window, the UTC instant the session started, event count, and
+  the drop/sampling counters.
 - Thread names.
 - Metadata (name and category) for every id that actually appears in the trace.
 - All events, in globally sorted order.
@@ -55,3 +56,7 @@ computed correctly when a trace recorded on one machine is analyzed on another.
 The header carries a format version. A reader refuses a file written by a newer version with a clear
 `InvalidDataException` instead of misinterpreting it. Malformed or truncated files raise `InvalidDataException` or
 `EndOfStreamException`.
+
+The header records its own size. Readers skip header bytes they do not understand, so files written by a newer build
+of the same format version stay readable; a file written before the UTC start was recorded loads with
+`StartedAtUtc == null`.

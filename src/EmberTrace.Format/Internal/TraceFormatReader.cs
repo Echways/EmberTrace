@@ -15,7 +15,7 @@ internal static class TraceFormatReader
     public static SessionHeader ReadHeader(Stream stream)
     {
         Span<byte> buffer = stackalloc byte[FormatConstants.HeaderSize];
-        stream.ReadExactly(buffer);
+        stream.ReadExactly(buffer[..FormatConstants.MinimumHeaderSize]);
 
         if (!buffer[..8].SequenceEqual(FormatConstants.Magic))
             throw new InvalidDataException("The stream is not an EmberTrace session file (bad magic).");
@@ -28,7 +28,25 @@ internal static class TraceFormatReader
         var flags = BinaryPrimitives.ReadUInt16LittleEndian(buffer[10..]);
         var headerSize = BinaryPrimitives.ReadUInt32LittleEndian(buffer[12..]);
 
-        var header = new SessionHeader(
+        if (headerSize < FormatConstants.MinimumHeaderSize)
+            throw new InvalidDataException(
+                $"Header declares {headerSize} bytes; at least {FormatConstants.MinimumHeaderSize} are required.");
+
+        long startedAtUtcTicks = 0;
+        if (headerSize >= FormatConstants.HeaderSize)
+        {
+            stream.ReadExactly(buffer[FormatConstants.MinimumHeaderSize..]);
+            startedAtUtcTicks = BinaryPrimitives.ReadInt64LittleEndian(buffer[FormatConstants.MinimumHeaderSize..]);
+        }
+        else if (headerSize > FormatConstants.MinimumHeaderSize)
+        {
+            Skip(stream, headerSize - FormatConstants.MinimumHeaderSize);
+        }
+
+        if (headerSize > FormatConstants.HeaderSize)
+            Skip(stream, headerSize - FormatConstants.HeaderSize);
+
+        return new SessionHeader(
             version,
             (flags & FormatConstants.FlagWasOverflow) != 0,
             BinaryPrimitives.ReadInt64LittleEndian(buffer[16..]),
@@ -38,12 +56,8 @@ internal static class TraceFormatReader
             BinaryPrimitives.ReadInt64LittleEndian(buffer[48..]),
             BinaryPrimitives.ReadInt64LittleEndian(buffer[56..]),
             BinaryPrimitives.ReadInt64LittleEndian(buffer[64..]),
-            (flags & FormatConstants.FlagIsSnapshot) != 0);
-
-        if (headerSize > FormatConstants.HeaderSize)
-            Skip(stream, headerSize - FormatConstants.HeaderSize);
-
-        return header;
+            (flags & FormatConstants.FlagIsSnapshot) != 0,
+            startedAtUtcTicks);
     }
 
     public static Dictionary<int, string> ReadThreadNames(Stream stream)
@@ -127,7 +141,15 @@ internal static class TraceFormatReader
             header.SampledOutEvents,
             header.WasOverflow,
             null,
-            header.IsSnapshot);
+            header.IsSnapshot,
+            AnchorOf(header.StartedAtUtcTicks));
+    }
+
+    private static DateTimeOffset? AnchorOf(long utcTicks)
+    {
+        return utcTicks > 0 && utcTicks <= DateTimeOffset.MaxValue.UtcTicks
+            ? new DateTimeOffset(utcTicks, TimeSpan.Zero)
+            : null;
     }
 
     public static List<TraceEventRecord> ReadEvents(Stream stream)

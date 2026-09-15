@@ -19,7 +19,8 @@ internal sealed class ProfilingState
         ITraceMetadataProvider metadata,
         CategoryFilter? categoryFilter,
         SamplingPolicy sampling,
-        long startTs)
+        long startTs,
+        DateTimeOffset startedAtUtc)
     {
         Options = options;
         Collector = collector;
@@ -27,6 +28,7 @@ internal sealed class ProfilingState
         CategoryFilter = categoryFilter;
         Sampling = sampling;
         StartTs = startTs;
+        StartedAtUtc = startedAtUtc;
     }
 
     public long Id { get; } = Interlocked.Increment(ref _nextId);
@@ -36,6 +38,7 @@ internal sealed class ProfilingState
     public CategoryFilter? CategoryFilter { get; }
     public SamplingPolicy Sampling { get; }
     public long StartTs { get; }
+    public DateTimeOffset StartedAtUtc { get; }
     public long EndTs { get; set; }
 
     public IEnumerable<ThreadWriter> Writers => _writers.Values;

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
@@ -18,6 +19,8 @@ internal static class TextReportWriter
         var sb = new StringBuilder(32_768);
 
         sb.AppendLine("Summary");
+        if (trace.StartedAtUtc is { } started)
+            sb.AppendLine("Started: " + started.ToString("O", CultureInfo.InvariantCulture));
         sb.AppendLine($"Duration: {trace.DurationMs:F3} ms");
         sb.AppendLine($"Events: {trace.TotalEventCount}");
         sb.AppendLine($"ScopeEvents: {trace.ScopeEventCount}");

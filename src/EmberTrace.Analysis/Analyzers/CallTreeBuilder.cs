@@ -124,6 +124,7 @@ internal static class CallTreeBuilder
         return new ProcessedTrace
         {
             DurationMs = session.DurationMs,
+            StartedAtUtc = session.StartedAtUtc,
             TotalEventCount = reader.TotalEventCount,
             ScopeEventCount = reader.ScopeEventCount,
             ThreadsSeen = reader.Tracks.Count,
