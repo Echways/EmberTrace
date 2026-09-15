@@ -29,7 +29,8 @@ foreach (var span in spans)
 `OpenTelemetryExportOptions`:
 - `IncludeFlowsAsLinks` - include Flow as links
 - `IncludeThreadIdTag` - include `thread.id`
-- `BaseUtc` - base UTC time for timestamp conversion
+- `BaseUtc` - UTC time of the session start. Defaults to `TraceSession.StartedAtUtc`, which is recorded by
+  `Tracer.Start` and stored in `.ember` files; only sessions without it fall back to "now minus the session duration".
 
 ## Notes
 

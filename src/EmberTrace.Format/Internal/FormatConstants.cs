@@ -3,7 +3,8 @@ namespace EmberTrace.Format.Internal;
 internal static class FormatConstants
 {
     public const ushort Version = 1;
-    public const int HeaderSize = 72;
+    public const int MinimumHeaderSize = 72;
+    public const int HeaderSize = 80;
     public const int MaxStringBytes = 1 << 20;
     public const ushort FlagWasOverflow = 1;
     public const ushort FlagIsSnapshot = 2;

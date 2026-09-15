@@ -10,4 +10,5 @@ internal readonly record struct SessionHeader(
     long DroppedEvents,
     long DroppedChunks,
     long SampledOutEvents,
-    bool IsSnapshot = false);
+    bool IsSnapshot = false,
+    long StartedAtUtcTicks = 0);

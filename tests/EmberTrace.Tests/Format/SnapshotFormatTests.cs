@@ -43,4 +43,19 @@ public class SnapshotFormatTests
 
         Assert.IsFalse(restored.IsSnapshot);
     }
+
+    [TestMethod]
+    public void RoundTrip_PreservesTheStartAnchor()
+    {
+        using var session = new TracingSession();
+        session.Start(new SessionOptions { ChunkCapacity = 1024 });
+        session.Instant(11);
+        var stopped = session.Stop();
+
+        using var stream = new MemoryStream();
+        TraceFormat.Write(stopped, stream);
+        stream.Position = 0;
+
+        Assert.AreEqual(stopped.StartedAtUtc, TraceFormat.Read(stream).StartedAtUtc);
+    }
 }

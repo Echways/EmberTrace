@@ -23,7 +23,8 @@ public static class TraceFormat
             session.DroppedEvents,
             session.DroppedChunks,
             session.SampledOutEvents,
-            session.IsSnapshot);
+            session.IsSnapshot,
+            session.StartedAtUtc?.UtcTicks ?? 0);
 
         TraceFormatWriter.WriteHeader(destination, header);
         TraceFormatWriter.WriteThreadNames(destination, session.ThreadNames);

@@ -5,6 +5,7 @@ namespace EmberTrace.Analysis.Model;
 public sealed class ProcessedTrace
 {
     public required double DurationMs { get; init; }
+    public DateTimeOffset? StartedAtUtc { get; init; }
     public required long TotalEventCount { get; init; }
     public required long ScopeEventCount { get; init; }
     public required int ThreadsSeen { get; init; }

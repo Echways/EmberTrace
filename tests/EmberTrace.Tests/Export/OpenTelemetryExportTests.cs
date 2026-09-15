@@ -407,4 +407,23 @@ public class OpenTelemetryExportTests
         p.Add(id2, name2);
         return p;
     }
+
+    [TestMethod]
+    public void CreateSpans_WithoutBaseUtc_AnchorsOnTheRecordedStart()
+    {
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
+        using (tracing.Scope(1))
+        {
+        }
+
+        var session = tracing.Stop();
+        Thread.Sleep(250);
+
+        var span = OpenTelemetryExport.CreateSpans(session, Meta(1, "Op")).Single();
+        var started = session.StartedAtUtc!.Value.UtcDateTime;
+
+        Assert.IsTrue(span.StartTimeUtc >= started, $"{span.StartTimeUtc:O} precedes {started:O}");
+        Assert.IsTrue(span.StartTimeUtc < started.AddMilliseconds(100), $"{span.StartTimeUtc:O} drifted from {started:O}");
+    }
 }

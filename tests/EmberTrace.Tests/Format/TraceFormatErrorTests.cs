@@ -156,4 +156,42 @@ public class TraceFormatErrorTests
 
         StringAssert.Contains(ex.Message, "4096");
     }
+
+    [TestMethod]
+    public void ReadHeader_WrittenByAnOlderBuild_HasNoAnchor()
+    {
+        using var current = new MemoryStream();
+        TraceFormatWriter.WriteHeader(current, new SessionHeader(
+            FormatConstants.Version, false, 1_000_000, 0, 0, 0, 0, 0, 0, false, DateTimeOffset.UtcNow.UtcTicks));
+
+        var legacy = current.ToArray()[..FormatConstants.MinimumHeaderSize];
+        BitConverter.TryWriteBytes(legacy.AsSpan(12, 4), (uint)FormatConstants.MinimumHeaderSize);
+
+        var header = TraceFormatReader.ReadHeader(new MemoryStream(legacy));
+
+        Assert.AreEqual(0L, header.StartedAtUtcTicks);
+    }
+
+    [TestMethod]
+    public void Read_WithOutOfRangeAnchor_TreatsItAsUnknown()
+    {
+        using var ms = new MemoryStream();
+        TraceFormatWriter.WriteHeader(ms, EmptyHeader with { StartedAtUtcTicks = long.MaxValue });
+        ms.WriteByte(FormatConstants.Section.EndOfFile);
+        ms.Position = 0;
+
+        Assert.IsNull(TraceFormat.Read(ms).StartedAtUtc);
+    }
+
+    [TestMethod]
+    public void ReadHeader_DeclaringATooSmallHeader_Throws()
+    {
+        using var current = new MemoryStream();
+        TraceFormatWriter.WriteHeader(current, EmptyHeader);
+
+        var bytes = current.ToArray();
+        BitConverter.TryWriteBytes(bytes.AsSpan(12, 4), 16u);
+
+        Assert.ThrowsExactly<InvalidDataException>(() => TraceFormatReader.ReadHeader(new MemoryStream(bytes)));
+    }
 }

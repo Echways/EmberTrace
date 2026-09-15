@@ -1,3 +1,4 @@
+using System.Globalization;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -157,5 +158,21 @@ public class ReportTextTests
         Assert.IsNull(trace.Threads.Single(t => t.ThreadId == 8).Name);
         Assert.Contains("Thread 7 (Worker-7)", report);
         Assert.Contains("Thread 8" + Environment.NewLine, report);
+    }
+
+    [TestMethod]
+    public void Write_PrintsTheSessionStartWhenKnown()
+    {
+        using var tracing = new TracingSession();
+        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
+        using (tracing.Scope(1))
+        {
+        }
+
+        var session = tracing.Stop();
+        var report = TraceText.Write(session.Process());
+
+        Assert.Contains("Started: " + session.StartedAtUtc!.Value.ToString("O", CultureInfo.InvariantCulture), report);
+        Assert.DoesNotContain("Started:", TraceText.Write(TraceSession.FromEvents([], 0, 0, 1_000_000).Process()));
     }
 }
