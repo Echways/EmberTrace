@@ -2,16 +2,6 @@ using Microsoft.CodeAnalysis;
 
 namespace EmberTrace.Generator.Generator;
 
-internal enum TraceReturnKind
-{
-    Void,
-    Value,
-    Task,
-    TaskOfT,
-    ValueTask,
-    ValueTaskOfT
-}
-
 internal readonly record struct ParameterInfo(string Modifier, string Type, string Name)
 {
     internal string Declaration =>
@@ -50,7 +40,7 @@ internal readonly record struct TraceMethodItem(
 {
     internal Location? Origin => Location?.ToLocation();
 
-    internal bool IsAsync => ReturnKind != TraceReturnKind.Void && ReturnKind != TraceReturnKind.Value;
+    internal bool IsAsync => TraceMethodShape.IsAsync(ReturnKind);
 
     internal bool ReturnsValue => ReturnKind is TraceReturnKind.Value or TraceReturnKind.TaskOfT
         or TraceReturnKind.ValueTaskOfT;

@@ -32,6 +32,9 @@
         <ProjectReference Include="../../src/EmberTrace.RoslynAnalyzers.CodeFixes/EmberTrace.RoslynAnalyzers.CodeFixes.csproj"
                           ReferenceOutputAssembly="true"
                           OutputItemType="Content"/>
+        <ProjectReference Include="../../src/EmberTrace.Generator/EmberTrace.Generator.csproj"
+                          ReferenceOutputAssembly="true"
+                          OutputItemType="Content"/>
     </ItemGroup>
 
 </Project>

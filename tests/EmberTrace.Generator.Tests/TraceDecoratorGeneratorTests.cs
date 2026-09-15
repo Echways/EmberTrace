@@ -194,6 +194,95 @@ public class TraceDecoratorGeneratorTests
         Assert.DoesNotContain("IServiceCollection", source);
     }
 
+    [TestMethod]
+    public void InheritedInterfaceMembers_AreImplementedAndTraced()
+    {
+        var output = GeneratorTestHost.RunAndCompile("""
+                                                     using EmberTrace.Abstractions.Attributes;
+
+                                                     public interface IReader { int Read(); }
+                                                     public interface IStore : IReader { void Write(int value); }
+
+                                                     [Trace]
+                                                     public partial class Store : IStore
+                                                     {
+                                                         public int Read() => 1;
+                                                         public void Write(int value) { }
+                                                     }
+                                                     """);
+
+        var source = output.SourceEndingWith("TracedStore.g.cs");
+        StringAssert.Contains(source, "_inner.Read()");
+        StringAssert.Contains(source, "_inner.Write(value)");
+    }
+
+    [TestMethod]
+    public void DiamondInterfaces_EmitEachMemberOnce()
+    {
+        GeneratorTestHost.RunAndCompile("""
+                                        using EmberTrace.Abstractions.Attributes;
+
+                                        public interface IRoot { void Ping(); }
+                                        public interface ILeft : IRoot { }
+                                        public interface IRight : IRoot { }
+                                        public interface IBoth : ILeft, IRight { }
+
+                                        [Trace]
+                                        public partial class Service : IBoth
+                                        {
+                                            public void Ping() { }
+                                        }
+                                        """);
+    }
+
+    [TestMethod]
+    public void DisposableService_IsNotAmbiguous_AndForwardsDisposal()
+    {
+        var output = GeneratorTestHost.RunAndCompile("""
+                                                     using System;
+                                                     using System.Threading.Tasks;
+                                                     using EmberTrace.Abstractions.Attributes;
+
+                                                     public interface IPool { int Lease(); }
+
+                                                     [Trace]
+                                                     public partial class Pool : IPool, IDisposable, IAsyncDisposable
+                                                     {
+                                                         public int Lease() => 1;
+                                                         public void Dispose() { }
+                                                         public ValueTask DisposeAsync() => default;
+                                                     }
+                                                     """);
+
+        Assert.IsEmpty(output.Diagnostics.Where(d => d.Id == "ETG014"));
+
+        var source = output.SourceEndingWith("TracedPool.g.cs");
+        StringAssert.Contains(source, "global::System.IDisposable, global::System.IAsyncDisposable");
+        StringAssert.Contains(source, "disposable.Dispose();");
+        StringAssert.Contains(source, "disposable.DisposeAsync()");
+    }
+
+    [TestMethod]
+    public void InterfaceInheritingIDisposable_DoesNotTraceDispose()
+    {
+        var output = GeneratorTestHost.RunAndCompile("""
+                                                     using System;
+                                                     using EmberTrace.Abstractions.Attributes;
+
+                                                     public interface IPool : IDisposable { int Lease(); }
+
+                                                     [Trace]
+                                                     public partial class Pool : IPool
+                                                     {
+                                                         public int Lease() => 1;
+                                                         public void Dispose() { }
+                                                     }
+                                                     """);
+
+        Assert.IsEmpty(output.Diagnostics.Where(d => d.Id == "ETG015"));
+        Assert.DoesNotContain("Pool.Dispose", output.Source("EmberTrace.GeneratedTraceMetadataProvider.g.cs"));
+    }
+
     private const string ServiceCollectionSource = """
                                                    namespace Microsoft.Extensions.DependencyInjection
                                                    {

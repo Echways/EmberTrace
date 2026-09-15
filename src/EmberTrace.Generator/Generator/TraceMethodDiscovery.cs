@@ -28,8 +28,7 @@ internal static class TraceMethodDiscovery
         var location = LocationInfo.From(node);
         var type = method.ContainingType;
 
-        if (type.TypeKind == TypeKind.Interface || method.IsExtern || method.RefKind != RefKind.None
-            || node.Modifiers.Any(SyntaxKind.UnsafeKeyword) || IsAsyncEnumerable(method.ReturnType))
+        if (!TraceMethodShape.CanWrap(method, node))
             return Failure(TraceMethodError.UnsupportedShape, location, type, method);
 
         if (!method.IsPartialDefinition || method.PartialImplementationPart is not null)
@@ -37,16 +36,6 @@ internal static class TraceMethodDiscovery
 
         if (!IsPartialAllTheWayOut(type))
             return Failure(TraceMethodError.TypeNotPartial, location, type, method);
-
-        var returnKind = MethodSignature.ReturnKind(method);
-        var isAsync = returnKind != TraceReturnKind.Void && returnKind != TraceReturnKind.Value;
-
-        if (isAsync && node.Modifiers.Any(SyntaxKind.ReadOnlyKeyword))
-            return Failure(TraceMethodError.UnsupportedShape, location, type, method);
-
-        foreach (var parameter in method.Parameters)
-            if (isAsync && (parameter.RefKind != RefKind.None || parameter.Type.IsRefLikeType))
-                return Failure(TraceMethodError.UnsupportedShape, location, type, method);
 
         var coreName = method.Name + CoreSuffix;
         if (!HasCore(type, coreName, method))
@@ -64,7 +53,7 @@ internal static class TraceMethodDiscovery
             MethodSignature.Modifiers(node),
             MethodSignature.HelperModifiers(node),
             MethodSignature.Render(method.ReturnType),
-            returnKind,
+            TraceMethodShape.ReturnKind(method),
             MethodSignature.TypeParameters(method),
             MethodSignature.Constraints(method),
             new EquatableArray<ParameterInfo>(MethodSignature.Parameters(method)),
@@ -94,12 +83,6 @@ internal static class TraceMethodDiscovery
             default:
                 return null;
         }
-    }
-
-    internal static bool IsAsyncEnumerable(ITypeSymbol type)
-    {
-        return type.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-               == "global::System.Collections.Generic.IAsyncEnumerable<T>";
     }
 
     private static TraceMethodResult Failure(TraceMethodError error, LocationInfo? location,

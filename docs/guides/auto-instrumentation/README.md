@@ -178,8 +178,11 @@ service calls on itself is invisible to it. That is the one thing the per-method
 
 Rules:
 
-- The interface is the single directly-implemented interface, or the one named by
-  `[Trace(Interface = typeof(IX))]`. Anything else is `ETG014`.
+- The interface is the single directly-implemented interface other than `IDisposable` and
+  `IAsyncDisposable`, or the one named by `[Trace(Interface = typeof(IX))]`. Anything else is `ETG014`.
+- Members inherited by the interface are implemented too. `Dispose` and `DisposeAsync` are never traced:
+  when the class is disposable the decorator is as well and forwards disposal, so a container that owns
+  the decorator disposes the service behind it.
 - Scope names use the **class** name — `InventoryService.Reserve` — not the interface name, so a class
   can be instrumented either way without producing two different names for the same method.
 - Properties, events and indexers are forwarded without a scope. Members of unsupported shape are
