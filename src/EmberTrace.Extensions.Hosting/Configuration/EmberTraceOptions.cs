@@ -22,4 +22,5 @@ public sealed class EmberTraceOptions
     public string? ShutdownDumpDirectory { get; set; }
     public EmberTraceRequestOptions Requests { get; set; } = new();
     public EmberTraceDumpOptions Dump { get; set; } = new();
+    public EmberTraceSlowRequestOptions SlowRequests { get; set; } = new();
 }

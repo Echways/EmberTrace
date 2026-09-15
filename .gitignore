@@ -424,3 +424,5 @@ FodyWeavers.xsd
 .vscode/
 .idea/
 *.log
+
+samples/EmberTrace.WebApi/slow-requests/

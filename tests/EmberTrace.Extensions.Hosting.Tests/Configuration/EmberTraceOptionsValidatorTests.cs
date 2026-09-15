@@ -131,4 +131,41 @@ public sealed class EmberTraceOptionsValidatorTests
         Assert.IsTrue(result.Failed);
         StringAssert.Contains(result.FailureMessage, "ChunkCapacity");
     }
+
+    [TestMethod]
+    public void EnabledSlowRequests_WithAValidSetup_IsAccepted()
+    {
+        var options = new EmberTraceOptions
+        {
+            SlowRequests = new EmberTraceSlowRequestOptions { Enabled = true, Directory = "/var/tmp/embertrace" }
+        };
+
+        Assert.IsTrue(Validator.Validate(null, options).Succeeded);
+    }
+
+    [TestMethod]
+    [DataRow(null, 1000, 10_000, true, "Directory")]
+    [DataRow("/tmp", 0, 10_000, true, "Threshold")]
+    [DataRow("/tmp", 5000, 1000, true, "Window")]
+    [DataRow("/tmp", 1000, 10_000, false, "Requests:Enabled")]
+    public void EnabledSlowRequests_WithAnInvalidSetup_IsRejected(
+        string? directory, int thresholdMs, int windowMs, bool requestsEnabled, string expected)
+    {
+        var options = new EmberTraceOptions
+        {
+            Requests = new EmberTraceRequestOptions { Enabled = requestsEnabled },
+            SlowRequests = new EmberTraceSlowRequestOptions
+            {
+                Enabled = true,
+                Directory = directory,
+                Threshold = TimeSpan.FromMilliseconds(thresholdMs),
+                Window = TimeSpan.FromMilliseconds(windowMs)
+            }
+        };
+
+        var result = Validator.Validate(null, options);
+
+        Assert.IsTrue(result.Failed);
+        StringAssert.Contains(result.FailureMessage, expected);
+    }
 }

@@ -80,6 +80,8 @@ public static class EmberTraceServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<EmberTraceOptions>, EmberTraceOptionsValidator>());
         services.TryAddSingleton<EmberTraceRecorder>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<SlowRequestCapture>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, EmberTraceHostedService>());
 
         HttpTraceIds.EnsureRegistered();

@@ -27,6 +27,7 @@
         <ProjectReference Include="..\EmberTrace\EmberTrace.csproj"/>
         <ProjectReference Include="..\EmberTrace.Format\EmberTrace.Format.csproj"/>
         <ProjectReference Include="..\EmberTrace.Export\EmberTrace.Export.csproj"/>
+        <ProjectReference Include="..\EmberTrace.ReportText\EmberTrace.ReportText.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

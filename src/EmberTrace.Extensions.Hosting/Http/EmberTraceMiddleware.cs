@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using EmberTrace.Extensions.Hosting.Configuration;
 using EmberTrace.Extensions.Hosting.Recording;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ActivityFlow = EmberTrace.ActivityBridge.ActivityBridge;
 
@@ -41,6 +43,20 @@ public sealed class EmberTraceMiddleware
             Tracer.FlowStart(id, flowId);
         }
 
+        var started = Stopwatch.GetTimestamp();
+
+        try
+        {
+            await InvokeTracedAsync(context, id, flowId);
+        }
+        finally
+        {
+            CaptureIfSlow(context, id, Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    private async Task InvokeTracedAsync(HttpContext context, int id, long flowId)
+    {
         await using (Tracer.ScopeAsync(id))
         {
             try
@@ -53,6 +69,16 @@ public sealed class EmberTraceMiddleware
                     Tracer.FlowEnd(id, flowId);
             }
         }
+    }
+
+    private void CaptureIfSlow(HttpContext context, int id, TimeSpan elapsed)
+    {
+        var slow = _options.CurrentValue.SlowRequests;
+        if (!slow.Enabled || elapsed < slow.Threshold)
+            return;
+
+        var request = HttpTraceIds.Provider.TryGet(id, out var meta) ? meta.Name : context.Request.Path.Value ?? "/";
+        context.RequestServices?.GetService<SlowRequestCapture>()?.TryCapture(request, elapsed);
     }
 
     private static int ResolveId(HttpContext context, EmberTraceRequestOptions requests)

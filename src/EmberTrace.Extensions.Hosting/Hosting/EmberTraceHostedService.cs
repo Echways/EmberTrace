@@ -1,4 +1,3 @@
-using System.Globalization;
 using EmberTrace.Extensions.Hosting.Configuration;
 using EmberTrace.Extensions.Hosting.Recording;
 using EmberTrace.Sessions;
@@ -47,8 +46,8 @@ internal sealed class EmberTraceHostedService : IHostedService
         if (string.IsNullOrWhiteSpace(directory))
             return;
 
-        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var path = Path.Combine(directory, $"{_options.Dump.FileNamePrefix}-shutdown-{stamp}{TraceFormat.FileExtension}");
+        var path = Path.Combine(directory,
+            DumpFileName.Create(_options.Dump.FileNamePrefix, "shutdown", DateTimeOffset.UtcNow, TraceFormat.FileExtension));
 
         try
         {

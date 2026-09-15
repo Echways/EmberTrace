@@ -91,6 +91,17 @@ Console.WriteLine(text);
 - [Экспорт](../export/README.ru.md)
 - [Использование и API](../usage/README.ru.md)
 
+## Флейм-графы
+
+`TraceText.WriteCollapsedStacks` пишет объединённое дерево вызовов в формате collapsed stacks — по строке
+`Outer;Inner 4000` на каждый путь вызова, вес — эксклюзивное время в микросекундах. Потоки объединяются. Результат
+открывается в [speedscope](https://www.speedscope.app), `flamegraph.pl`, `inferno-flamegraph` и Grafana Pyroscope.
+
+```csharp
+using var file = File.CreateText("out/trace.folded");
+TraceText.WriteCollapsedStacks(session.Process(), file, Tracer.CreateMetadata());
+```
+
 ## Скриншоты
 
 ![Срез анализа: агрегирование/сортировка/фильтры](../../assets/analysis-slice.png)
