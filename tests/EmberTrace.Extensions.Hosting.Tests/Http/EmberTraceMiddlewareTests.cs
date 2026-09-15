@@ -6,6 +6,9 @@ using EmberTrace.Sessions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace EmberTrace.Extensions.Hosting.Tests.Http;
 
@@ -226,5 +229,50 @@ public sealed class EmberTraceMiddlewareTests
 
         Assert.IsTrue(events.Any(e => e.Id == Tracer.Id("GET /a") && e.Kind == TraceEventKind.Begin));
         Assert.IsTrue(events.Any(e => e.Id == Tracer.Id("HTTP GET") && e.Kind == TraceEventKind.Begin));
+    }
+
+    [TestMethod]
+    public async Task SlowRequest_WritesACapture_EvenWhenItThrows()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "embertrace-mw-" + Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddEmberTrace(options =>
+        {
+            options.SlowRequests.Enabled = true;
+            options.SlowRequests.Directory = directory;
+            options.SlowRequests.Threshold = TimeSpan.FromMilliseconds(5);
+            options.SlowRequests.Window = TimeSpan.Zero;
+        });
+
+        await using var provider = services.BuildServiceProvider();
+        var middleware = new EmberTraceMiddleware(
+            static _ =>
+            {
+                Thread.Sleep(20);
+                throw new InvalidOperationException("boom");
+            },
+            provider.GetRequiredService<IOptionsMonitor<EmberTraceOptions>>());
+
+        var context = Request("GET", "/orders/17", "/orders/{id}");
+        context.RequestServices = provider;
+
+        try
+        {
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => middleware.InvokeAsync(context));
+
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (!Directory.Exists(directory) || !Directory.EnumerateFiles(directory, "*.ember").Any())
+            {
+                Assert.IsTrue(DateTime.UtcNow < deadline, "No capture was written within 5 seconds.");
+                await Task.Delay(20);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
     }
 }

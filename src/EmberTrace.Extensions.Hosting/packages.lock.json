@@ -5,6 +5,12 @@
       "embertrace": {
         "type": "Project"
       },
+      "embertrace.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.3.0, )"
+        }
+      },
       "embertrace.export": {
         "type": "Project",
         "dependencies": {
@@ -15,6 +21,13 @@
         "type": "Project",
         "dependencies": {
           "EmberTrace": "[0.3.0, )"
+        }
+      },
+      "embertrace.reporttext": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.3.0, )",
+          "EmberTrace.Analysis": "[0.3.0, )"
         }
       }
     }

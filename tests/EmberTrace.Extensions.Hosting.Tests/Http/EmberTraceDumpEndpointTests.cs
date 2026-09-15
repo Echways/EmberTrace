@@ -177,6 +177,24 @@ public sealed class EmberTraceDumpEndpointTests
     }
 
     [TestMethod]
+    public async Task CollapsedFormat_ReturnsFlameGraphText()
+    {
+        using var provider = Build(static options => options.Dump.Enabled = true);
+        provider.GetRequiredService<EmberTraceRecorder>().TryStart();
+        using (Tracer.Scope(Tracer.Id("dump-scope")))
+            Thread.Sleep(2);
+
+        var context = Request(provider, "?format=collapsed");
+
+        await EmberTraceDumpEndpoint.HandleAsync(context);
+
+        Assert.AreEqual(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.AreEqual("text/plain; charset=utf-8", context.Response.ContentType);
+        StringAssert.EndsWith(context.Response.Headers.ContentDisposition.ToString(), ".folded\"");
+        StringAssert.StartsWith(System.Text.Encoding.UTF8.GetString(BodyOf(context)), "dump-scope ");
+    }
+
+    [TestMethod]
     public async Task UnknownFormat_Returns400()
     {
         using var provider = Build(static options => options.Dump.Enabled = true);

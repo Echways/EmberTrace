@@ -79,6 +79,13 @@ builder.Services.AddEmberTrace(builder.Configuration.GetSection("Tracing"));
       "Window": "00:00:10",
       "MaxWindow": "00:05:00",
       "FileNamePrefix": "embertrace"
+    },
+    "SlowRequests": {
+      "Enabled": false,
+      "Threshold": "00:00:01",
+      "Window": "00:00:10",
+      "Cooldown": "00:01:00",
+      "Directory": null
     }
   }
 }
@@ -132,8 +139,9 @@ curl -H "X-EmberTrace-Key: $KEY" "http://localhost:5080/embertrace/dump?window=0
 
 - `window` принимает секунды (`10`) или `TimeSpan` (`00:00:30`) и ограничивается значением
   `Dump:MaxWindow`. `window=0` означает «всё, что есть в буфере».
-- `format` — это `ember` (по умолчанию, бинарный, читается через `TraceFormat.Read`) или `chrome`
-  (Chrome Trace JSON, открывается в Perfetto).
+- `format` — это `ember` (по умолчанию, бинарный, читается через `TraceFormat.Read`), `chrome`
+  (Chrome Trace JSON, открывается в Perfetto) или `collapsed` (collapsed stacks для speedscope и других
+  просмотрщиков флейм-графов).
 - Ответы содержат заголовки `X-EmberTrace-Events` и `X-EmberTrace-Dropped`.
 
 Коды ответов: `404`, если endpoint выключен или вызывающая сторона не прошла ограничение по loopback —
@@ -153,6 +161,15 @@ endpoint не сообщает о своём существовании; `401` �
 
 Политика применяется как endpoint convention — ровно так же, как это сделал бы
 `RequireAuthorization("Diagnostics")`.
+
+## Захват медленных запросов
+
+С `SlowRequests:Enabled` запрос, который выполняется дольше `Threshold`, заставляет EmberTrace записать последние
+`Window` flight recorder'а в `Directory` как `{prefix}-slow-{timestamp}.ember`. Запросы, завершившиеся исключением,
+тоже учитываются. Один захват открывает `Cooldown`, в течение которого следующие медленные запросы игнорируются, так
+что инцидент с задержками даёт один файл, а не тысячи. Снапшот и запись выполняются в пуле потоков: медленный запрос
+не замедляется ещё больше, а ошибка записи логируется и никогда не выбрасывается. `Window` должен быть нулём (весь
+буфер) или не короче `Threshold`, а запись запросов должна оставаться включённой.
 
 ## Жизненный цикл сессии
 

@@ -13,8 +13,14 @@ namespace EmberTrace.Extensions.Hosting.Http;
 
 internal static class EmberTraceDumpEndpoint
 {
-    private const string ChromeFormat = "chrome";
-    private const string EmberFormat = "ember";
+    private static readonly DumpFormat[] Formats =
+    [
+        new("ember", "application/octet-stream", TraceFormat.FileExtension, static (session, stream) =>
+            TraceFormat.Write(session, stream)),
+        new("chrome", "application/json", ".json", static (session, stream) =>
+            TraceExport.WriteChromeComplete(session, stream, session.Metadata)),
+        new("collapsed", "text/plain; charset=utf-8", ".folded", WriteCollapsed)
+    ];
 
     public static async Task HandleAsync(HttpContext context)
     {
@@ -37,12 +43,8 @@ internal static class EmberTraceDumpEndpoint
             return;
         }
 
-        var format = context.Request.Query["format"].ToString();
-        if (string.IsNullOrEmpty(format))
-            format = EmberFormat;
-
-        if (!string.Equals(format, EmberFormat, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(format, ChromeFormat, StringComparison.OrdinalIgnoreCase))
+        var format = ResolveFormat(context.Request.Query["format"].ToString());
+        if (format is null)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
@@ -56,18 +58,26 @@ internal static class EmberTraceDumpEndpoint
         }
 
         var session = recorder.Snapshot(ResolveWindow(context.Request, options));
-        var chrome = string.Equals(format, ChromeFormat, StringComparison.OrdinalIgnoreCase);
 
         using var buffer = new MemoryStream();
-        if (chrome)
-            TraceExport.WriteChromeComplete(session, buffer, session.Metadata);
-        else
-            TraceFormat.Write(session, buffer);
+        format.Write(session, buffer);
 
-        WriteHeaders(context.Response, session, options, chrome, buffer.Length);
+        WriteHeaders(context.Response, session, options, format, buffer.Length);
 
         buffer.Position = 0;
         await buffer.CopyToAsync(context.Response.Body, context.RequestAborted);
+    }
+
+    private static DumpFormat? ResolveFormat(string requested)
+    {
+        var name = string.IsNullOrEmpty(requested) ? Formats[0].Name : requested;
+        return Array.Find(Formats, format => string.Equals(format.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void WriteCollapsed(TraceSession session, Stream stream)
+    {
+        using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true);
+        TraceText.WriteCollapsedStacks(session.Process(), writer);
     }
 
     internal static TimeSpan ResolveWindow(HttpRequest request, EmberTraceDumpOptions options)
@@ -103,17 +113,15 @@ internal static class EmberTraceDumpEndpoint
         HttpResponse response,
         TraceSession session,
         EmberTraceDumpOptions options,
-        bool chrome,
+        DumpFormat format,
         long length)
     {
-        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var extension = chrome ? ".json" : TraceFormat.FileExtension;
+        var fileName = DumpFileName.Create(options.FileNamePrefix, null, DateTimeOffset.UtcNow, format.Extension);
 
         response.StatusCode = StatusCodes.Status200OK;
-        response.ContentType = chrome ? "application/json" : "application/octet-stream";
+        response.ContentType = format.ContentType;
         response.ContentLength = length;
-        response.Headers.ContentDisposition =
-            $"attachment; filename=\"{options.FileNamePrefix}-{stamp}{extension}\"";
+        response.Headers.ContentDisposition = $"attachment; filename=\"{fileName}\"";
         response.Headers["X-EmberTrace-Events"] =
             session.EventCount.ToString(CultureInfo.InvariantCulture);
         response.Headers["X-EmberTrace-Dropped"] =
@@ -151,4 +159,6 @@ internal static class EmberTraceDumpEndpoint
             Encoding.UTF8.GetBytes(provided),
             Encoding.UTF8.GetBytes(options.ApiKey));
     }
+
+    private sealed record DumpFormat(string Name, string ContentType, string Extension, Action<TraceSession, Stream> Write);
 }

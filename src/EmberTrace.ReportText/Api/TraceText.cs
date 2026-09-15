@@ -18,4 +18,12 @@ public static class TraceText
         return TextReportWriter.Write(
             trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent, includePercentiles);
     }
+
+    public static void WriteCollapsedStacks(ProcessedTrace trace, TextWriter output, ITraceMetadataProvider? meta = null)
+    {
+        ArgumentNullException.ThrowIfNull(trace);
+        ArgumentNullException.ThrowIfNull(output);
+
+        CollapsedStackWriter.Write(trace, output, meta ?? trace.Metadata);
+    }
 }

@@ -79,6 +79,13 @@ builder.Services.AddEmberTrace(builder.Configuration.GetSection("Tracing"));
       "Window": "00:00:10",
       "MaxWindow": "00:05:00",
       "FileNamePrefix": "embertrace"
+    },
+    "SlowRequests": {
+      "Enabled": false,
+      "Threshold": "00:00:01",
+      "Window": "00:00:10",
+      "Cooldown": "00:01:00",
+      "Directory": null
     }
   }
 }
@@ -131,8 +138,8 @@ curl -H "X-EmberTrace-Key: $KEY" "http://localhost:5080/embertrace/dump?window=0
 
 - `window` accepts seconds (`10`) or a `TimeSpan` (`00:00:30`), and is clamped to `Dump:MaxWindow`.
   `window=0` means "everything the buffer holds".
-- `format` is `ember` (default, binary, readable with `TraceFormat.Read`) or `chrome`
-  (Chrome Trace JSON, openable in Perfetto).
+- `format` is `ember` (default, binary, readable with `TraceFormat.Read`), `chrome` (Chrome Trace JSON, openable in
+  Perfetto) or `collapsed` (collapsed stacks for speedscope and other flame-graph viewers).
 - Responses carry `X-EmberTrace-Events` and `X-EmberTrace-Dropped`.
 
 Status codes: `404` when disabled or when the caller fails the loopback restriction — the endpoint
@@ -152,6 +159,15 @@ To sit behind your own authentication instead:
 
 The policy is applied as an endpoint convention, exactly as `RequireAuthorization("Diagnostics")`
 would be.
+
+## Slow request capture
+
+With `SlowRequests:Enabled`, a request that runs longer than `Threshold` makes EmberTrace write the last `Window` of
+the flight recorder to `Directory` as `{prefix}-slow-{timestamp}.ember`. Requests that throw count too. One capture
+opens a `Cooldown` during which further slow requests are ignored, so a latency incident produces one file, not
+thousands. The snapshot and the write happen on the thread pool; the slow request is not delayed further, and a failed
+write is logged, never thrown. `Window` must be zero (the whole buffer) or at least `Threshold`, and request recording
+must stay enabled.
 
 ## Session lifetime
 

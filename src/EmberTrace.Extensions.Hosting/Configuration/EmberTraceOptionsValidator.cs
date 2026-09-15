@@ -31,10 +31,33 @@ internal sealed class EmberTraceOptionsValidator : IValidateOptions<EmberTraceOp
             failures.Add("EmberTrace:Requests:MaxTrackedRoutes must be greater than zero.");
 
         ValidateDump(options.Dump, failures);
+        ValidateSlowRequests(options, failures);
 
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void ValidateSlowRequests(EmberTraceOptions options, List<string> failures)
+    {
+        var slow = options.SlowRequests;
+        if (!slow.Enabled)
+            return;
+
+        if (string.IsNullOrWhiteSpace(slow.Directory))
+            failures.Add("EmberTrace:SlowRequests:Directory is required when slow request capture is enabled.");
+
+        if (slow.Threshold <= TimeSpan.Zero)
+            failures.Add("EmberTrace:SlowRequests:Threshold must be greater than zero.");
+
+        if (slow.Cooldown < TimeSpan.Zero)
+            failures.Add("EmberTrace:SlowRequests:Cooldown cannot be negative.");
+
+        if (slow.Window < TimeSpan.Zero || (slow.Window > TimeSpan.Zero && slow.Window < slow.Threshold))
+            failures.Add("EmberTrace:SlowRequests:Window must be zero or at least as long as the threshold.");
+
+        if (!options.Requests.Enabled)
+            failures.Add("EmberTrace:SlowRequests requires EmberTrace:Requests:Enabled.");
     }
 
     private static void ValidateDump(EmberTraceDumpOptions dump, List<string> failures)

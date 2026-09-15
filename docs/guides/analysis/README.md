@@ -91,6 +91,17 @@ See also:
 - [Export](../export/README.md)
 - [Usage and API](../usage/README.md)
 
+## Flame graphs
+
+`TraceText.WriteCollapsedStacks` writes the merged call tree as collapsed stacks — one `Outer;Inner 4000` line per
+call path, weighted by exclusive microseconds. Threads are merged. The output opens in
+[speedscope](https://www.speedscope.app), `flamegraph.pl`, `inferno-flamegraph` and Grafana Pyroscope.
+
+```csharp
+using var file = File.CreateText("out/trace.folded");
+TraceText.WriteCollapsedStacks(session.Process(), file, Tracer.CreateMetadata());
+```
+
 ## Screenshots
 
 ![Analysis slice: aggregation, sorting, filters](../../assets/analysis-slice.png)

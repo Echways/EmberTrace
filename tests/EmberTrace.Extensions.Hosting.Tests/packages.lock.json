@@ -105,6 +105,12 @@
       "embertrace": {
         "type": "Project"
       },
+      "embertrace.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.3.0, )"
+        }
+      },
       "embertrace.export": {
         "type": "Project",
         "dependencies": {
@@ -116,13 +122,21 @@
         "dependencies": {
           "EmberTrace": "[0.3.0, )",
           "EmberTrace.Export": "[0.3.0, )",
-          "EmberTrace.Format": "[0.3.0, )"
+          "EmberTrace.Format": "[0.3.0, )",
+          "EmberTrace.ReportText": "[0.3.0, )"
         }
       },
       "embertrace.format": {
         "type": "Project",
         "dependencies": {
           "EmberTrace": "[0.3.0, )"
+        }
+      },
+      "embertrace.reporttext": {
+        "type": "Project",
+        "dependencies": {
+          "EmberTrace": "[0.3.0, )",
+          "EmberTrace.Analysis": "[0.3.0, )"
         }
       },
       "Microsoft.ApplicationInsights": {
