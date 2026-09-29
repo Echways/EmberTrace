@@ -50,11 +50,11 @@ internal sealed class EmberTraceOptionsValidator : IValidateOptions<EmberTraceOp
         if (slow.Threshold <= TimeSpan.Zero)
             failures.Add("EmberTrace:SlowRequests:Threshold must be greater than zero.");
 
-        if (slow.Cooldown < TimeSpan.Zero)
-            failures.Add("EmberTrace:SlowRequests:Cooldown cannot be negative.");
+        if (slow.Cooldown < TimeSpan.FromMilliseconds(1))
+            failures.Add("EmberTrace:SlowRequests:Cooldown must be at least one millisecond.");
 
-        if (slow.Window < TimeSpan.Zero || (slow.Window > TimeSpan.Zero && slow.Window < slow.Threshold))
-            failures.Add("EmberTrace:SlowRequests:Window must be zero or at least as long as the threshold.");
+        if (slow.Window < TimeSpan.Zero)
+            failures.Add("EmberTrace:SlowRequests:Window cannot be negative.");
 
         if (!options.Requests.Enabled)
             failures.Add("EmberTrace:SlowRequests requires EmberTrace:Requests:Enabled.");

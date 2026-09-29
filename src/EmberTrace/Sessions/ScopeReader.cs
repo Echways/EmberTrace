@@ -214,22 +214,16 @@ public sealed class ScopeReader
             yield return new ScopeStep(ScopeStepKind.Close, top, e.TrackId, e.ThreadId, e.Timestamp, false);
         }
 
+        var open = new List<ScopeFrame>(asyncFrames.Values);
         foreach (var kv in tracks)
-        {
-            var track = kv.Value;
-            for (var i = track.Count - 1; i >= 0; i--)
-            {
-                UnmatchedBeginCount++;
-                yield return new ScopeStep(ScopeStepKind.Close, track[i], track[i].TrackId, track[i].ThreadId,
-                    _endTimestamp, true);
-            }
-        }
+            open.AddRange(kv.Value);
 
-        foreach (var kv in asyncFrames)
+        open.Sort(static (a, b) => b.Index.CompareTo(a.Index));
+
+        foreach (var frame in open)
         {
             UnmatchedBeginCount++;
-            yield return new ScopeStep(ScopeStepKind.Close, kv.Value, kv.Value.TrackId, kv.Value.ThreadId,
-                _endTimestamp, true);
+            yield return new ScopeStep(ScopeStepKind.Close, frame, frame.TrackId, frame.ThreadId, _endTimestamp, true);
         }
     }
 

@@ -102,6 +102,11 @@ using var file = File.CreateText("out/trace.folded");
 TraceText.WriteCollapsedStacks(session.Process(), file, Tracer.CreateMetadata());
 ```
 
+In a snapshot, scopes still open at the cut are weighed up to the cut, so an in-flight request shows the time it has
+spent so far; hotspots and percentiles count only finished scopes. Scopes that began before the snapshot's window
+are missing — widen the window to see them. Concurrent async children are each weighed by their own time, so a
+parent that fans out with `Task.WhenAll` is drawn wider than it ran.
+
 ## Screenshots
 
 ![Analysis slice: aggregation, sorting, filters](../../assets/analysis-slice.png)

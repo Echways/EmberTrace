@@ -9,18 +9,21 @@ namespace EmberTrace.Extensions.Hosting;
 
 internal sealed class EmberTraceHostedService : IHostedService
 {
+    private readonly SlowRequestCapture _capture;
     private readonly ILogger<EmberTraceHostedService> _logger;
     private readonly EmberTraceOptions _options;
     private readonly EmberTraceRecorder _recorder;
 
     public EmberTraceHostedService(
         EmberTraceRecorder recorder,
+        SlowRequestCapture capture,
         IOptions<EmberTraceOptions> options,
         ILogger<EmberTraceHostedService> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
+        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
         _options = options.Value;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -31,13 +34,13 @@ internal sealed class EmberTraceHostedService : IHostedService
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
+        await _capture.DrainAsync(cancellationToken);
+
         var session = _recorder.TryStop();
         if (session is not null)
             WriteShutdownDump(session);
-
-        return Task.CompletedTask;
     }
 
     private void WriteShutdownDump(TraceSession session)

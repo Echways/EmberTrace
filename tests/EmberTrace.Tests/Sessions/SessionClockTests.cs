@@ -1,11 +1,14 @@
 using System.Diagnostics;
 using EmberTrace.Sessions;
+using EmberTrace.Tracing;
 
 namespace EmberTrace.Tests.Sessions;
 
 [TestClass]
 public class SessionClockTests
 {
+    private static readonly DateTimeOffset Noon = new(2026, 9, 30, 12, 0, 0, TimeSpan.Zero);
+
     [TestMethod]
     public void Stop_RecordsWhenTheSessionStarted()
     {
@@ -21,40 +24,44 @@ public class SessionClockTests
     }
 
     [TestMethod]
-    public void FullSnapshot_SharesTheSessionAnchor()
+    [DataRow(0)]
+    [DataRow(50)]
+    public void Snapshot_IsAnchoredToTheWallClockAtItsCut(int windowMs)
     {
-        using var tracing = new TracingSession();
-        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
-        tracing.Instant(1);
+        var clock = new ManualTimeProvider(Noon);
+        var profiler = new Profiler(clock);
+        profiler.Start(new SessionOptions { ChunkCapacity = 1024 });
+        profiler.Instant(1);
+        Thread.Sleep(100);
+        clock.Now += TimeSpan.FromMinutes(3);
 
-        var snapshot = tracing.Snapshot();
-        var stopped = tracing.Stop();
+        var snapshot = profiler.Snapshot(TimeSpan.FromMilliseconds(windowMs));
+        profiler.Stop();
 
-        Assert.AreEqual(stopped.StartTimestamp, snapshot.StartTimestamp);
-        Assert.AreEqual(stopped.StartedAtUtc, snapshot.StartedAtUtc);
+        Assert.AreEqual(clock.Now,
+            snapshot.StartedAtUtc!.Value + Stopwatch.GetElapsedTime(snapshot.StartTimestamp, snapshot.EndTimestamp));
     }
 
     [TestMethod]
-    public void WindowedSnapshot_ShiftsTheAnchorToItsFirstTimestamp()
+    public void Stop_KeepsTheAnchorTakenAtStart()
     {
-        using var tracing = new TracingSession();
-        tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
-        Thread.Sleep(250);
-        tracing.Instant(1);
+        var clock = new ManualTimeProvider(Noon);
+        var profiler = new Profiler(clock);
+        profiler.Start(new SessionOptions { ChunkCapacity = 1024 });
+        clock.Now += TimeSpan.FromMinutes(3);
 
-        var snapshot = tracing.Snapshot(TimeSpan.FromMilliseconds(50));
-        var stopped = tracing.Stop();
-
-        var expected = stopped.StartedAtUtc!.Value
-                       + Stopwatch.GetElapsedTime(stopped.StartTimestamp, snapshot.StartTimestamp);
-
-        Assert.IsGreaterThan(stopped.StartTimestamp, snapshot.StartTimestamp);
-        Assert.AreEqual(expected, snapshot.StartedAtUtc);
+        Assert.AreEqual(Noon, profiler.Stop().StartedAtUtc);
     }
 
     [TestMethod]
     public void FromEvents_HasNoAnchor()
     {
         Assert.IsNull(TraceSession.FromEvents([], 0, 0, 1_000_000).StartedAtUtc);
+    }
+
+    [TestMethod]
+    public void FromEvents_KeepsTheGivenAnchor()
+    {
+        Assert.AreEqual(Noon, TraceSession.FromEvents([], 0, 0, 1_000_000, startedAtUtc: Noon).StartedAtUtc);
     }
 }

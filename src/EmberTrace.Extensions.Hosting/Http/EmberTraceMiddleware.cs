@@ -26,14 +26,16 @@ public sealed class EmberTraceMiddleware
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var requests = _options.CurrentValue.Requests;
+        var options = _options.CurrentValue;
+        var requests = options.Requests;
 
-        if (!requests.Enabled || !Tracer.IsRunning || IsIgnored(context.Request.Path, requests.IgnoredPaths))
+        if (!requests.Enabled || !Tracer.IsRunning || IsIgnored(context.Request.Path, options))
         {
             await _next(context);
             return;
         }
 
+        var started = Stopwatch.GetTimestamp();
         var id = ResolveId(context, requests);
         var flowId = requests.RecordFlow ? ResolveFlowId() : 0;
 
@@ -43,15 +45,13 @@ public sealed class EmberTraceMiddleware
             Tracer.FlowStart(id, flowId);
         }
 
-        var started = Stopwatch.GetTimestamp();
-
         try
         {
             await InvokeTracedAsync(context, id, flowId);
         }
         finally
         {
-            CaptureIfSlow(context, id, Stopwatch.GetElapsedTime(started));
+            CaptureIfSlow(context, options, id, started);
         }
     }
 
@@ -71,14 +71,14 @@ public sealed class EmberTraceMiddleware
         }
     }
 
-    private void CaptureIfSlow(HttpContext context, int id, TimeSpan elapsed)
+    private static void CaptureIfSlow(HttpContext context, EmberTraceOptions options, int id, long started)
     {
-        var slow = _options.CurrentValue.SlowRequests;
-        if (!slow.Enabled || elapsed < slow.Threshold)
+        var elapsed = Stopwatch.GetElapsedTime(started);
+        if (!options.SlowRequests.Enabled || elapsed < options.SlowRequests.Threshold)
             return;
 
         var request = HttpTraceIds.Provider.TryGet(id, out var meta) ? meta.Name : context.Request.Path.Value ?? "/";
-        context.RequestServices?.GetService<SlowRequestCapture>()?.TryCapture(request, elapsed);
+        context.RequestServices?.GetService<SlowRequestCapture>()?.TryCapture(options, request, started, elapsed);
     }
 
     private static int ResolveId(HttpContext context, EmberTraceRequestOptions requests)
@@ -103,8 +103,13 @@ public sealed class EmberTraceMiddleware
         return ActivityFlow.TryGetCurrentFlowId(out var flowId) ? flowId : Tracer.NewFlowId();
     }
 
-    private static bool IsIgnored(PathString path, string[] ignored)
+    private static bool IsIgnored(PathString path, EmberTraceOptions options)
     {
+        var dump = options.Dump;
+        if (dump.Enabled && path.StartsWithSegments(new PathString(dump.Path), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var ignored = options.Requests.IgnoredPaths;
         for (var i = 0; i < ignored.Length; i++)
         {
             var candidate = ignored[i];

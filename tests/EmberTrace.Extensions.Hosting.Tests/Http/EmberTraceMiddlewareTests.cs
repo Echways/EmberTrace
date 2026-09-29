@@ -240,6 +240,33 @@ public sealed class EmberTraceMiddlewareTests
         }
     }
 
+    [TestMethod]
+    public async Task OptionsBrokenMidRequest_DoNotMaskTheApplicationException()
+    {
+        var monitor = new TestOptionsMonitor<EmberTraceOptions>(new EmberTraceOptions());
+        var middleware = new EmberTraceMiddleware(_ =>
+        {
+            monitor.Failure = new OptionsValidationException(string.Empty, typeof(EmberTraceOptions), ["reloaded"]);
+            throw new InvalidOperationException("boom");
+        }, monitor);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => middleware.InvokeAsync(Request("GET", "/orders/17", "/orders/{id}")));
+    }
+
+    [TestMethod]
+    [DataRow("/diag/trace", false)]
+    [DataRow("/DIAG/trace", false)]
+    [DataRow("/diag/other", true)]
+    public async Task DumpPath_IsNeverTraced(string path, bool traced)
+    {
+        var options = new EmberTraceOptions { Dump = { Enabled = true, Path = "/diag/trace" } };
+
+        await Create(static _ => Task.CompletedTask, options).InvokeAsync(Request("GET", path));
+
+        Assert.AreEqual(traced, StopAndCollect().Count > 0);
+    }
+
     private static EmberTraceMiddleware Create(RequestDelegate next, EmberTraceOptions? options = null)
     {
         return new EmberTraceMiddleware(next,

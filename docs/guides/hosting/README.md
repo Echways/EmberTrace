@@ -100,7 +100,7 @@ Categories are configured by name and hashed into ids the same way `Tracer.Categ
 
 ## What the middleware records
 
-For each request that is not on `IgnoredPaths`:
+For each request that is not on `IgnoredPaths` and not addressed to the dump endpoint's `Path`:
 
 - an async scope named `"{METHOD} {route pattern}"`, e.g. `GET /orders/{id}`; ids are bounded by
   `MaxTrackedRoutes`, and once that cap is reached new routes collapse onto `HTTP {METHOD}`;
@@ -162,12 +162,14 @@ would be.
 
 ## Slow request capture
 
-With `SlowRequests:Enabled`, a request that runs longer than `Threshold` makes EmberTrace write the last `Window` of
-the flight recorder to `Directory` as `{prefix}-slow-{timestamp}.ember`. Requests that throw count too. One capture
-opens a `Cooldown` during which further slow requests are ignored, so a latency incident produces one file, not
-thousands. The snapshot and the write happen on the thread pool; the slow request is not delayed further, and a failed
-write is logged, never thrown. `Window` must be zero (the whole buffer) or at least `Threshold`, and request recording
-must stay enabled.
+With `SlowRequests:Enabled`, a request that runs longer than `Threshold` makes EmberTrace write a snapshot of the
+flight recorder to `Directory` as `{prefix}-slow-{timestamp}.ember`. The snapshot covers the last `Window`, stretched
+when needed so that the slow request is in it from its first event; a `Window` of zero takes the whole buffer.
+Requests that throw count too. A written capture opens a `Cooldown` of at least one millisecond during which further
+slow requests are ignored, so a latency incident produces one file, not thousands; a capture that found nothing to
+write, or failed, does not open one. Captures run on the thread pool one at a time: the slow request is not delayed
+further, a failed write is logged, never thrown, and graceful shutdown waits for a capture in progress. Request
+recording must stay enabled.
 
 ## Session lifetime
 

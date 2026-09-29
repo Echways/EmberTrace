@@ -19,6 +19,7 @@ public sealed class EmberTraceOptionsValidatorTests
         [new EmberTraceOptions { Dump = { Path = "relative", ApiKey = "short", MaxWindow = TimeSpan.Zero } }],
         [SlowRequests(slow => slow.Directory = "/var/tmp/embertrace")],
         [SlowRequests(slow => slow.Window = TimeSpan.Zero)],
+        [SlowRequests(slow => slow.Window = TimeSpan.FromMilliseconds(10))],
         [new EmberTraceOptions { SlowRequests = { Threshold = TimeSpan.Zero } }]
     ];
 
@@ -37,8 +38,8 @@ public sealed class EmberTraceOptionsValidatorTests
         [Unguarded(_ => { }), "without a guard"],
         [SlowRequests(slow => slow.Directory = null), "SlowRequests:Directory"],
         [SlowRequests(slow => slow.Threshold = TimeSpan.Zero), "SlowRequests:Threshold"],
-        [SlowRequests(slow => slow.Cooldown = TimeSpan.FromSeconds(-1)), "SlowRequests:Cooldown"],
-        [SlowRequests(slow => slow.Window = TimeSpan.FromMilliseconds(999)), "SlowRequests:Window"],
+        [SlowRequests(slow => slow.Cooldown = TimeSpan.Zero), "Cooldown must be at least one millisecond"],
+        [SlowRequests(slow => slow.Window = TimeSpan.FromSeconds(-1)), "SlowRequests:Window cannot be negative"],
         [new EmberTraceOptions { SlowRequests = { Enabled = true, Directory = "/tmp" }, Requests = { Enabled = false } },
             "requires EmberTrace:Requests:Enabled"]
     ];

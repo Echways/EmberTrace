@@ -94,6 +94,19 @@ public class CallTreeTests
         Assert.IsEmpty(trace.GlobalRoot.Children);
     }
 
+    [TestMethod]
+    public void OpenScopesInASnapshot_StayOutOfHotspots()
+    {
+        var trace = new TraceScript()
+            .Begin(1, 0)
+            .Span(2, 1_000, 2_000)
+            .ToSession(end: 5_000, isSnapshot: true)
+            .Process();
+
+        Assert.AreEqual(2, trace.HotspotsByInclusiveDesc.Single().Id);
+        Assert.AreEqual(5.0, trace.GlobalRoot.Children.Single().InclusiveMs);
+    }
+
     private static TraceScript Script()
     {
         return new TraceScript()
