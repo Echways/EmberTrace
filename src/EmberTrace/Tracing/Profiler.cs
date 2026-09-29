@@ -16,11 +16,17 @@ internal sealed class Profiler
 
     [ThreadStatic] private static long _cachedSessionId;
     [ThreadStatic] private static ThreadWriter? _cachedWriter;
+    private readonly TimeProvider _clock;
     private int _enabled;
     private ITraceMetadataProvider? _metadata;
     private long _nextFlowId;
     private RuntimeCounterSampler? _runtimeSampler;
     private ProfilingState? _state;
+
+    public Profiler(TimeProvider? clock = null)
+    {
+        _clock = clock ?? TimeProvider.System;
+    }
 
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
@@ -53,7 +59,7 @@ internal sealed class Profiler
 
         _metadata = meta;
         _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now(),
-            DateTimeOffset.UtcNow);
+            _clock.GetUtcNow());
 
         if (opts.RuntimeCounters != RuntimeCounters.None)
         {
@@ -119,6 +125,7 @@ internal sealed class Profiler
         try
         {
             var cut = Timestamp.Now();
+            var cutUtc = _clock.GetUtcNow();
             var min = WindowStart(cut, window);
             var chunks = SnapshotBuilder.Copy(captures, min, out var discarded);
             collector.RecordSnapshotDiscard(discarded);
@@ -138,7 +145,7 @@ internal sealed class Profiler
                 state.Metadata,
                 0,
                 true,
-                state.StartedAtUtc + Stopwatch.GetElapsedTime(state.StartTs, start));
+                cutUtc - Stopwatch.GetElapsedTime(start, cut));
         }
         finally
         {

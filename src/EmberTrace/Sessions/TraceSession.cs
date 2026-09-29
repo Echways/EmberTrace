@@ -51,26 +51,8 @@ public sealed class TraceSession
         long sampledOutEvents = 0,
         bool wasOverflow = false,
         SessionOptions? options = null,
-        bool isSnapshot = false)
-    {
-        return FromEvents(events, startTimestamp, endTimestamp, timestampFrequency, threadNames, metadata,
-            droppedEvents, droppedChunks, sampledOutEvents, wasOverflow, options, isSnapshot, null);
-    }
-
-    internal static TraceSession FromEvents(
-        IEnumerable<TraceEventRecord> events,
-        long startTimestamp,
-        long endTimestamp,
-        long timestampFrequency,
-        IReadOnlyDictionary<int, string>? threadNames,
-        ITraceMetadataProvider? metadata,
-        long droppedEvents,
-        long droppedChunks,
-        long sampledOutEvents,
-        bool wasOverflow,
-        SessionOptions? options,
-        bool isSnapshot,
-        DateTimeOffset? startedAtUtc)
+        bool isSnapshot = false,
+        DateTimeOffset? startedAtUtc = null)
     {
         ArgumentNullException.ThrowIfNull(events);
 

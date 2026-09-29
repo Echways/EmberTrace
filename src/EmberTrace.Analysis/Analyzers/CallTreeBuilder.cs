@@ -26,7 +26,7 @@ internal static class CallTreeBuilder
                 continue;
             }
 
-            if (step.IsSynthetic || step.Tag is not TreeFrame frame)
+            if (step.Tag is not TreeFrame frame || (step.IsSynthetic && !session.IsSnapshot))
                 continue;
 
             var inclusive = step.DurationTicks;
@@ -40,6 +40,12 @@ internal static class CallTreeBuilder
             frame.Node.InclusiveTicks += inclusive;
             frame.Node.ExclusiveTicks += exclusive;
 
+            if (step.ParentTag is TreeFrame parentFrame)
+                parentFrame.ChildTicks += inclusive;
+
+            if (step.IsSynthetic)
+                continue;
+
             if (!hotspots.TryGetValue(step.Id, out var agg))
             {
                 agg = new HotAgg(session.TimestampFrequency);
@@ -50,9 +56,6 @@ internal static class CallTreeBuilder
             agg.InclusiveTicks += inclusive;
             agg.ExclusiveTicks += exclusive;
             agg.Histogram.Add(inclusive);
-
-            if (step.ParentTag is TreeFrame parentFrame)
-                parentFrame.ChildTicks += inclusive;
         }
 
         foreach (var track in reader.Tracks)

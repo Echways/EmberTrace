@@ -29,8 +29,10 @@ foreach (var span in spans)
 `OpenTelemetryExportOptions`:
 - `IncludeFlowsAsLinks` - include Flow as links
 - `IncludeThreadIdTag` - include `thread.id`
-- `BaseUtc` - UTC time of the session start. Defaults to `TraceSession.StartedAtUtc`, which is recorded by
-  `Tracer.Start` and stored in `.ember` files; only sessions without it fall back to "now minus the session duration".
+- `BaseUtc` - UTC time of the session start. Defaults to `TraceSession.StartedAtUtc`: `Tracer.Start` records it for
+  the session, and a snapshot derives its own from the wall clock at the moment it is cut, so its spans line up with
+  logs written at that moment. It is stored in `.ember` files; only sessions without it fall back to "now minus the
+  session duration".
 
 ## Notes
 

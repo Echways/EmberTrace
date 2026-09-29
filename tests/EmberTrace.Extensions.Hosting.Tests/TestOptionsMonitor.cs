@@ -4,12 +4,20 @@ namespace EmberTrace.Extensions.Hosting.Tests;
 
 internal sealed class TestOptionsMonitor<T> : IOptionsMonitor<T>
 {
+    private T _value;
+
     public TestOptionsMonitor(T value)
     {
-        CurrentValue = value;
+        _value = value;
     }
 
-    public T CurrentValue { get; set; }
+    public Exception? Failure { get; set; }
+
+    public T CurrentValue
+    {
+        get => Failure is null ? _value : throw Failure;
+        set => _value = value;
+    }
 
     public T Get(string? name)
     {

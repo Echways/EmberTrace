@@ -38,15 +38,27 @@ internal sealed class TraceScript(long frequency = 1_000_000)
         return Add(id, thread, timestamp, kind, flowId, 0);
     }
 
+    public TraceScript AsyncBegin(int id, long timestamp, long scopeId, long parentScopeId = 0, int thread = 1)
+    {
+        return Add(id, thread, timestamp, TraceEventKind.Begin, scopeId, parentScopeId);
+    }
+
+    public TraceScript AsyncEnd(int id, long timestamp, long scopeId, long parentScopeId = 0, int thread = 1)
+    {
+        return Add(id, thread, timestamp, TraceEventKind.End, scopeId, parentScopeId);
+    }
+
     public TraceSession ToSession(
         long start = 0,
         long? end = null,
         ITraceMetadataProvider? metadata = null,
-        IReadOnlyDictionary<int, string>? threadNames = null)
+        IReadOnlyDictionary<int, string>? threadNames = null,
+        bool isSnapshot = false)
     {
         var ordered = _events.OrderBy(e => e.Timestamp).ThenBy(e => e.ThreadId).ThenBy(e => e.Sequence).ToList();
         var last = ordered.Count == 0 ? start : ordered[^1].Timestamp;
-        return TraceSession.FromEvents(ordered, start, end ?? last, frequency, threadNames, metadata);
+        return TraceSession.FromEvents(ordered, start, end ?? last, frequency, threadNames, metadata,
+            isSnapshot: isSnapshot);
     }
 
     private TraceScript Add(int id, int thread, long timestamp, TraceEventKind kind, long flowId, long value)

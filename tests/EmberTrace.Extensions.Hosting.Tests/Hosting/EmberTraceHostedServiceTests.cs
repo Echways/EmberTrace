@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EmberTrace.Extensions.Hosting.Configuration;
 using EmberTrace.Extensions.Hosting.Recording;
 using EmberTrace.Sessions;
@@ -90,10 +91,29 @@ public sealed class EmberTraceHostedServiceTests
         Assert.IsFalse(Directory.Exists(_directory));
     }
 
-    private static EmberTraceHostedService Create(EmberTraceOptions options)
+    [TestMethod]
+    public async Task StopAsync_WaitsForACaptureInProgress()
+    {
+        var options = new EmberTraceOptions { SlowRequests = { Enabled = true, Directory = _directory } };
+        var capture = new SlowRequestCapture(NullLogger<SlowRequestCapture>.Instance, TimeProvider.System);
+        var service = Create(options, capture);
+        await service.StartAsync(CancellationToken.None);
+        Tracer.Instant(Tracer.Id("drain-probe"));
+
+        _ = capture.TryCapture(options, "GET /a", Stopwatch.GetTimestamp(), TimeSpan.FromSeconds(2));
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.HasCount(1, Directory.GetFiles(_directory));
+    }
+
+    private static EmberTraceHostedService Create(EmberTraceOptions options, SlowRequestCapture? capture = null)
     {
         var wrapped = Options.Create(options);
         var recorder = new EmberTraceRecorder(wrapped, NullLogger<EmberTraceRecorder>.Instance);
-        return new EmberTraceHostedService(recorder, wrapped, NullLogger<EmberTraceHostedService>.Instance);
+        return new EmberTraceHostedService(
+            recorder,
+            capture ?? new SlowRequestCapture(NullLogger<SlowRequestCapture>.Instance, TimeProvider.System),
+            wrapped,
+            NullLogger<EmberTraceHostedService>.Instance);
     }
 }
