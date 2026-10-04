@@ -4,7 +4,7 @@ namespace EmberTrace.Sessions;
 
 public sealed class SessionOptions
 {
-    public int ChunkCapacity { get; init; } = 16_384;
+    public int ChunkCapacity { get; init; } = 4_096;
     public long MaxTotalEvents { get; init; } = 0;
     public int MaxTotalChunks { get; init; } = 0;
     public TimeSpan MaxRetentionWindow { get; init; } = TimeSpan.Zero;

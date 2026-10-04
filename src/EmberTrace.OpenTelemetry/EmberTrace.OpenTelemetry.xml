@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.OpenTelemetry</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.OpenTelemetry.OpenTelemetryExport">
+            <summary>Converts the scopes of a session into <see cref="T:System.Diagnostics.Activity"/> spans.</summary>
+            <remarks>The OpenTelemetry SDK is not required. The activities are created directly, not through an <see cref="T:System.Diagnostics.ActivitySource"/>, so no listener has to be registered and none is notified; hand them to an exporter yourself.</remarks>
+        </member>
+        <member name="M:EmberTrace.OpenTelemetry.OpenTelemetryExport.CreateSpans(EmberTrace.Sessions.TraceSession,EmberTrace.Metadata.ITraceMetadataProvider,EmberTrace.OpenTelemetry.OpenTelemetryExportOptions)">
+            <summary>Builds one stopped W3C activity per scope, with the nesting the session recorded.</summary>
+            <param name="session">The session to convert.</param>
+            <param name="meta">Names and categories for ids; the metadata of the session when <see langword="null"/>.</param>
+            <param name="options">Conversion options; the defaults when <see langword="null"/>.</param>
+            <returns>The spans in the order their scopes closed. Each carries the tags <c>embertrace.id</c>, <c>embertrace.category</c> when the id has one, and <c>embertrace.async_scope_id</c> for async scopes.</returns>
+            <remarks>Start and end times are the session's UTC start plus the scope's offset from the session start. A scope that never closed is ended at the end of the session. <see cref="P:System.Diagnostics.Activity.Current"/> is left as it was.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.OpenTelemetry.OpenTelemetryExport.Export(EmberTrace.Sessions.TraceSession,System.Action{System.Diagnostics.Activity},EmberTrace.Metadata.ITraceMetadataProvider,EmberTrace.OpenTelemetry.OpenTelemetryExportOptions)">
+            <summary>Builds the spans of a session and passes each one to a callback.</summary>
+            <param name="session">The session to convert.</param>
+            <param name="onSpan">Receives every span, in the order the scopes closed.</param>
+            <param name="meta">Names and categories for ids; the metadata of the session when <see langword="null"/>.</param>
+            <param name="options">Conversion options; the defaults when <see langword="null"/>.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> or <paramref name="onSpan"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:EmberTrace.OpenTelemetry.OpenTelemetryExportOptions">
+            <summary>Options of the conversion to <see cref="T:System.Diagnostics.Activity"/> spans.</summary>
+        </member>
+        <member name="M:EmberTrace.OpenTelemetry.OpenTelemetryExportOptions.#ctor">
+            <summary>Creates the default options.</summary>
+        </member>
+        <member name="P:EmberTrace.OpenTelemetry.OpenTelemetryExportOptions.BaseUtc">
+            <summary>The UTC time of the session start that span times are computed from. When <see langword="null"/>, the default, <see cref="P:EmberTrace.Sessions.TraceSession.StartedAtUtc"/> is used, and a session without it is placed so that it ends now.</summary>
+        </member>
+        <member name="P:EmberTrace.OpenTelemetry.OpenTelemetryExportOptions.IncludeFlowsAsLinks">
+            <summary>Whether every flow event becomes an <see cref="T:System.Diagnostics.ActivityLink"/> on the innermost scope open on its thread at that moment. Events of one flow share a trace id, which is what ties the linked spans together. Default <see langword="true"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.OpenTelemetry.OpenTelemetryExportOptions.IncludeThreadIdTag">
+            <summary>Whether each span carries a <c>thread.id</c> tag with the managed thread id that opened the scope. Default <see langword="true"/>.</summary>
+        </member>
+    </members>
+</doc>

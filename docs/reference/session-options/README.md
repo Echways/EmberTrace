@@ -6,13 +6,17 @@
 
 ## Core
 
-- `ChunkCapacity` - event chunk size (default `16_384`)
+- `ChunkCapacity` - events per chunk (default `4_096`, minimum `1_024`). An event is 32 bytes,
+  so a chunk is `ChunkCapacity × 32` bytes: 128 KB by default. Every thread that writes holds
+  at least one chunk.
 - `OverflowPolicy` - overflow policy:
   - `DropNew` - drop new events
   - `DropOldest` - overwrite oldest chunks
   - `StopSession` - stop the session
 - `MaxTotalEvents` - event limit per session (0 = unlimited)
-- `MaxTotalChunks` - chunk limit (0 = unlimited)
+- `MaxTotalChunks` - chunk limit (0 = unlimited). With `DropOldest` the limit applies to
+  finished chunks: chunks of exited threads are reclaimed, and a live thread is never refused
+  a buffer, so the session may hold up to one chunk per live thread above the limit.
 - `MaxRetentionWindow` - keep only the last N of wall-clock time (default `TimeSpan.Zero` = off).
   Requires `OverflowPolicy.DropOldest` and must not exceed one day; `Tracer.Start` throws
   otherwise. Enforced on chunk rotation and on snapshot, never on chunks a writer still owns.

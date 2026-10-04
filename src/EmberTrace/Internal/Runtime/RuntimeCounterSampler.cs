@@ -28,9 +28,9 @@ internal sealed class RuntimeCounterSampler : IRuntimeCounterSink, IDisposable
         _collector = new RuntimeCounterCollector(enabled, _metrics);
     }
 
-    public void Counter(int id, long value)
+    public void Counter(int id, long value, long timestamp)
     {
-        _profiler.WriteRuntime(id, TraceEventKind.Counter, value, 0);
+        _profiler.WriteRuntime(id, TraceEventKind.Counter, value, timestamp);
     }
 
     public void Span(int id, long startTimestamp, long endTimestamp)

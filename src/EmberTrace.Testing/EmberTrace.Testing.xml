@@ -1,0 +1,194 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.Testing</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.Testing.ScopeAssertion">
+            <summary>Fluent assertions over the statistics of one scope id. Every method returns the same assertion, so checks chain.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.AverageMsUnder(System.Double)">
+            <summary>Asserts that the mean inclusive duration of the scope is below a limit.</summary>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or its mean duration is not below the limit.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.CountAtLeast(System.Int64)">
+            <summary>Asserts that the scope was recorded at least a given number of times.</summary>
+            <param name="expected">The minimum number of completed scopes.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or was recorded fewer times.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.CountAtMost(System.Int64)">
+            <summary>Asserts that the scope was recorded at most a given number of times.</summary>
+            <param name="expected">The maximum number of completed scopes.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or was recorded more times.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.CountExactly(System.Int64)">
+            <summary>Asserts that the scope was recorded exactly a given number of times.</summary>
+            <param name="expected">The number of completed scopes.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or the count differs.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.MaxMsUnder(System.Double)">
+            <summary>Asserts that the longest single occurrence of the scope is below a limit.</summary>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or its longest occurrence is not below the limit.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.NotRecorded">
+            <summary>Asserts that the scope does not appear in the trace.</summary>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was recorded at least once.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.P50MsUnder(System.Double)">
+            <summary>Asserts that the median duration of the scope is below a limit.</summary>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or its 50th percentile is not below the limit.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.P95MsUnder(System.Double)">
+            <summary>Asserts that the 95th percentile of the scope's duration is below a limit.</summary>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or its 95th percentile is not below the limit.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.P99MsUnder(System.Double)">
+            <summary>Asserts that the 99th percentile of the scope's duration is below a limit.</summary>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or its 99th percentile is not below the limit.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.PercentileMsUnder(System.Double,System.Double)">
+            <summary>Asserts that an arbitrary percentile of the scope's duration, read from its histogram, is below a limit.</summary>
+            <param name="percentile">The percentile, from 0 to 100.</param>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="percentile"/> is outside 0 to 100 or is not a number.</exception>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, the statistics carry no histogram for it, or the percentile is not below the limit.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.ScopeAssertion.TotalMsUnder(System.Double)">
+            <summary>Asserts that the summed inclusive duration of every occurrence of the scope is below a limit.</summary>
+            <param name="ms">The limit, in milliseconds, exclusive.</param>
+            <returns>This assertion.</returns>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">The scope was never recorded, or its total duration is not below the limit.</exception>
+        </member>
+        <member name="T:EmberTrace.Testing.TraceAssertionException">
+            <summary>Thrown when a trace assertion fails. The message states the expectation and the measured value, so it reads well in any test framework.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceAssertionException.#ctor(System.String)">
+            <summary>Creates the exception.</summary>
+            <param name="message">The description of the failed expectation.</param>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceAssertionException.#ctor(System.String,System.Exception)">
+            <summary>Creates the exception with the exception that caused it.</summary>
+            <param name="message">The description of the failed expectation.</param>
+            <param name="innerException">The cause.</param>
+        </member>
+        <member name="T:EmberTrace.Testing.TraceAssertions">
+            <summary>Entry point of scope assertions over <see cref="T:EmberTrace.Analysis.Stats.TraceStats"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceAssertions.Scope(EmberTrace.Analysis.Stats.TraceStats,System.Int32,EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Selects the statistics of one scope id for assertions. A scope that was never recorded is still selectable, so that <see cref="M:EmberTrace.Testing.ScopeAssertion.NotRecorded"/> can pass.</summary>
+            <param name="stats">The statistics produced by <c>session.Analyze()</c>.</param>
+            <param name="id">The scope id.</param>
+            <param name="meta">Used to name the scope in failure messages; ids are printed bare when <see langword="null"/>.</param>
+            <returns>The assertion over that scope.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="stats"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:EmberTrace.Testing.TraceBudget">
+            <summary>Guards a test against performance regressions relative to a recorded baseline.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceBudget.AssertNoRegressions(EmberTrace.Analysis.Stats.TraceStats,EmberTrace.Analysis.Stats.TraceStats,System.Double,EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Asserts that no scope present in both traces grew in total inclusive time by more than a given percentage.</summary>
+            <param name="baseline">The statistics of the reference run.</param>
+            <param name="current">The statistics of the run under test.</param>
+            <param name="maxPercent">The allowed growth of total time per scope, in percent.</param>
+            <param name="meta">Used to name scopes in the failure message; ids are printed bare when <see langword="null"/>.</param>
+            <remarks>Scopes that appear in only one of the traces are ignored.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="baseline"/> or <paramref name="current"/> is <see langword="null"/>.</exception>
+            <exception cref="T:EmberTrace.Testing.TraceAssertionException">At least one scope regressed by more than <paramref name="maxPercent"/>; the message lists every offender with both totals.</exception>
+        </member>
+        <member name="T:EmberTrace.Testing.TraceComparison">
+            <summary>The per-scope differences between a baseline trace and a current trace.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceComparison.RegressionsOver(System.Double)">
+            <summary>Returns the scopes present in both traces whose total time grew by more than a threshold.</summary>
+            <param name="percent">The growth of total time, in percent, above which a scope is returned.</param>
+            <returns>The regressed scopes, largest growth first.</returns>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceComparison.Deltas">
+            <summary>Every scope id seen in either trace, ordered by growth of total time, largest first; ids present in only one trace come last.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceComparison.InBothOnly">
+            <summary>The entries of <see cref="P:EmberTrace.Testing.TraceComparison.Deltas"/> whose scope is present in both traces, in the same order.</summary>
+        </member>
+        <member name="T:EmberTrace.Testing.TraceDiff">
+            <summary>Compares the statistics of two traces scope by scope.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceDiff.Compare(EmberTrace.Analysis.Stats.TraceStats,EmberTrace.Analysis.Stats.TraceStats)">
+            <summary>Computes, for every scope id in either trace, the change in count, total time and 95th percentile.</summary>
+            <param name="baseline">The statistics of the reference run.</param>
+            <param name="current">The statistics of the run under test.</param>
+            <returns>The comparison.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="baseline"/> or <paramref name="current"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceDiff.Format(EmberTrace.Testing.TraceComparison,EmberTrace.Metadata.ITraceMetadataProvider,System.Double)">
+            <summary>Renders a comparison as a fixed-width text table, one row per scope, marking scopes that are new or gone.</summary>
+            <param name="comparison">The comparison to render.</param>
+            <param name="meta">Names for ids; a dash is printed for the name when <see langword="null"/>.</param>
+            <param name="minPercent">When positive, hides scopes present in both traces whose total time grew by less than this percentage.</param>
+            <returns>The table.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="comparison"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:EmberTrace.Testing.TraceIdDelta">
+            <summary>The difference between two traces for one scope id.</summary>
+        </member>
+        <member name="M:EmberTrace.Testing.TraceIdDelta.#ctor">
+            <summary>Creates a delta; every required property must be set by the initializer.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.BaselineCount">
+            <summary>The number of completed scopes in the baseline; <c>0</c> when absent there.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.BaselineP95Ms">
+            <summary>The 95th percentile of the duration in the baseline, in milliseconds; <c>0</c> when absent there.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.BaselineTotalMs">
+            <summary>The total inclusive time in the baseline, in milliseconds; <c>0</c> when absent there.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.CountDelta">
+            <summary>The current count minus the baseline count.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.CurrentCount">
+            <summary>The number of completed scopes in the current trace; <c>0</c> when absent there.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.CurrentP95Ms">
+            <summary>The 95th percentile of the duration in the current trace, in milliseconds; <c>0</c> when absent there.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.CurrentTotalMs">
+            <summary>The total inclusive time in the current trace, in milliseconds; <c>0</c> when absent there.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.Id">
+            <summary>The scope id.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.InBaseline">
+            <summary>Whether the scope was recorded in the baseline.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.InBoth">
+            <summary>Whether the scope was recorded in both traces, which is when the percentage changes are meaningful.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.InCurrent">
+            <summary>Whether the scope was recorded in the current trace.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.P95MsChangePercent">
+            <summary>The change of the 95th percentile relative to the baseline, in percent. <see cref="F:System.Double.NaN"/> when the scope is not in both traces; positive infinity when the baseline value is zero and the current one is not.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.TotalMsChangePercent">
+            <summary>The change of total time relative to the baseline, in percent. <see cref="F:System.Double.NaN"/> when the scope is not in both traces; positive infinity when the baseline value is zero and the current one is not.</summary>
+        </member>
+        <member name="P:EmberTrace.Testing.TraceIdDelta.TotalMsDelta">
+            <summary>The current total time minus the baseline total time, in milliseconds.</summary>
+        </member>
+    </members>
+</doc>

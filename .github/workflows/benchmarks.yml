@@ -10,7 +10,7 @@ on:
       filter:
         type: string
         required: false
-        default: '*ScopeBenchmarks*'
+        default: '*HotPathBenchmarks*'
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -36,7 +36,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
   UseLocalEmberTrace: 'true'
   BDN_JOB: ${{ inputs.job || 'default' }}
-  BDN_FILTER: ${{ inputs.filter || '*ScopeBenchmarks*' }}
+  BDN_FILTER: ${{ inputs.filter || '*HotPathBenchmarks*' }}
 
 jobs:
   benchmark:

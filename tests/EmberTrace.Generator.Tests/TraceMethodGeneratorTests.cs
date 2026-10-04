@@ -149,7 +149,7 @@ public class TraceMethodGeneratorTests
         StringAssert.Contains(source, "[global::System.Diagnostics.DebuggerNonUserCode]");
         StringAssert.Contains(source,
             "private async global::System.Threading.Tasks.Task<int> GetAsync__EmberTraceTraced(int id)");
-        StringAssert.Contains(source, "await using var __emberTraceScope = global::EmberTrace.Tracer.ScopeAsync(");
+        StringAssert.Contains(source, "await using var __emberTraceScope = global::EmberTrace.Tracer.MethodScopeAsync(");
         StringAssert.Contains(source, "return await GetAsyncCore(id).ConfigureAwait(false);");
     }
 

@@ -48,9 +48,9 @@ builder.Services.AddEmberTrace(builder.Configuration.GetSection("Tracing"));
 {
   "EmberTrace": {
     "Enabled": true,
-    "ChunkCapacity": 16384,
+    "ChunkCapacity": 4096,
     "MaxTotalEvents": 0,
-    "MaxTotalChunks": 256,
+    "MaxTotalChunks": 1024,
     "MaxRetentionWindow": "00:00:30",
     "OverflowPolicy": "DropOldest",
     "EnableRuntimeMetadata": true,
@@ -92,8 +92,10 @@ builder.Services.AddEmberTrace(builder.Configuration.GetSection("Tracing"));
 ```
 
 The defaults are flight-recorder defaults: `DropOldest` with a 30-second retention window and a
-256-chunk cap. `MaxRetentionWindow` only works with `DropOldest`; any other policy fails validation at
+1024-chunk cap. `MaxRetentionWindow` only works with `DropOldest`; any other policy fails validation at
 startup with an explicit message rather than throwing from `Tracer.Start`.
+
+The defaults bound the recorder at `1024 × 4096` events — about 4.2 million events, 134 MB.
 
 Categories are configured by name and hashed into ids the same way `Tracer.CategoryId` does, so
 `"EnabledCategories": [ "Http" ]` records requests and nothing else.

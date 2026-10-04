@@ -23,70 +23,71 @@ internal readonly struct SamplingPolicy
 
 internal sealed class ThreadWriter
 {
+    private readonly Thread _owner = Thread.CurrentThread;
     private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
     private readonly SamplingPolicy _sampling;
     private readonly int _trackId;
     private Chunk? _chunk;
     private SessionCollector? _collector;
+    private long _lastTimestamp;
     private int _rateWindowCount;
     private long _rateWindowStart;
     private long _sequence;
     private TicketBlock[]? _ticketBlocks;
-    private int _writesInFlight;
 
-    public ThreadWriter(SessionCollector collector, SamplingPolicy sampling, int trackId)
+    public ThreadWriter(SessionCollector collector, SamplingPolicy sampling, int trackId, long ownerKey = 0)
     {
         _collector = collector;
         _trackId = trackId;
-        _chunk = collector.TryRentChunk(out var chunk) ? chunk : null;
+        OwnerKey = ownerKey;
+        collector.RegisterWriter(this);
         _sampling = sampling;
+        _chunk = Rent(collector);
 
         var threadName = Thread.CurrentThread.Name;
         if (!string.IsNullOrWhiteSpace(threadName))
             collector.RegisterThreadName(_ownerThreadId, threadName);
     }
 
-    public void DrainAndDetach()
-    {
-        if (_ownerThreadId != Environment.CurrentManagedThreadId)
-        {
-            var spin = new SpinWait();
-            while (Volatile.Read(ref _writesInFlight) != 0)
-                spin.SpinOnce();
-        }
+    public long OwnerKey { get; }
 
+    public bool IsOwnerAlive => _owner.IsAlive;
+
+    public Chunk? Abandon()
+    {
+        var chunk = Volatile.Read(ref _chunk);
+        _collector = null;
+        _chunk = null;
+        return chunk;
+    }
+
+    public bool BelongsTo(SessionCollector collector)
+    {
+        return ReferenceEquals(_collector, collector);
+    }
+
+    public void Detach()
+    {
         _collector = null;
         _chunk = null;
     }
 
     public void Write(int id, TraceEventKind kind, long flowId, long value)
     {
-        WriteWithTimestamp(id, kind, flowId, value, 0);
+        var collector = _collector;
+        if (collector is null || collector.IsClosed)
+            return;
+
+        WriteCore(id, kind, flowId, value, collector, 0);
     }
 
     public void WriteAt(int id, TraceEventKind kind, long flowId, long value, long timestamp)
     {
-        WriteWithTimestamp(id, kind, flowId, value, timestamp);
-    }
-
-    private void WriteWithTimestamp(int id, TraceEventKind kind, long flowId, long value, long timestamp)
-    {
         var collector = _collector;
-        if (collector is null)
+        if (collector is null || collector.IsClosed)
             return;
 
-        var depth = Interlocked.Increment(ref _writesInFlight);
-        try
-        {
-            if (collector.IsClosed)
-                return;
-
-            WriteCore(id, kind, flowId, value, collector, timestamp);
-        }
-        finally
-        {
-            Volatile.Write(ref _writesInFlight, depth - 1);
-        }
+        WriteCore(id, kind, flowId, value, collector, timestamp);
     }
 
     private void WriteCore(
@@ -95,7 +96,7 @@ internal sealed class ThreadWriter
         if (!ShouldSample(id, collector))
             return;
 
-        var now = timestamp != 0 ? timestamp : Timestamp.Now();
+        var now = timestamp != 0 ? Math.Max(timestamp, _lastTimestamp) : Timestamp.Now();
         if (!ShouldAcceptRate(now, collector))
             return;
 
@@ -105,7 +106,8 @@ internal sealed class ThreadWriter
             if (chunk is not null)
                 collector.MarkChunkInactive(chunk);
 
-            if (!collector.TryRentChunk(out chunk) || chunk is null)
+            chunk = Rent(collector);
+            if (chunk is null)
             {
                 collector.RecordDroppedEvent(OverflowReason.MaxTotalChunks);
                 return;
@@ -117,7 +119,18 @@ internal sealed class ThreadWriter
         if (!collector.TryAcceptEvent())
             return;
 
-        chunk.TryWrite(new TraceEvent(id, _ownerThreadId, now, kind, flowId, value, ++_sequence, _trackId));
+        _lastTimestamp = now;
+        if (chunk.TryWrite(new TraceEvent(id, now, kind, flowId, value)))
+            _sequence++;
+    }
+
+    private Chunk? Rent(SessionCollector collector)
+    {
+        if (!collector.TryRentChunk(out var chunk) || chunk is null)
+            return null;
+
+        chunk.Assign(_ownerThreadId, _trackId, _sequence + 1);
+        return chunk;
     }
 
     private bool ShouldSample(int id, SessionCollector collector)

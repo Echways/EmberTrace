@@ -251,6 +251,62 @@ public class AsyncScopeTests
         Assert.AreEqual(1, session.Analyze().UnmatchedBeginCount);
     }
 
+    [TestMethod]
+    [DoNotParallelize]
+    public async Task MethodScopeAsync_LeavesTheCallerInItsOwnContext()
+    {
+        const int outer = 7101;
+        const int inner = 7102;
+        const int sibling = 7103;
+
+        Tracer.Start(new SessionOptions { ChunkCapacity = 1024 });
+
+        TraceSession session;
+        try
+        {
+            await using (Tracer.ScopeAsync(outer))
+            {
+                await Traced(inner, false);
+                Tracer.Instant(sibling);
+                using (Tracer.Scope(sibling))
+                {
+                }
+
+                await Traced(inner, true);
+                using (Tracer.Scope(sibling))
+                {
+                }
+
+                await Task.WhenAll(Traced(inner, true), Traced(inner, false), Traced(inner, true));
+                using (Tracer.Scope(sibling))
+                {
+                }
+            }
+        }
+        finally
+        {
+            session = Tracer.Stop();
+        }
+
+        var events = session.SortedEvents();
+        var outerScope = events.Single(e => e.Id == outer && e.Kind == TraceEventKind.Begin).AsyncScopeId;
+        var begins = events.Where(e => e.Kind == TraceEventKind.Begin && e.Id != outer).ToList();
+
+        Assert.HasCount(8, begins);
+        Assert.IsTrue(begins.All(e => e.AsyncContextId == outerScope));
+
+        var stats = session.Analyze();
+        Assert.AreEqual(0, stats.UnmatchedBeginCount + stats.UnmatchedEndCount + stats.MismatchedEndCount);
+    }
+
+    private static async Task Traced(int id, bool yields)
+    {
+        await using var scope = Tracer.MethodScopeAsync(id);
+
+        if (yields)
+            await Task.Yield();
+    }
+
     private static CallTreeNode Child(CallTreeNode node, int id)
     {
         foreach (var c in node.Children)

@@ -7,9 +7,9 @@ public sealed class EmberTraceOptions
     public const string SectionName = "EmberTrace";
 
     public bool Enabled { get; set; } = true;
-    public int ChunkCapacity { get; set; } = 16_384;
+    public int ChunkCapacity { get; set; } = 4_096;
     public long MaxTotalEvents { get; set; }
-    public int MaxTotalChunks { get; set; } = 256;
+    public int MaxTotalChunks { get; set; } = 1_024;
     public TimeSpan MaxRetentionWindow { get; set; } = TimeSpan.FromSeconds(30);
     public OverflowPolicy OverflowPolicy { get; set; } = OverflowPolicy.DropOldest;
     public bool EnableRuntimeMetadata { get; set; } = true;

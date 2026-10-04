@@ -148,6 +148,30 @@ public class RuntimeCounterSessionTests
         StringAssert.Contains(json, "\"name\":\"Heap bytes\",\"cat\":\"Runtime\",\"ph\":\"C\"");
     }
 
+    [TestMethod]
+    public void AllCounters_WithGarbageCollections_StayOrderedAndPersist()
+    {
+        var session = RecordUntil(
+            Options(RuntimeCounters.All),
+            events =>
+            {
+                GC.Collect(0, GCCollectionMode.Forced, true);
+                return events.Count(e => e.Id == RuntimeCounterIds.GcPause) >= 6;
+            });
+
+        var sorted = session.SortedEvents();
+        var timestamps = sorted.Select(e => e.Timestamp).ToArray();
+
+        CollectionAssert.AreEqual(timestamps.Order().ToArray(), timestamps);
+        Assert.IsTrue(sorted.All(e => e.Timestamp >= session.StartTimestamp));
+
+        using var stream = new MemoryStream();
+        TraceFormat.Write(session, stream);
+        stream.Position = 0;
+
+        CollectionAssert.AreEqual(sorted, TraceFormat.Read(stream).SortedEvents());
+    }
+
     private static SessionOptions Options(RuntimeCounters counters, int[]? enabledCategoryIds = null)
     {
         return new SessionOptions

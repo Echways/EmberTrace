@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using EmberTrace.Export;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
+using EmberTrace.Tracing;
 using static EmberTrace.Export.ChromeJsonWriter;
 
 namespace EmberTrace;
@@ -77,7 +79,7 @@ public readonly struct MarkedCompleteOptions
     public string? OutputPath { get; init; }
     public bool Unique { get; init; }
     public MarkedRunningSessionMode Running { get; init; }
-    public SessionOptions? ResumeOptions { get; init; }
+    public TracingSession? Session { get; init; }
     public int Pid { get; init; }
     public string? ProcessName { get; init; }
 }
@@ -94,8 +96,7 @@ public static class TraceExport
         ArgumentNullException.ThrowIfNull(body);
 
         var resolved = ResolveTarget(name, options, line);
-        return MarkedCompleteCore(resolved.Name, resolved.Path, body, options.Running, options.ResumeOptions,
-            Pid(options), ProcessName(options));
+        return MarkedCompleteCore(resolved.Name, resolved.Path, body, options);
     }
 
     public static Task<MarkedCompleteResult> MarkedCompleteAsync(
@@ -108,8 +109,7 @@ public static class TraceExport
         ArgumentNullException.ThrowIfNull(body);
 
         var resolved = ResolveTarget(name, options, line);
-        return MarkedCompleteCoreAsync(resolved.Name, resolved.Path, body, options.Running, options.ResumeOptions,
-            Pid(options), ProcessName(options));
+        return MarkedCompleteCoreAsync(resolved.Name, resolved.Path, body, options);
     }
 
     private static (string Name, string Path) ResolveTarget(string name, MarkedCompleteOptions options, int line)
@@ -154,130 +154,26 @@ public static class TraceExport
         ChromeTraceExporter.WriteBeginEnd(session, output, meta, sortByTimestamp, pid, processName);
     }
 
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static TraceSession MarkedComplete(
-        string name,
-        string outputPath,
-        Action body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace")
-    {
-        var r = MarkedCompleteCore(name, outputPath, body, running, resumeOptions, pid, processName);
-        return r.CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static async Task<TraceSession> MarkedCompleteAsync(
-        string name,
-        string outputPath,
-        Func<Task> body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace")
-    {
-        var r = await MarkedCompleteCoreAsync(name, outputPath, body, running, resumeOptions, pid, processName)
-            .ConfigureAwait(false);
-        return r.CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static TraceSession MarkedComplete(string name, Action body)
-    {
-        var path = TraceFileNaming.DefaultTracePath(name);
-        return MarkedCompleteCore(name, path, body, MarkedRunningSessionMode.ThrowIfRunning, null, 1, "EmberTrace")
-            .CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static async Task<TraceSession> MarkedCompleteAsync(string name, Func<Task> body)
-    {
-        var path = TraceFileNaming.DefaultTracePath(name);
-        var r = await MarkedCompleteCoreAsync(name, path, body, MarkedRunningSessionMode.ThrowIfRunning, null, 1,
-            "EmberTrace").ConfigureAwait(false);
-        return r.CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static MarkedCompleteResult MarkedCompleteEx(
-        string name,
-        Action body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace")
-    {
-        var path = TraceFileNaming.DefaultTracePath(name);
-        return MarkedCompleteCore(name, path, body, running, resumeOptions, pid, processName);
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
-        string name,
-        Func<Task> body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace")
-    {
-        var path = TraceFileNaming.DefaultTracePath(name);
-        return MarkedCompleteCoreAsync(name, path, body, running, resumeOptions, pid, processName);
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static MarkedCompleteResult MarkedCompleteEx(
-        string name,
-        string outputPath,
-        Action body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace")
-    {
-        return MarkedCompleteCore(name, outputPath, body, running, resumeOptions, pid, processName);
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
-        string name,
-        string outputPath,
-        Func<Task> body,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace")
-    {
-        return MarkedCompleteCoreAsync(name, outputPath, body, running, resumeOptions, pid, processName);
-    }
-
     private static MarkedCompleteResult MarkedCompleteCore(
         string name,
         string outputPath,
         Action body,
-        MarkedRunningSessionMode running,
-        SessionOptions? resumeOptions,
-        int pid,
-        string processName)
+        MarkedCompleteOptions options)
     {
-        ArgumentNullException.ThrowIfNull(name);
-        ArgumentNullException.ThrowIfNull(outputPath);
-        ArgumentNullException.ThrowIfNull(body);
-
-        var resume = RequireSliceable(running);
+        var target = new MarkedTarget(options.Session);
+        var attached = RequireSliceable(target, options.Running);
         var markerId = Tracer.Id(name);
 
         TraceFileNaming.EnsureDirectory(outputPath);
 
-        if (!resume)
-            Tracer.Start();
+        if (!attached)
+            target.Start();
 
-        TraceSession session;
+        var started = Stopwatch.GetTimestamp();
         Exception? error = null;
         try
         {
-            using (Tracer.Scope(markerId))
+            using (target.Scope(markerId))
             {
                 body();
             }
@@ -286,46 +182,30 @@ public static class TraceExport
         {
             error = ex;
         }
-        finally
-        {
-            session = Tracer.Stop();
-        }
 
-        var window = WriteSlice(session, outputPath, markerId, name, pid, processName, resume, resumeOptions,
-            ref error);
-
-        if (error is not null)
-            ExceptionDispatchInfo.Capture(error).Throw();
-
-        return new MarkedCompleteResult(name, markerId, outputPath, session, window.MinTs, window.MaxTs);
+        return Finish(target.Capture(attached, started), name, outputPath, markerId, options, error);
     }
 
     private static async Task<MarkedCompleteResult> MarkedCompleteCoreAsync(
         string name,
         string outputPath,
         Func<Task> body,
-        MarkedRunningSessionMode running,
-        SessionOptions? resumeOptions,
-        int pid,
-        string processName)
+        MarkedCompleteOptions options)
     {
-        ArgumentNullException.ThrowIfNull(name);
-        ArgumentNullException.ThrowIfNull(outputPath);
-        ArgumentNullException.ThrowIfNull(body);
-
-        var resume = RequireSliceable(running);
+        var target = new MarkedTarget(options.Session);
+        var attached = RequireSliceable(target, options.Running);
         var markerId = Tracer.Id(name);
 
         TraceFileNaming.EnsureDirectory(outputPath);
 
-        if (!resume)
-            Tracer.Start();
+        if (!attached)
+            target.Start();
 
-        TraceSession session;
+        var started = Stopwatch.GetTimestamp();
         Exception? error = null;
         try
         {
-            await using (Tracer.ScopeAsync(markerId))
+            await using (target.ScopeAsync(markerId))
             {
                 await body().ConfigureAwait(false);
             }
@@ -334,23 +214,13 @@ public static class TraceExport
         {
             error = ex;
         }
-        finally
-        {
-            session = Tracer.Stop();
-        }
 
-        var window = WriteSlice(session, outputPath, markerId, name, pid, processName, resume, resumeOptions,
-            ref error);
-
-        if (error is not null)
-            ExceptionDispatchInfo.Capture(error).Throw();
-
-        return new MarkedCompleteResult(name, markerId, outputPath, session, window.MinTs, window.MaxTs);
+        return Finish(target.Capture(attached, started), name, outputPath, markerId, options, error);
     }
 
-    private static bool RequireSliceable(MarkedRunningSessionMode running)
+    private static bool RequireSliceable(MarkedTarget target, MarkedRunningSessionMode running)
     {
-        if (!Tracer.IsRunning)
+        if (!target.IsRunning)
             return false;
 
         if (running == MarkedRunningSessionMode.ThrowIfRunning)
@@ -359,16 +229,13 @@ public static class TraceExport
         return true;
     }
 
-    private static (long MinTs, long MaxTs) WriteSlice(
+    private static MarkedCompleteResult Finish(
         TraceSession session,
+        string name,
         string outputPath,
         int markerId,
-        string name,
-        int pid,
-        string processName,
-        bool resume,
-        SessionOptions? resumeOptions,
-        ref Exception? error)
+        MarkedCompleteOptions options,
+        Exception? error)
     {
         var window = FindMarkerWindow(session, markerId);
 
@@ -376,161 +243,52 @@ public static class TraceExport
         {
             using var fs = File.Create(outputPath);
             var meta = CreateOverlayMeta(session.Metadata, markerId, name);
-            WriteChromeCompleteSlice(session, fs, meta, window.MinTs, window.MaxTs, pid, processName, markerId, name);
+            WriteChromeCompleteSlice(session, fs, meta, window.MinTs, window.MaxTs, Pid(options),
+                ProcessName(options), markerId, name);
         }
         catch (Exception ex)
         {
             error ??= ex;
         }
-        finally
+
+        if (error is not null)
+            ExceptionDispatchInfo.Capture(error).Throw();
+
+        return new MarkedCompleteResult(name, markerId, outputPath, session, window.MinTs, window.MaxTs);
+    }
+
+    private readonly struct MarkedTarget(TracingSession? session)
+    {
+        private static readonly TimeSpan SliceMargin = TimeSpan.FromSeconds(1);
+
+        public bool IsRunning => session?.IsRunning ?? Tracer.IsRunning;
+
+        public void Start()
         {
-            if (resume)
-                Tracer.Start(resumeOptions ?? session.Options);
+            if (session is null)
+                Tracer.Start();
+            else
+                session.Start();
         }
 
-        return window;
-    }
+        public Scope Scope(int id)
+        {
+            return session is null ? Tracer.Scope(id) : session.Scope(id);
+        }
 
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static MarkedCompleteResult MarkedCompleteEx(
-        Action body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null)
-    {
-        var name = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        return MarkedCompleteCore(name, path, body, running, resumeOptions, pid, processName);
-    }
+        public AsyncScope ScopeAsync(int id)
+        {
+            return session is null ? Tracer.ScopeAsync(id) : session.ScopeAsync(id);
+        }
 
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static Task<MarkedCompleteResult> MarkedCompleteExAsync(
-        Func<Task> body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null)
-    {
-        var name = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        return MarkedCompleteCoreAsync(name, path, body, running, resumeOptions, pid, processName);
-    }
+        public TraceSession Capture(bool attached, long started)
+        {
+            if (!attached)
+                return session is null ? Tracer.Stop() : session.Stop();
 
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static TraceSession MarkedComplete(
-        Action body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null)
-    {
-        var name = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        return MarkedCompleteCore(name, path, body, running, resumeOptions, pid, processName)
-            .CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static async Task<TraceSession> MarkedCompleteAsync(
-        Func<Task> body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null)
-    {
-        var name = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        var r = await MarkedCompleteCoreAsync(name, path, body, running, resumeOptions, pid, processName)
-            .ConfigureAwait(false);
-        return r.CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static MarkedCompleteResult MarkedCompleteExUnique(
-        Action body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null,
-        [CallerLineNumber] int line = 0)
-    {
-        var baseName = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var name = $"{baseName}_L{line}";
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        return MarkedCompleteCore(name, path, body, running, resumeOptions, pid, processName);
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static Task<MarkedCompleteResult> MarkedCompleteExUniqueAsync(
-        Func<Task> body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null,
-        [CallerLineNumber] int line = 0)
-    {
-        var baseName = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var name = $"{baseName}_L{line}";
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        return MarkedCompleteCoreAsync(name, path, body, running, resumeOptions, pid, processName);
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static TraceSession MarkedCompleteUnique(
-        Action body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null,
-        [CallerLineNumber] int line = 0)
-    {
-        var baseName = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var name = $"{baseName}_L{line}";
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        return MarkedCompleteCore(name, path, body, running, resumeOptions, pid, processName)
-            .CapturedSession;
-    }
-
-    [Obsolete("Use MarkedComplete(name, body, options) instead.")]
-    public static async Task<TraceSession> MarkedCompleteUniqueAsync(
-        Func<Task> body,
-        string? tag = null,
-        MarkedRunningSessionMode running = MarkedRunningSessionMode.ThrowIfRunning,
-        SessionOptions? resumeOptions = null,
-        int pid = 1,
-        string processName = "EmberTrace",
-        string? outputPath = null,
-        [CallerMemberName] string? caller = null,
-        [CallerLineNumber] int line = 0)
-    {
-        var baseName = TraceFileNaming.MakeNameFromCaller(caller, tag);
-        var name = $"{baseName}_L{line}";
-        var path = string.IsNullOrWhiteSpace(outputPath) ? TraceFileNaming.DefaultTracePath(name) : outputPath;
-        var r = await MarkedCompleteCoreAsync(name, path, body, running, resumeOptions, pid, processName)
-            .ConfigureAwait(false);
-        return r.CapturedSession;
+            var window = Stopwatch.GetElapsedTime(started) + SliceMargin;
+            return session is null ? Tracer.Snapshot(window) : session.Snapshot(window);
+        }
     }
 
     private static ITraceMetadataProvider CreateOverlayMeta(ITraceMetadataProvider baseMeta, int markerId, string name)

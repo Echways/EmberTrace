@@ -4,8 +4,10 @@
 
 **EmberTrace** is a fast in-process tracer/profiler for .NET with minimal overhead on the hot path:
 
-- **Allocation-free Begin/End** with a lock-free hot path (thread-local buffers; shared session state is touched only on
-  chunk rotation and when a limit is configured)
+- **Allocation-free `Scope`, `Instant`, `Counter` and `FlowStart`/`FlowStep`/`FlowEnd`** with a lock-free hot path (thread-local
+  buffers; shared session state is touched only on chunk rotation and when a limit is configured).
+  `ScopeAsync` allocates about 224 bytes per scope to flow its parent through `await`; a generated `[Trace]`
+  async method pays about half of that
 - **Flows** for links between threads and `async/await`
 - **Offline analysis** after stopping a session (aggregations + reports)
 - **Export to Chrome Trace** (for `chrome://tracing` / Perfetto)

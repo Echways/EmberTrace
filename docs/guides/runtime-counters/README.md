@@ -60,8 +60,14 @@ alone, so a category allowlist cannot silently discard counters you explicitly a
 ## GC pause accuracy
 
 `GCMemoryInfo` reports a pause duration but no absolute start time, so a pause span is drawn as ending at the
-sample that observed it. Placement is therefore accurate only to the sampling interval; the duration is exact.
-Tighten `RuntimeCounterInterval` for better placement, at the cost of more samples.
+sample that observed it. Placement is therefore accurate only to the sampling interval; the duration is exact
+as long as the pause is shorter than that interval. Tighten `RuntimeCounterInterval` for better placement, at
+the cost of more samples.
+
+A pause is drawn as a span that ends at the sample which observed it and never starts before
+the previous sample. The runtime reports only the duration of the latest collection, so the
+span shows *how long*, and *in which sampling interval* — not the exact instant. A collection
+that finished before the session started is not drawn.
 
 ## Cost
 

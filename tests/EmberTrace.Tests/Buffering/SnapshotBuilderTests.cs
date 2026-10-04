@@ -10,14 +10,14 @@ public class SnapshotBuilderTests
     public void Copy_DetachesEventsFromTheLiveChunk()
     {
         var chunk = new Chunk(4);
-        chunk.TryWrite(new TraceEvent(1, 10, 100, TraceEventKind.Instant, 0, 0, 1, 10));
-        chunk.TryWrite(new TraceEvent(2, 10, 200, TraceEventKind.Instant, 0, 0, 2, 10));
+        chunk.TryWrite(new TraceEvent(1, 100, TraceEventKind.Instant, 0, 0));
+        chunk.TryWrite(new TraceEvent(2, 200, TraceEventKind.Instant, 0, 0));
 
         var captures = new[] { new ChunkCapture(chunk, chunk.Version, chunk.Count) };
         var copied = SnapshotBuilder.Copy(captures, 0, out var discarded);
 
         chunk.Reset();
-        chunk.TryWrite(new TraceEvent(99, 10, 300, TraceEventKind.Instant, 0, 0, 3, 10));
+        chunk.TryWrite(new TraceEvent(99, 300, TraceEventKind.Instant, 0, 0));
 
         Assert.AreEqual(0, discarded);
         Assert.HasCount(1, copied);
@@ -42,7 +42,7 @@ public class SnapshotBuilderTests
     {
         var chunk = new Chunk(8);
         for (var i = 0; i < 5; i++)
-            chunk.TryWrite(new TraceEvent(i, 10, 100 + i, TraceEventKind.Instant, 0, 0, i, 10));
+            chunk.TryWrite(new TraceEvent(i, 100 + i, TraceEventKind.Instant, 0, 0));
 
         var captures = new[] { new ChunkCapture(chunk, chunk.Version, 3) };
 
@@ -55,9 +55,9 @@ public class SnapshotBuilderTests
     public void Copy_WithWindow_KeepsOnlyEventsAtOrAfterTheCutoff()
     {
         var chunk = new Chunk(8);
-        chunk.TryWrite(new TraceEvent(1, 10, 100, TraceEventKind.Instant, 0, 0, 1, 10));
-        chunk.TryWrite(new TraceEvent(2, 10, 200, TraceEventKind.Instant, 0, 0, 2, 10));
-        chunk.TryWrite(new TraceEvent(3, 10, 300, TraceEventKind.Instant, 0, 0, 3, 10));
+        chunk.TryWrite(new TraceEvent(1, 100, TraceEventKind.Instant, 0, 0));
+        chunk.TryWrite(new TraceEvent(2, 200, TraceEventKind.Instant, 0, 0));
+        chunk.TryWrite(new TraceEvent(3, 300, TraceEventKind.Instant, 0, 0));
 
         var captures = new[] { new ChunkCapture(chunk, chunk.Version, chunk.Count) };
         var copied = SnapshotBuilder.Copy(captures, 200, out _);
@@ -72,7 +72,7 @@ public class SnapshotBuilderTests
     public void Copy_WithWindow_DropsChunksThatFallEntirelyBeforeTheCutoff()
     {
         var chunk = new Chunk(4);
-        chunk.TryWrite(new TraceEvent(1, 10, 100, TraceEventKind.Instant, 0, 0, 1, 10));
+        chunk.TryWrite(new TraceEvent(1, 100, TraceEventKind.Instant, 0, 0));
 
         var captures = new[] { new ChunkCapture(chunk, chunk.Version, chunk.Count) };
         var copied = SnapshotBuilder.Copy(captures, 500, out var discarded);
@@ -85,7 +85,7 @@ public class SnapshotBuilderTests
     public void Copy_DiscardsChunksRecycledUnderneathTheCopy()
     {
         var chunk = new Chunk(4);
-        chunk.TryWrite(new TraceEvent(1, 10, 100, TraceEventKind.Instant, 0, 0, 1, 10));
+        chunk.TryWrite(new TraceEvent(1, 100, TraceEventKind.Instant, 0, 0));
 
         var captures = new[] { new ChunkCapture(chunk, chunk.Version - 1, chunk.Count) };
         var copied = SnapshotBuilder.Copy(captures, 0, out var discarded);
@@ -154,14 +154,41 @@ public class SnapshotBuilderTests
     }
 
     [TestMethod]
+    public void TraceEvent_IsHalfACacheLine()
+    {
+        Assert.AreEqual(32, System.Runtime.CompilerServices.Unsafe.SizeOf<TraceEvent>());
+    }
+
+    [TestMethod]
+    public void Copy_WithAWindow_KeepsTheThreadTrackAndSequenceOfTheSurvivors()
+    {
+        var chunk = new Chunk(8);
+        chunk.Assign(7, 3, 41);
+        for (var i = 0; i < 5; i++)
+            chunk.TryWrite(new TraceEvent(i, 100 + i * 100, TraceEventKind.Instant, 0, 0));
+
+        var captures = new[] { new ChunkCapture(chunk, chunk.Version, chunk.Count) };
+        var copied = SnapshotBuilder.Copy(captures, 300, out _).Single();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new TraceEventRecord(2, 7, 300, TraceEventKind.Instant, 0, 0, 43, 3),
+                new TraceEventRecord(3, 7, 400, TraceEventKind.Instant, 0, 0, 44, 3),
+                new TraceEventRecord(4, 7, 500, TraceEventKind.Instant, 0, 0, 45, 3)
+            },
+            Enumerable.Range(0, copied.Count).Select(copied.RecordAt).ToArray());
+    }
+
+    [TestMethod]
     public void HandOver_KeepsFullChunks_TrimsPartialOnes_DropsEmptyOnes()
     {
         var full = new Chunk(4);
         for (var i = 0; i < 4; i++)
-            full.TryWrite(new TraceEvent(1, 1, i, TraceEventKind.Instant, 0, 0));
+            full.TryWrite(new TraceEvent(1, i, TraceEventKind.Instant, 0, 0));
 
         var partial = new Chunk(4);
-        partial.TryWrite(new TraceEvent(2, 1, 9, TraceEventKind.Instant, 0, 0));
+        partial.TryWrite(new TraceEvent(2, 9, TraceEventKind.Instant, 0, 0));
 
         var handedOver = SnapshotBuilder.HandOver([full, partial, new Chunk(4)]);
 

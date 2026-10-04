@@ -39,10 +39,11 @@ internal static class SnapshotBuilder
 
         foreach (var chunk in chunks)
         {
-            if (chunk.Count == 0)
+            var count = Volatile.Read(ref chunk.Count);
+            if (count == 0)
                 continue;
 
-            result.Add(chunk.IsFull ? chunk : CopyAll(chunk, chunk.Count));
+            result.Add(count == chunk.Events.Length ? chunk : CopyAll(chunk, count));
         }
 
         return result.ToArray();
@@ -50,33 +51,29 @@ internal static class SnapshotBuilder
 
     private static Chunk CopyAll(Chunk source, int count)
     {
-        var copy = new Chunk(count);
-        Array.Copy(source.Events, copy.Events, count);
-        copy.Count = count;
-        return copy;
+        return source.Slice(0, count);
     }
 
     private static Chunk? CopyWindow(Chunk source, int count, long minTimestamp)
     {
-        var kept = 0;
-        for (var i = 0; i < count; i++)
-            if (source.Events[i].Timestamp >= minTimestamp)
-                kept++;
+        var first = FirstAtOrAfter(source.Events, count, minTimestamp);
+        return first == count ? null : source.Slice(first, count - first);
+    }
 
-        if (kept == 0)
-            return null;
+    private static int FirstAtOrAfter(TraceEvent[] events, int count, long minTimestamp)
+    {
+        var low = 0;
+        var high = count;
 
-        var copy = new Chunk(kept);
-        var target = 0;
-
-        for (var i = 0; i < count; i++)
+        while (low < high)
         {
-            var e = source.Events[i];
-            if (e.Timestamp >= minTimestamp)
-                copy.Events[target++] = e;
+            var middle = low + (high - low) / 2;
+            if (events[middle].Timestamp < minTimestamp)
+                low = middle + 1;
+            else
+                high = middle;
         }
 
-        copy.Count = kept;
-        return copy;
+        return low;
     }
 }

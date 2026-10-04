@@ -88,33 +88,66 @@ public class MarkedCompleteTests
     }
 
     [TestMethod]
-    public void MarkedComplete_SliceAndResume_SlicesTheRunningSessionAndResumesWithItsOptions()
+    public void MarkedComplete_SliceAndResume_SlicesTheRunningSessionWithoutInterruptingIt()
     {
         var before = Tracer.Id("MarkedCompleteTests.Before");
+        var inside = Tracer.Id("MarkedCompleteTests.Inside");
         Tracer.Start(new SessionOptions { ChunkCapacity = 4242 });
         Tracer.Instant(before);
 
-        var result = TraceExport.MarkedComplete("revision", static () => { },
+        var result = TraceExport.MarkedComplete("revision", () => Tracer.Instant(inside),
             new MarkedCompleteOptions { OutputPath = OutputPath, Running = MarkedRunningSessionMode.SliceAndResume });
 
         Assert.IsTrue(Tracer.IsRunning);
-        Assert.AreEqual(4242, Tracer.Stop().Options.ChunkCapacity);
-        Assert.IsTrue(result.CapturedSession.Events().Any(e => e.Id == before));
-        Assert.IsFalse(result.EnumerateSliceEvents().Any());
+        Assert.IsTrue(result.CapturedSession.IsSnapshot);
+        Assert.AreEqual(inside, result.EnumerateSliceEvents().Single().Id);
+
+        var session = Tracer.Stop();
+
+        Assert.AreEqual(4242, session.Options.ChunkCapacity);
+        CollectionAssert.AreEqual(
+            new[] { before, result.MarkerId, inside, result.MarkerId },
+            session.SortedEvents().Select(e => e.Id).ToArray());
     }
 
     [TestMethod]
-    public void MarkedComplete_SliceAndResume_ResumesEvenWhenTheSliceCannotBeWritten()
+    public void MarkedComplete_SliceAndResume_KeepsTheSessionWhenTheSliceCannotBeWritten()
     {
+        var before = Tracer.Id("MarkedCompleteTests.Before");
         Directory.CreateDirectory(OutputPath);
-        Tracer.Start(new SessionOptions { ChunkCapacity = 4242 });
+        Tracer.Start();
+        Tracer.Instant(before);
 
         Assert.ThrowsExactly<UnauthorizedAccessException>(() =>
             TraceExport.MarkedComplete("revision", static () => { },
                 new MarkedCompleteOptions { OutputPath = OutputPath, Running = MarkedRunningSessionMode.SliceAndResume }));
 
         Assert.IsTrue(Tracer.IsRunning);
-        Assert.AreEqual(4242, Tracer.Stop().Options.ChunkCapacity);
+        Assert.IsTrue(Tracer.Stop().Events().Any(e => e.Id == before));
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void MarkedComplete_WithASession_UsesItAndLeavesTheGlobalTracerAlone(bool running)
+    {
+        var inside = Tracer.Id("MarkedCompleteTests.Private");
+        using var tracing = new TracingSession();
+        if (running)
+            tracing.Start();
+
+        var result = TraceExport.MarkedComplete("revision", () => tracing.Instant(inside),
+            new MarkedCompleteOptions
+            {
+                OutputPath = OutputPath,
+                Session = tracing,
+                Running = MarkedRunningSessionMode.SliceAndResume
+            });
+
+        Assert.IsFalse(Tracer.IsRunning);
+        Assert.AreEqual(running, tracing.IsRunning);
+        Assert.AreEqual(running, result.CapturedSession.IsSnapshot);
+        Assert.AreEqual(inside, result.EnumerateSliceEvents().Single().Id);
     }
 
     [TestMethod]

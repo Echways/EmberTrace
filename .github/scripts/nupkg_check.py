@@ -29,6 +29,18 @@ def read_nuspec(package: Path) -> tuple[dict[str, str], set[str]]:
     return metadata, names
 
 
+def undocumented_libraries(package: Path, names: set[str]) -> list[str]:
+    problems = []
+    with zipfile.ZipFile(package) as archive:
+        for library in sorted(n for n in names if n.startswith("lib/") and n.endswith(".dll")):
+            docs = library[: -len(".dll")] + ".xml"
+            if docs not in names:
+                problems.append(f"{library} ships without {docs}")
+            elif b"<member " not in archive.read(docs):
+                problems.append(f"{docs} documents no members")
+    return problems
+
+
 def check(package: Path, version: str | None, want_symbols: bool) -> tuple[str, list[str]]:
     try:
         metadata, names = read_nuspec(package)
@@ -56,6 +68,8 @@ def check(package: Path, version: str | None, want_symbols: bool) -> tuple[str, 
     has_library = any(n.startswith("lib/") and n.endswith(".dll") for n in names)
     if want_symbols and has_library and not package.with_suffix(".snupkg").exists():
         problems.append(f"no {package.with_suffix('.snupkg').name} beside it")
+
+    problems += undocumented_libraries(package, names)
 
     return metadata.get("version", "?"), problems
 

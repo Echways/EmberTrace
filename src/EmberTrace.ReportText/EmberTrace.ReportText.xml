@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.ReportText</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.TraceText">
+            <summary>Renders a processed trace as plain text.</summary>
+        </member>
+        <member name="M:EmberTrace.TraceText.Write(EmberTrace.Analysis.Model.ProcessedTrace,EmberTrace.Metadata.ITraceMetadataProvider,System.Int32,System.Int32,System.String,System.Double,System.Boolean)">
+            <summary>Builds a report with a session summary, the hottest scopes and a call tree per thread.</summary>
+            <param name="trace">The trace produced by <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>.</param>
+            <param name="meta">Names and categories for ids; the metadata of the trace when <see langword="null"/>.</param>
+            <param name="topHotspots">How many scopes to list, ordered by inclusive time.</param>
+            <param name="maxDepth">How many levels of the call tree to print.</param>
+            <param name="categoryFilter">When set, only scopes of this category are listed.</param>
+            <param name="minPercent">Hides scopes that take less than this share of the session, in percent.</param>
+            <param name="includePercentiles">Adds p50, p95 and p99 columns to the hotspot table.</param>
+            <returns>The report.</returns>
+        </member>
+        <member name="M:EmberTrace.TraceText.WriteCollapsedStacks(EmberTrace.Analysis.Model.ProcessedTrace,System.IO.TextWriter,EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Writes the call tree as collapsed stacks, one <c>frame;frame;frame microseconds</c> line per path, the input of flame graph tools.</summary>
+            <param name="trace">The trace to render.</param>
+            <param name="output">The writer that receives the lines.</param>
+            <param name="meta">Names for ids; the metadata of the trace when <see langword="null"/>.</param>
+        </member>
+    </members>
+</doc>

@@ -13,8 +13,8 @@ public sealed class SessionOptionsFactoryTests
 
         Assert.AreEqual(OverflowPolicy.DropOldest, options.OverflowPolicy);
         Assert.AreEqual(TimeSpan.FromSeconds(30), options.MaxRetentionWindow);
-        Assert.AreEqual(256, options.MaxTotalChunks);
-        Assert.AreEqual(16_384, options.ChunkCapacity);
+        Assert.AreEqual(1_024, options.MaxTotalChunks);
+        Assert.AreEqual(4_096, options.ChunkCapacity);
         Assert.IsTrue(options.EnableRuntimeMetadata);
         Assert.IsNull(options.EnabledCategoryIds);
         Assert.IsNull(options.DisabledCategoryIds);

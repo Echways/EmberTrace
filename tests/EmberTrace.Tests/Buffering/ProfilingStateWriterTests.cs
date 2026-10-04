@@ -65,7 +65,7 @@ public class ProfilingStateWriterTests
         worker.Start();
         worker.Join();
 
-        var tracks = state.Collector.Chunks.Select(c => c.Events[0].TrackId).ToArray();
+        var tracks = state.Collector.Chunks.Select(c => c.TrackId).ToArray();
 
         Assert.HasCount(2, tracks);
         Assert.AreNotEqual(tracks[0], tracks[1]);
@@ -98,26 +98,41 @@ public class ProfilingStateWriterTests
         writer.Write(42, TraceEventKind.Instant, 0, 0);
         var after = Timestamp.Now();
 
-        var events = collector.Chunks.Single().Events;
+        var chunk = collector.Chunks.Single();
 
-        Assert.IsGreaterThanOrEqualTo(before, events[0].Timestamp);
-        Assert.IsLessThanOrEqualTo(after, events[1].Timestamp);
-        Assert.AreEqual(1L, events[0].Sequence);
-        Assert.AreEqual(2L, events[1].Sequence);
-        Assert.AreEqual(5, events[0].TrackId);
+        Assert.IsGreaterThanOrEqualTo(before, chunk.Events[0].Timestamp);
+        Assert.IsLessThanOrEqualTo(after, chunk.Events[1].Timestamp);
+        Assert.AreEqual(1L, chunk.SequenceAt(0));
+        Assert.AreEqual(2L, chunk.SequenceAt(1));
+        Assert.AreEqual(5, chunk.TrackId);
     }
 
     [TestMethod]
-    public void Write_AfterDrainAndDetach_IsIgnored()
+    public void Write_AfterDetach_IsIgnored()
     {
         var collector = Collectors.Create(capacity: 1024);
         var writer = new ThreadWriter(collector, default, 1);
         writer.Write(1, TraceEventKind.Instant, 0, 0);
 
-        writer.DrainAndDetach();
+        writer.Detach();
         writer.Write(1, TraceEventKind.Instant, 0, 0);
 
         Assert.AreEqual(1, collector.Chunks.Single().Count);
+    }
+
+    [TestMethod]
+    public void WriteAt_NeverStampsAnEventBeforeThePreviousOne()
+    {
+        var collector = Collectors.Create(capacity: 1024);
+        var writer = new ThreadWriter(collector, default, 1);
+
+        writer.WriteAt(42, TraceEventKind.Instant, 0, 0, 500);
+        writer.WriteAt(42, TraceEventKind.Instant, 0, 0, 200);
+        writer.WriteAt(42, TraceEventKind.Instant, 0, 0, 700);
+
+        var events = collector.Chunks.Single().Events;
+
+        CollectionAssert.AreEqual(new[] { 500L, 500L, 700L }, events.Take(3).Select(e => e.Timestamp).ToArray());
     }
 
     private static ProfilingState CreateState()

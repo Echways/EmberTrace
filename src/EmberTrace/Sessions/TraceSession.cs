@@ -60,20 +60,28 @@ public sealed class TraceSession
         var capacity = Math.Max(1024, sessionOptions.ChunkCapacity);
 
         var chunks = new List<Chunk>();
-        var current = new Chunk(capacity);
-        chunks.Add(current);
+        var runs = new Dictionary<int, ChunkRun>();
 
         foreach (var e in events)
         {
-            if (current.IsFull)
+            if (!runs.TryGetValue(e.TrackId, out var run))
             {
-                current = new Chunk(capacity);
-                chunks.Add(current);
+                run = new ChunkRun(e.ThreadId, e.TrackId);
+                runs.Add(e.TrackId, run);
             }
 
-            current.TryWrite(new TraceEvent(
-                e.Id, e.ThreadId, e.Timestamp, e.Kind, e.FlowId, e.Value, e.Sequence, e.TrackId));
+            if (!run.Accepts(e, capacity))
+            {
+                chunks.Add(run.Seal());
+                run = new ChunkRun(e.ThreadId, e.TrackId);
+                runs[e.TrackId] = run;
+            }
+
+            run.Add(e);
         }
+
+        foreach (var run in runs.Values)
+            chunks.Add(run.Seal());
 
         return new TraceSession(
             chunks,
@@ -149,26 +157,17 @@ public sealed class TraceSession
             private int _chunkIndex;
             private int _eventIndex;
             private Chunk? _chunk;
-            private TraceEvent _current;
 
             internal Enumerator(IReadOnlyList<Chunk> chunks)
             {
                 _chunks = chunks;
                 _chunkIndex = -1;
-                _eventIndex = 0;
+                _eventIndex = -1;
                 _chunk = null;
-                _current = default;
+                Current = default;
             }
 
-            public TraceEventRecord Current => new(
-                _current.Id,
-                _current.ThreadId,
-                _current.Timestamp,
-                _current.Kind,
-                _current.FlowId,
-                _current.Value,
-                _current.Sequence,
-                _current.TrackId);
+            public TraceEventRecord Current { get; private set; }
 
             public bool MoveNext()
             {
@@ -181,16 +180,16 @@ public sealed class TraceSession
                             return false;
 
                         _chunk = _chunks[_chunkIndex];
-                        _eventIndex = 0;
+                        _eventIndex = -1;
                     }
 
-                    if (_eventIndex >= _chunk.Count)
+                    if (++_eventIndex >= _chunk.Count)
                     {
                         _chunk = null;
                         continue;
                     }
 
-                    _current = _chunk.Events[_eventIndex++];
+                    Current = _chunk.RecordAt(_eventIndex);
                     return true;
                 }
             }
@@ -214,88 +213,82 @@ public sealed class TraceSession
         public struct Enumerator
         {
             private readonly PriorityQueue<Cursor, EventKey> _queue;
-            private TraceEvent _current;
 
             internal Enumerator(IReadOnlyList<Chunk> chunks)
             {
                 _queue = new PriorityQueue<Cursor, EventKey>(chunks.Count);
-                _current = default;
+                Current = default;
 
                 for (var i = 0; i < chunks.Count; i++)
-                {
-                    var chunk = chunks[i];
-                    if (chunk.Count == 0)
-                        continue;
-
-                    var ev = chunk.Events[0];
-                    _queue.Enqueue(new Cursor(chunk, 0, ev), new EventKey(ev));
-                }
+                    if (chunks[i].Count > 0)
+                        Enqueue(chunks[i], 0);
             }
 
-            public TraceEventRecord Current => new(
-                _current.Id,
-                _current.ThreadId,
-                _current.Timestamp,
-                _current.Kind,
-                _current.FlowId,
-                _current.Value,
-                _current.Sequence,
-                _current.TrackId);
+            public TraceEventRecord Current { get; private set; }
 
             public bool MoveNext()
             {
-                if (_queue.Count == 0)
+                if (!_queue.TryDequeue(out var cursor, out _))
                     return false;
 
-                _queue.TryDequeue(out var cursor, out _);
-                _current = cursor.Event;
+                Current = cursor.Chunk.RecordAt(cursor.Index);
 
-                var nextIndex = cursor.Index + 1;
-                if (nextIndex < cursor.Chunk.Count)
-                {
-                    var ev = cursor.Chunk.Events[nextIndex];
-                    _queue.Enqueue(new Cursor(cursor.Chunk, nextIndex, ev), new EventKey(ev));
-                }
+                var next = cursor.Index + 1;
+                if (next < cursor.Chunk.Count)
+                    Enqueue(cursor.Chunk, next);
 
                 return true;
             }
-        }
 
-        private readonly struct Cursor
-        {
-            public readonly Chunk Chunk;
-            public readonly int Index;
-            public readonly TraceEvent Event;
-
-            public Cursor(Chunk chunk, int index, in TraceEvent ev)
+            private readonly void Enqueue(Chunk chunk, int index)
             {
-                Chunk = chunk;
-                Index = index;
-                Event = ev;
+                _queue.Enqueue(
+                    new Cursor(chunk, index),
+                    new EventKey(chunk.Events[index].Timestamp, chunk.TrackId, chunk.SequenceAt(index)));
             }
         }
 
-        private readonly struct EventKey : IComparable<EventKey>
+        private readonly record struct Cursor(Chunk Chunk, int Index);
+
+        private readonly record struct EventKey(long Timestamp, int TrackId, long Sequence) : IComparable<EventKey>
         {
-            private readonly long _timestamp;
-            private readonly int _trackId;
-            private readonly long _sequence;
-
-            public EventKey(in TraceEvent ev)
-            {
-                _timestamp = ev.Timestamp;
-                _trackId = ev.TrackId;
-                _sequence = ev.Sequence;
-            }
-
             public int CompareTo(EventKey other)
             {
-                var c = _timestamp.CompareTo(other._timestamp);
+                var c = Timestamp.CompareTo(other.Timestamp);
                 if (c != 0) return c;
-                c = _trackId.CompareTo(other._trackId);
-                if (c != 0) return c;
-                return _sequence.CompareTo(other._sequence);
+                c = TrackId.CompareTo(other.TrackId);
+                return c != 0 ? c : Sequence.CompareTo(other.Sequence);
             }
+        }
+    }
+
+    private sealed class ChunkRun(int threadId, int trackId)
+    {
+        private readonly List<TraceEvent> _events = [];
+        private readonly List<long> _sequences = [];
+        private bool _consecutive = true;
+        private long _lastTimestamp = long.MinValue;
+
+        public bool Accepts(in TraceEventRecord e, int capacity)
+        {
+            return _events.Count < capacity && e.ThreadId == threadId && e.Timestamp >= _lastTimestamp;
+        }
+
+        public void Add(in TraceEventRecord e)
+        {
+            if (_sequences.Count > 0 && e.Sequence != _sequences[^1] + 1)
+                _consecutive = false;
+
+            _events.Add(new TraceEvent(e.Id, e.Timestamp, e.Kind, e.FlowId, e.Value));
+            _sequences.Add(e.Sequence);
+            _lastTimestamp = e.Timestamp;
+        }
+
+        public Chunk Seal()
+        {
+            return _consecutive
+                ? new Chunk(_events.ToArray(), threadId, trackId, _sequences[0])
+                : new Chunk(_events.ToArray(), threadId, trackId, 0, _sequences.ToArray());
         }
     }
 }

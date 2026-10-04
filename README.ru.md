@@ -3,7 +3,10 @@ English version: [./README.md](./README.md)
 # EmberTrace
 
 **EmberTrace** — быстрый *in-process* tracer/profiler для .NET с минимальной нагрузкой на горячем пути:
-- **Begin/End без аллокаций** и lock-free горячий путь (thread-local буферы; общее состояние сессии затрагивается только при ротации чанка и при заданном лимите)
+- **`Scope`, `Instant`, `Counter` и `FlowStart`/`FlowStep`/`FlowEnd` без аллокаций** и lock-free горячий путь (thread-local буферы;
+  общее состояние сессии затрагивается только при ротации чанка и при заданном лимите). `ScopeAsync`
+  аллоцирует около 224 байт на scope, чтобы пронести родителя через `await`; сгенерированный `[Trace]`
+  async-метод платит примерно половину
 - **Flows** для связей между потоками и `async/await`
 - **Offline-анализ** после остановки сессии (агрегации + отчёты)
 - **Экспорт в Chrome Trace** (для `chrome://tracing` / Perfetto)

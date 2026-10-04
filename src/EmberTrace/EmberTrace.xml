@@ -1,0 +1,945 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.ActivityBridge.ActivityBridge">
+            <summary>Derives flow ids from <see cref="T:System.Diagnostics.Activity"/> trace ids, so that EmberTrace flows line up with distributed traces.</summary>
+        </member>
+        <member name="M:EmberTrace.ActivityBridge.ActivityBridge.FlowIdFromTraceId(System.Diagnostics.ActivityTraceId)">
+            <summary>Returns the flow id of a W3C trace id.</summary>
+            <param name="traceId">The trace id.</param>
+            <returns>A positive hash of the trace id, the same for every caller.</returns>
+        </member>
+        <member name="M:EmberTrace.ActivityBridge.ActivityBridge.FlowIdFromTraceId(System.String)">
+            <summary>Returns the flow id of a W3C trace id given as lowercase hexadecimal text.</summary>
+            <param name="traceId">The trace id, as <c>Activity.TraceId.ToHexString()</c> prints it.</param>
+            <returns>A positive hash of the text, or <c>0</c> when it is <see langword="null"/> or blank.</returns>
+        </member>
+        <member name="M:EmberTrace.ActivityBridge.ActivityBridge.TryGetCurrentFlowId(System.Int64@)">
+            <summary>Gets the flow id of <see cref="P:System.Diagnostics.Activity.Current"/>.</summary>
+            <param name="flowId">The flow id, or <c>0</c>.</param>
+            <returns><see langword="true"/> when there is a current activity in the W3C id format.</returns>
+        </member>
+        <member name="T:EmberTrace.AsyncScope">
+            <summary>An open scope that can be closed on a different thread than the one that opened it. Returned by <see cref="M:EmberTrace.Tracer.ScopeAsync(System.Int32)"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.AsyncScope.DisposeAsync">
+            <summary>Closes the scope and makes its parent the current async scope again.</summary>
+            <returns>A completed task; the call never suspends.</returns>
+        </member>
+        <member name="T:EmberTrace.Flow.FlowHandle">
+            <summary>A started flow that can be handed to other threads. It ends once, however many threads try.</summary>
+        </member>
+        <member name="M:EmberTrace.Flow.FlowHandle.End">
+            <summary>Records the end of the flow, unless it has ended already.</summary>
+        </member>
+        <member name="M:EmberTrace.Flow.FlowHandle.Step">
+            <summary>Records a step of the flow on the current thread, unless the flow has ended.</summary>
+        </member>
+        <member name="M:EmberTrace.Flow.FlowHandle.TryEnd">
+            <summary>Records the end of the flow if no other caller has.</summary>
+            <returns><see langword="true"/> when this call ended the flow.</returns>
+        </member>
+        <member name="P:EmberTrace.Flow.FlowHandle.FlowId">
+            <summary>The flow id; <c>0</c> when the handle is not valid.</summary>
+        </member>
+        <member name="P:EmberTrace.Flow.FlowHandle.Id">
+            <summary>The id the flow events are recorded under.</summary>
+        </member>
+        <member name="P:EmberTrace.Flow.FlowHandle.IsValid">
+            <summary>Whether the handle refers to a started flow. <see langword="false"/> when it was created while no session was running.</summary>
+        </member>
+        <member name="T:EmberTrace.Flow.FlowScope">
+            <summary>A started flow that ends when disposed.</summary>
+        </member>
+        <member name="M:EmberTrace.Flow.FlowScope.Dispose">
+            <summary>Records the end of the flow, unless it has ended or was handed over with <see cref="M:EmberTrace.Flow.FlowScope.ToHandle"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.Flow.FlowScope.Step">
+            <summary>Records a step of the flow on the current thread, unless the flow has ended.</summary>
+        </member>
+        <member name="M:EmberTrace.Flow.FlowScope.ToHandle">
+            <summary>Hands the flow over to a handle that outlives this scope; disposing the scope no longer ends the flow.</summary>
+            <returns>The handle; not valid when the flow has already ended.</returns>
+        </member>
+        <member name="P:EmberTrace.Flow.FlowScope.FlowId">
+            <summary>The flow id; <c>0</c> when the scope is not valid.</summary>
+        </member>
+        <member name="P:EmberTrace.Flow.FlowScope.Id">
+            <summary>The id the flow events are recorded under.</summary>
+        </member>
+        <member name="P:EmberTrace.Flow.FlowScope.IsValid">
+            <summary>Whether the scope refers to a started flow. <see langword="false"/> when it was created while no session was running.</summary>
+        </member>
+        <member name="T:EmberTrace.Metadata.ITraceMetadataProvider">
+            <summary>A source of names and categories for trace ids. The source generator emits one per instrumented assembly.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.ITraceMetadataProvider.TryGet(System.Int32,EmberTrace.Metadata.TraceMeta@)">
+            <summary>Looks up the name and category of an id.</summary>
+            <param name="id">The trace id.</param>
+            <param name="metadata">The entry, when found.</param>
+            <returns><see langword="true"/> when the id is known.</returns>
+        </member>
+        <member name="T:EmberTrace.Metadata.TraceMeta">
+            <summary>The name and category of one trace id.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMeta.#ctor(System.Int32,System.String,System.String)">
+            <summary>Creates an entry.</summary>
+            <param name="Id">The trace id.</param>
+            <param name="Name">The name shown in reports and exports.</param>
+            <param name="Category">The category, or <see langword="null"/> for none.</param>
+        </member>
+        <member name="P:EmberTrace.Metadata.TraceMeta.Category">
+            <summary>The category, or <see langword="null"/> for none.</summary>
+        </member>
+        <member name="P:EmberTrace.Metadata.TraceMeta.Id">
+            <summary>The trace id.</summary>
+        </member>
+        <member name="P:EmberTrace.Metadata.TraceMeta.Name">
+            <summary>The name shown in reports and exports.</summary>
+        </member>
+        <member name="T:EmberTrace.Metadata.TraceMetadata">
+            <summary>The process-wide metadata of trace ids: shorthand for <see cref="P:EmberTrace.Metadata.TraceMetadataRegistry.Shared"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadata.CreateDefault">
+            <summary>Returns a provider over everything registered so far.</summary>
+            <returns>The provider; the same instance until the registrations change.</returns>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadata.FromEntries(System.Collections.Generic.IEnumerable{EmberTrace.Metadata.TraceMeta})">
+            <summary>Creates a provider from a list of entries.</summary>
+            <param name="entries">The entries; a later entry replaces an earlier one with the same id.</param>
+            <returns>The provider.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="entries"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadata.Register(EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Adds a provider to the shared registry. Generated code calls this when an instrumented assembly loads.</summary>
+            <param name="provider">The provider to add.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="provider"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadata.Reset">
+            <summary>Removes every provider from the shared registry. Meant for tests.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadata.Unregister(EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Removes a provider from the shared registry.</summary>
+            <param name="provider">The provider to remove.</param>
+            <returns><see langword="true"/> when the provider was registered.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="provider"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:EmberTrace.Metadata.TraceMetadataRegistry">
+            <summary>A set of metadata providers that a session resolves ids through. Safe for concurrent use.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadataRegistry.#ctor">
+            <summary>Creates an empty registry, for a <see cref="T:EmberTrace.TracingSession"/> with metadata of its own.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadataRegistry.Clear">
+            <summary>Removes every provider.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadataRegistry.CreateProvider">
+            <summary>Returns a provider over everything registered. A session takes it when it starts, so later registrations do not reach a running session.</summary>
+            <returns>The provider; the same instance until the registrations change.</returns>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadataRegistry.Register(EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Adds a provider. When two providers know the same id, the one registered first wins.</summary>
+            <param name="provider">The provider to add.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="provider"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadataRegistry.Unregister(EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Removes a provider.</summary>
+            <param name="provider">The provider to remove.</param>
+            <returns><see langword="true"/> when the provider was registered.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="provider"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:EmberTrace.Metadata.TraceMetadataRegistry.Shared">
+            <summary>The registry used by <see cref="T:EmberTrace.Tracer"/>, by <see cref="T:EmberTrace.Metadata.TraceMetadata"/> and by sessions created without one.</summary>
+        </member>
+        <member name="T:EmberTrace.Metadata.TraceMetadataResolution">
+            <summary>Name lookup that always produces something printable.</summary>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceMetadataResolution.Resolve(EmberTrace.Metadata.ITraceMetadataProvider,System.Int32,System.String@,System.String@)">
+            <summary>Gets the name and category of an id, falling back to the id itself.</summary>
+            <param name="meta">The provider; may be <see langword="null"/>.</param>
+            <param name="id">The trace id.</param>
+            <param name="name">The name, or the id as decimal text when the id is unknown.</param>
+            <param name="category">The category, or an empty string when there is none.</param>
+        </member>
+        <member name="T:EmberTrace.Sessions.MismatchedEndInfo">
+            <summary>An <c>End</c> event that did not match the innermost open scope of its track.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.MismatchedEndInfo.#ctor(System.Int32,System.Int32,System.Int32,System.Int64)">
+            <summary>Describes a mismatch.</summary>
+            <param name="ThreadId">The managed thread id that recorded the <c>End</c>.</param>
+            <param name="ExpectedId">The id of the innermost open scope.</param>
+            <param name="ActualId">The id of the <c>End</c> event.</param>
+            <param name="Timestamp">The time of the <c>End</c>, in ticks.</param>
+        </member>
+        <member name="P:EmberTrace.Sessions.MismatchedEndInfo.ActualId">
+            <summary>The id the <c>End</c> event carried.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.MismatchedEndInfo.ExpectedId">
+            <summary>The id of the innermost open scope, the one that should have been closed.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.MismatchedEndInfo.ThreadId">
+            <summary>The managed thread id that recorded the <c>End</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.MismatchedEndInfo.Timestamp">
+            <summary>When the <c>End</c> was recorded, in ticks.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.OverflowInfo">
+            <summary>What <see cref="P:EmberTrace.Sessions.SessionOptions.OnOverflow"/> is told when a session first hits a limit.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.OverflowInfo.#ctor(EmberTrace.Sessions.OverflowReason,EmberTrace.Sessions.OverflowPolicy)">
+            <summary>Describes an overflow.</summary>
+            <param name="Reason">The limit that was hit.</param>
+            <param name="Policy">The policy the session applies.</param>
+        </member>
+        <member name="P:EmberTrace.Sessions.OverflowInfo.Policy">
+            <summary>The policy the session applies.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.OverflowInfo.Reason">
+            <summary>The limit that was hit.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.OverflowPolicy">
+            <summary>What a session does when it reaches one of its limits.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowPolicy.Drop">
+            <summary>The former name of <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropNew"/>, kept so that existing configuration files still parse.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowPolicy.DropNew">
+            <summary>Keep what was recorded and reject new events until there is room. The default.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowPolicy.DropOldest">
+            <summary>Evict the oldest chunks to make room, so the session always holds the most recent events.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowPolicy.StopSession">
+            <summary>Stop accepting events for the rest of the session. The session still has to be stopped to get the result.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.OverflowReason">
+            <summary>The limit a session hit.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowReason.MaxTotalChunks">
+            <summary><see cref="P:EmberTrace.Sessions.SessionOptions.MaxTotalChunks"/> was reached.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowReason.MaxTotalEvents">
+            <summary><see cref="P:EmberTrace.Sessions.SessionOptions.MaxTotalEvents"/> was reached.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.OverflowReason.RateLimit">
+            <summary>A thread exceeded <see cref="P:EmberTrace.Sessions.SessionOptions.MaxEventsPerSecond"/>.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.RuntimeCounterIds">
+            <summary>The trace ids of runtime counters. They are negative, so they cannot collide with ids from <see cref="M:EmberTrace.Tracer.Id(System.String)"/>.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.AllocatedBytes">
+            <summary>Counter: bytes allocated since the previous sample.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.Category">
+            <summary>The category of every runtime counter, <c>Runtime</c>.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.Exceptions">
+            <summary>Counter: first-chance exceptions since the previous sample.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.GcGen0">
+            <summary>Counter: generation 0 collections since the previous sample.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.GcGen1">
+            <summary>Counter: generation 1 collections since the previous sample.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.GcGen2">
+            <summary>Counter: generation 2 collections since the previous sample.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.GcPause">
+            <summary>Scope: one garbage collection pause.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.HeapBytes">
+            <summary>Counter: the size of the managed heap, in bytes.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.ThreadPoolCompleted">
+            <summary>Counter: work items completed since the previous sample.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.ThreadPoolQueue">
+            <summary>Counter: work items waiting in the thread pool.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounterIds.ThreadPoolThreads">
+            <summary>Counter: threads in the thread pool.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.RuntimeCounterIds.IsReserved(System.Int32)">
+            <summary>Tells whether an id belongs to a runtime counter, to skip those events when processing your own.</summary>
+            <param name="id">The trace id.</param>
+            <returns><see langword="true"/> for a runtime counter id.</returns>
+        </member>
+        <member name="T:EmberTrace.Sessions.RuntimeCounters">
+            <summary>The groups of runtime counters a session can sample. Combine with <c>|</c>.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.All">
+            <summary>Every group.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.Exceptions">
+            <summary>First-chance exceptions thrown per interval.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.Gc">
+            <summary>Garbage collections of generation 0, 1 and 2 per interval.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.GcPauses">
+            <summary>A scope for every garbage collection pause the sampler observes, ending at the sample that saw it.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.Memory">
+            <summary>The managed heap size and the bytes allocated per interval.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.None">
+            <summary>No runtime counters; no sampling thread is started.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.RuntimeCounters.ThreadPool">
+            <summary>Thread-pool threads, queued work items, and work items completed per interval.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.ScopeReader">
+            <summary>Pairs the <c>Begin</c> and <c>End</c> events of a session into scopes with parents and durations. Analysis and every exporter are built on it.</summary>
+            <remarks>A synchronous scope is paired within its writer track and its enclosing async scope; an async scope is paired by its own id, so its two events may sit on different threads. One reader is for one enumeration.</remarks>
+        </member>
+        <member name="M:EmberTrace.Sessions.ScopeReader.#ctor(EmberTrace.Sessions.TraceSession,System.Boolean,System.Action{EmberTrace.Sessions.MismatchedEndInfo})">
+            <summary>Creates a reader over a session.</summary>
+            <param name="session">The session to read.</param>
+            <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope: <see langword="false"/> closes the scopes above the nearest matching one, <see langword="true"/> ignores the event.</param>
+            <param name="onMismatchedEnd">Called for every such <c>End</c>.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Sessions.ScopeReader.#ctor(System.Collections.Generic.IEnumerable{EmberTrace.Sessions.TraceEventRecord},System.Int64,System.Boolean,System.Action{EmberTrace.Sessions.MismatchedEndInfo})">
+            <summary>Creates a reader over events that are already in timestamp order.</summary>
+            <param name="events">The events, ordered by timestamp, then track, then sequence.</param>
+            <param name="endTimestamp">The time at which scopes still open are closed, in ticks.</param>
+            <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope: <see langword="false"/> closes the scopes above the nearest matching one, <see langword="true"/> ignores the event.</param>
+            <param name="onMismatchedEnd">Called for every such <c>End</c>.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="events"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Sessions.ScopeReader.Read">
+            <summary>Replays the events lazily as a sequence of scope openings and closings.</summary>
+            <returns>An <c>Open</c> step per <c>Begin</c> and a <c>Close</c> step per closed scope; scopes still open at the end are closed last, innermost first, as synthetic steps.</returns>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeReader.MismatchedEndCount">
+            <summary><c>End</c> events whose id differed from the innermost open scope. Final once the enumeration completes, like every counter of the reader.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeReader.ScopeEventCount">
+            <summary>The number of <c>Begin</c> and <c>End</c> events read.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeReader.TotalEventCount">
+            <summary>The number of events of every kind read.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeReader.Tracks">
+            <summary>Every writer track that recorded a scope event, with the managed thread id that wrote it.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeReader.UnmatchedBeginCount">
+            <summary>Scopes closed by the reader, not by an <c>End</c> of their own.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeReader.UnmatchedEndCount">
+            <summary><c>End</c> events that closed nothing.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.ScopeStep">
+            <summary>A scope being opened or closed, as replayed by <see cref="T:EmberTrace.Sessions.ScopeReader"/>. The opening and the closing step of one scope share their identity and their <see cref="P:EmberTrace.Sessions.ScopeStep.Tag"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.AsyncScopeId">
+            <summary>The id of an async scope; <c>0</c> for a synchronous one.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.Depth">
+            <summary>The number of ancestors of the scope; <c>0</c> for an outermost scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.DurationTicks">
+            <summary>The inclusive duration of the scope, in ticks. Meaningful on a <c>Close</c> step.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.EndThreadId">
+            <summary>The managed thread id that closed the scope. Set on a <c>Close</c> step.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.EndTimestamp">
+            <summary>When the scope was closed, in ticks; the end of the session for a synthetic close. Set on a <c>Close</c> step.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.EndTrackId">
+            <summary>The writer track that closed the scope, which differs from <see cref="P:EmberTrace.Sessions.ScopeStep.TrackId"/> when an async scope resumed elsewhere. Set on a <c>Close</c> step.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.HasParent">
+            <summary>Whether the scope was opened inside another scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.Id">
+            <summary>The trace id of the scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.Index">
+            <summary>The ordinal of the scope among all scopes of the session, in opening order.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.IsAsync">
+            <summary>Whether the scope is an async scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.IsSynthetic">
+            <summary>Whether the reader closed the scope itself, because its <c>End</c> never came or a mismatched <c>End</c> closed a scope beneath it.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.Kind">
+            <summary>Whether the scope is being opened or closed.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.ParentId">
+            <summary>The trace id of the enclosing scope, or <c>0</c> when there is none.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.ParentTag">
+            <summary>The <see cref="P:EmberTrace.Sessions.ScopeStep.Tag"/> of the enclosing scope, or <see langword="null"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.StartSequence">
+            <summary>The sequence number of the scope's <c>Begin</c> within its track.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.StartTimestamp">
+            <summary>When the scope was opened, in ticks.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.Tag">
+            <summary>A slot for the consumer's own state. Set it on the <c>Open</c> step and read it back on the <c>Close</c> step and from child scopes.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.ThreadId">
+            <summary>The managed thread id that opened the scope; for display.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.ScopeStep.TrackId">
+            <summary>The writer track that opened the scope.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.ScopeStepKind">
+            <summary>Whether a step opens or closes a scope.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.ScopeStepKind.Close">
+            <summary>The scope is closed.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.ScopeStepKind.Open">
+            <summary>The scope is opened.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.SessionOptions">
+            <summary>How a session buffers events and what it does when it runs out of room. Immutable once created.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.SessionOptions.#ctor">
+            <summary>Creates the default options: unbounded, nothing sampled or filtered.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.ChunkCapacity">
+            <summary>Events per buffer chunk. Default 4096; values below 1024 are raised to 1024.</summary>
+            <remarks>An event takes 32 bytes, so a chunk takes <c>ChunkCapacity × 32</c> bytes, 128 KB by default. Every thread that records holds at least one chunk.</remarks>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.DisabledCategoryIds">
+            <summary>Ids of categories, from <see cref="M:EmberTrace.Tracer.CategoryId(System.String)"/>, whose events are not recorded. Ignored when <see cref="P:EmberTrace.Sessions.SessionOptions.EnabledCategoryIds"/> is set. Default <see langword="null"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.EnableRuntimeMetadata">
+            <summary>Whether names remembered by <see cref="M:EmberTrace.Tracer.Id(System.String)"/> are resolvable in this session's metadata. Default <see langword="false"/>, unless the <c>EmberTrace.EnableRuntimeMetadata</c> switch is on.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.EnabledCategoryIds">
+            <summary>When not empty, only events whose id belongs to one of these categories, by <see cref="M:EmberTrace.Tracer.CategoryId(System.String)"/>, are recorded. An id without a category has category <c>0</c>. Runtime counters are never filtered. Default <see langword="null"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.MaxEventsPerSecond">
+            <summary>The most events one thread may record per second; the rest are dropped and counted. <c>0</c>, the default, means no limit.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.MaxRetentionWindow">
+            <summary>Keeps only the most recent events of this age, turning the session into a flight recorder. Zero, the default, keeps everything. Requires <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropOldest"/> and may not exceed one day.</summary>
+            <remarks>The window is applied chunk by chunk when a thread moves to a new chunk and when a snapshot is taken, so slightly older events can still be present.</remarks>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.MaxTotalChunks">
+            <summary>The most chunks the session may hold, which bounds its memory. <c>0</c>, the default, means no limit.</summary>
+            <remarks>With <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropOldest"/> a live thread is never refused a chunk, so the session may exceed the limit by up to one chunk per live thread.</remarks>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.MaxTotalEvents">
+            <summary>The most events the session may hold. <c>0</c>, the default, means no limit.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.OnMismatchedEnd">
+            <summary>Called during analysis for every <c>End</c> whose id is not the innermost open scope, which points at a scope closed out of order. Not called while recording.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.OnOverflow">
+            <summary>Called once per session, on a thread-pool thread, the first time a limit is hit. An exception it throws is swallowed.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.OverflowPolicy">
+            <summary>What happens when a limit is reached. Default <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropNew"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.RuntimeCounterInterval">
+            <summary>How often runtime counters are sampled. Default 50 ms; clamped to between 1 ms and 60 s.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.RuntimeCounters">
+            <summary>Which groups of runtime counters a background thread records into the session. Default <see cref="F:EmberTrace.Sessions.RuntimeCounters.None"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.SampleEveryNById">
+            <summary>Per-id sampling: for an id in the map, one event of every N is recorded, instead of the global rate. Entries of 1 or less are ignored. Default <see langword="null"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.SampleEveryNGlobal">
+            <summary>Records one event of every N across all threads. <c>0</c> or <c>1</c>, the default, records every event.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceEventKind">
+            <summary>The kind of a recorded event.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.Begin">
+            <summary>A scope was opened.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.Counter">
+            <summary>A counter had a value.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.End">
+            <summary>A scope was closed.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.FlowEnd">
+            <summary>A flow ended on this thread.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.FlowStart">
+            <summary>A flow started on this thread.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.FlowStep">
+            <summary>A flow passed through this thread.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.TraceEventKind.Instant">
+            <summary>Something happened at a point in time.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceEventRecord">
+            <summary>One recorded event.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceEventRecord.#ctor(System.Int32,System.Int32,System.Int64,EmberTrace.Sessions.TraceEventKind,System.Int64,System.Int64,System.Int64,System.Int32)">
+            <summary>Creates an event record.</summary>
+            <param name="Id">The trace id.</param>
+            <param name="ThreadId">The managed thread id of the writer.</param>
+            <param name="Timestamp">The time of the event, in ticks.</param>
+            <param name="Kind">The kind of event.</param>
+            <param name="FlowId">The flow id, or the async scope id of a scope event.</param>
+            <param name="Value">The counter value, or the enclosing async scope id of a scope event.</param>
+            <param name="Sequence">The position of the event among the events of its track.</param>
+            <param name="TrackId">The writer track; <c>0</c> means the thread id.</param>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.AsyncContextId">
+            <summary>For a scope event, the id of the async scope it was recorded inside; <c>0</c> when there is none or the event is not a scope event.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.AsyncScopeId">
+            <summary>For a <c>Begin</c> or <c>End</c> of an async scope, the id that pairs them across threads; <c>0</c> for a synchronous scope or any other event.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.FlowId">
+            <summary>The flow a flow event belongs to. A scope event stores its async scope id here; <c>0</c> otherwise.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.Id">
+            <summary>The trace id: what was measured.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.IsScope">
+            <summary>Whether the event is a <c>Begin</c> or an <c>End</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.Kind">
+            <summary>The kind of event.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.Sequence">
+            <summary>The position of the event among the events its track recorded, starting at 1. Breaks ties between events with the same timestamp.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.ThreadId">
+            <summary>The managed thread id of the writer. The runtime reuses these ids; group by <see cref="P:EmberTrace.Sessions.TraceEventRecord.TrackId"/> instead.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.Timestamp">
+            <summary>When the event happened, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of <see cref="P:EmberTrace.Sessions.TraceSession.TimestampFrequency"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.TrackId">
+            <summary>The writer track: one thread for the lifetime of one session, never reused.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEventRecord.Value">
+            <summary>The value of a counter event. A scope event stores the id of its enclosing async scope here; <c>0</c> otherwise.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceSession">
+            <summary>A recorded set of events: the result of stopping a session, a snapshot of a running one, or a session read from a file. Immutable and safe to read from any thread.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.EnumerateEvents">
+            <summary>Enumerates the events chunk by chunk, without allocating: each thread's events are in order, threads are not interleaved by time.</summary>
+            <returns>A struct enumerable for <c>foreach</c>.</returns>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.EnumerateEventsSorted">
+            <summary>Enumerates the events ordered by timestamp, then track, then sequence, which is the order every exporter and analyzer uses.</summary>
+            <returns>A struct enumerable for <c>foreach</c>.</returns>
+            <remarks>A merge over the chunks: it allocates one priority queue and costs a logarithm of the chunk count per event.</remarks>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.FromEvents(System.Collections.Generic.IEnumerable{EmberTrace.Sessions.TraceEventRecord},System.Int64,System.Int64,System.Int64,System.Collections.Generic.IReadOnlyDictionary{System.Int32,System.String},EmberTrace.Metadata.ITraceMetadataProvider,System.Int64,System.Int64,System.Int64,System.Boolean,EmberTrace.Sessions.SessionOptions,System.Boolean,System.Nullable{System.DateTimeOffset})">
+            <summary>Builds a session from event records, in whatever order they come. Used by the <c>.ember</c> reader and by tests.</summary>
+            <param name="events">The events.</param>
+            <param name="startTimestamp">The start of the session, in ticks.</param>
+            <param name="endTimestamp">The end of the session, in ticks.</param>
+            <param name="timestampFrequency">Ticks per second of the timestamps; <c>0</c> means <see cref="F:System.Diagnostics.Stopwatch.Frequency"/>.</param>
+            <param name="threadNames">Thread names by managed thread id.</param>
+            <param name="metadata">The names and categories of the ids.</param>
+            <param name="droppedEvents">The value of <see cref="P:EmberTrace.Sessions.TraceSession.DroppedEvents"/>.</param>
+            <param name="droppedChunks">The value of <see cref="P:EmberTrace.Sessions.TraceSession.DroppedChunks"/>.</param>
+            <param name="sampledOutEvents">The value of <see cref="P:EmberTrace.Sessions.TraceSession.SampledOutEvents"/>.</param>
+            <param name="wasOverflow">The value of <see cref="P:EmberTrace.Sessions.TraceSession.WasOverflow"/>.</param>
+            <param name="options">The value of <see cref="P:EmberTrace.Sessions.TraceSession.Options"/>; the defaults when <see langword="null"/>.</param>
+            <param name="isSnapshot">The value of <see cref="P:EmberTrace.Sessions.TraceSession.IsSnapshot"/>.</param>
+            <param name="startedAtUtc">The value of <see cref="P:EmberTrace.Sessions.TraceSession.StartedAtUtc"/>.</param>
+            <returns>The session.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="events"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.DroppedChunks">
+            <summary>Chunks evicted under <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropOldest"/> or the retention window.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.DroppedEvents">
+            <summary>Events that were rejected at a limit or evicted with their chunk.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.DurationMs">
+            <summary>The time from start to end, in milliseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.EndTimestamp">
+            <summary>When recording stopped, or when the snapshot was cut, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of <see cref="P:EmberTrace.Sessions.TraceSession.TimestampFrequency"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.EventCount">
+            <summary>The number of events the session holds.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.IsSnapshot">
+            <summary>Whether this is a copy of a session that kept running. Scopes open at the cut have a <c>Begin</c> and no <c>End</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.Metadata">
+            <summary>The names and categories of ids as they were when the session started; the shared registry for a session built without metadata.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.Options">
+            <summary>The options the session was recorded with.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.SampledOutEvents">
+            <summary>Events skipped by sampling.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.StartTimestamp">
+            <summary>When recording started, or the start of the snapshot window, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of <see cref="P:EmberTrace.Sessions.TraceSession.TimestampFrequency"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.StartedAtUtc">
+            <summary>The wall-clock time that corresponds to <see cref="P:EmberTrace.Sessions.TraceSession.StartTimestamp"/>, or <see langword="null"/> when it was not recorded.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.ThreadNames">
+            <summary>The names of the threads that had one, by managed thread id.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.TimestampFrequency">
+            <summary>Ticks per second of every timestamp in the session.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.WasOverflow">
+            <summary>Whether the session hit one of its limits.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceSession.SortedTraceEventEnumerable">
+            <summary>The events of a session in timestamp order. Returned by <see cref="M:EmberTrace.Sessions.TraceSession.EnumerateEventsSorted"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.SortedTraceEventEnumerable.GetEnumerator">
+            <summary>Starts an enumeration.</summary>
+            <returns>The enumerator.</returns>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceSession.SortedTraceEventEnumerable.Enumerator">
+            <summary>Walks the events of a session in timestamp order.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.SortedTraceEventEnumerable.Enumerator.MoveNext">
+            <summary>Advances to the next event.</summary>
+            <returns><see langword="false"/> when there are no more events.</returns>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.SortedTraceEventEnumerable.Enumerator.Current">
+            <summary>The event at the current position.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceSession.TraceEventEnumerable">
+            <summary>The events of a session in storage order. Returned by <see cref="M:EmberTrace.Sessions.TraceSession.EnumerateEvents"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.TraceEventEnumerable.GetEnumerator">
+            <summary>Starts an enumeration.</summary>
+            <returns>The enumerator.</returns>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceSession.TraceEventEnumerable.Enumerator">
+            <summary>Walks the events of a session in storage order.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceSession.TraceEventEnumerable.Enumerator.MoveNext">
+            <summary>Advances to the next event.</summary>
+            <returns><see langword="false"/> when there are no more events.</returns>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.TraceEventEnumerable.Enumerator.Current">
+            <summary>The event at the current position.</summary>
+        </member>
+        <member name="T:EmberTrace.Tracer">
+            <summary>The process-wide tracing session. Generated <c>[Trace]</c> code and the hosting integration record into it; use <see cref="T:EmberTrace.TracingSession"/> for a session of your own.</summary>
+            <remarks>Events are written to a buffer owned by the calling thread, without locks. <c>Scope</c>, <c>Instant</c>, <c>Counter</c> and the flow methods that take a flow id do not allocate. Every recording method does nothing when no session is running.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.CategoryId(System.String)">
+            <summary>Returns the id of a category name, the value category filters compare against.</summary>
+            <param name="category">The category name.</param>
+            <returns>A stable positive hash of the name; <c>0</c> for a <see langword="null"/> or blank name.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.Counter(System.Int32,System.Int64)">
+            <summary>Records a value of a counter at the current time.</summary>
+            <param name="id">The counter id.</param>
+            <param name="value">The value at this moment.</param>
+            <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.CreateMetadata">
+            <summary>Returns the names and categories known for ids: those of the running session, or the registered providers when none is running.</summary>
+            <returns>The metadata provider.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.Flow(System.Int32)">
+            <summary>Starts a new flow and returns a scope that ends it when disposed.</summary>
+            <param name="id">The id the flow events are recorded under.</param>
+            <returns>The flow; not valid, and recording nothing, when no session is running.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowEnd(EmberTrace.Flow.FlowHandle)">
+            <summary>Ends the flow of a handle; later calls on the same handle do nothing.</summary>
+            <param name="handle">The handle returned by <see cref="M:EmberTrace.Tracer.FlowStartNewHandle(System.Int32)"/>.</param>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowEnd(System.Int32,System.Int64)">
+            <summary>Records the end of a flow on the current thread.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <param name="flowId">The flow; <c>0</c> is ignored.</param>
+            <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowFromActivityCurrent(System.Int32)">
+            <summary>Records a start, a step and an end of the flow derived from the trace id of <see cref="P:System.Diagnostics.Activity.Current"/>, which ties the current thread to every other place that does the same for that activity.</summary>
+            <param name="id">The id the events are recorded under.</param>
+            <returns>The flow id, or <c>0</c> when no session is running or there is no current W3C activity.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowStart(System.Int32,System.Int64)">
+            <summary>Records the start of a flow on the current thread.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <param name="flowId">The flow, from <see cref="M:EmberTrace.Tracer.NewFlowId"/>; <c>0</c> is ignored.</param>
+            <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowStartNew(System.Int32)">
+            <summary>Allocates a flow id and records the start of that flow.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <returns>The new flow id, to pass to the step and end calls on other threads.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowStartNewHandle(System.Int32)">
+            <summary>Starts a new flow and returns a handle that can be passed to other threads and ended exactly once.</summary>
+            <param name="id">The id the flow events are recorded under.</param>
+            <returns>The handle; not valid, and recording nothing, when no session is running.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowStep(EmberTrace.Flow.FlowHandle)">
+            <summary>Records a step of the flow of a handle on the current thread, unless the flow has ended.</summary>
+            <param name="handle">The handle returned by <see cref="M:EmberTrace.Tracer.FlowStartNewHandle(System.Int32)"/>.</param>
+        </member>
+        <member name="M:EmberTrace.Tracer.FlowStep(System.Int32,System.Int64)">
+            <summary>Records an intermediate point of a flow on the current thread.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <param name="flowId">The flow; <c>0</c> is ignored.</param>
+            <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.Id(System.String)">
+            <summary>Returns the trace id of a name and remembers the name so that sessions can resolve it.</summary>
+            <param name="name">The scope, counter or flow name.</param>
+            <returns>A stable 31-bit positive FNV-1a hash of the name: the same value in every process and the one the generator computes for <c>[Trace]</c> methods.</returns>
+            <remarks>Cache the result in a static field; the call hashes the string every time. Two names with the same hash are reported according to <see cref="P:EmberTrace.Tracer.IdCollisionMode"/>.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">The name collides with another one and the mode is <see cref="F:EmberTrace.TracerIdCollisionMode.Throw"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.Tracer.Instant(System.Int32)">
+            <summary>Records a point event at the current time.</summary>
+            <param name="id">The event id.</param>
+            <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.MethodScopeAsync(System.Int32)">
+            <summary>Opens an async scope that must cover the whole body of an <c>async</c> method. For generated code; call <see cref="M:EmberTrace.Tracer.ScopeAsync(System.Int32)"/> by hand.</summary>
+            <param name="id">The scope id.</param>
+            <returns>The scope, to dispose with <c>await using</c> as the last thing the method does.</returns>
+            <remarks>It skips restoring the parent scope on dispose, because the runtime restores the caller's execution context when the method returns. Used anywhere else, later scopes of the same method would be recorded as children of this one.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.NewFlowId">
+            <summary>Allocates a flow id unique within the session.</summary>
+            <returns>A non-zero flow id.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.Scope(System.Int32)">
+            <summary>Opens a scope on the current thread; disposing the result closes it.</summary>
+            <param name="id">The scope id.</param>
+            <returns>The scope. It is a <c>ref struct</c>: it must be closed on the thread that opened it and cannot live across an <c>await</c>; use <see cref="M:EmberTrace.Tracer.ScopeAsync(System.Int32)"/> there.</returns>
+            <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.ScopeAsync(System.Int32)">
+            <summary>Opens a scope that may be closed on another thread, for code that awaits.</summary>
+            <param name="id">The scope id.</param>
+            <returns>The scope, to dispose with <c>await using</c>.</returns>
+            <remarks>Scopes opened inside it, on whatever thread the continuation runs, are recorded as its children. Flowing that through <c>await</c> costs two <see cref="T:System.Threading.AsyncLocal`1"/> writes, which allocate. When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.Snapshot">
+            <summary>Copies everything the running session holds, without stopping it.</summary>
+            <returns>A session marked as a snapshot; empty when no session is running.</returns>
+        </member>
+        <member name="M:EmberTrace.Tracer.Snapshot(System.TimeSpan)">
+            <summary>Copies the most recent part of the running session, without stopping it.</summary>
+            <param name="window">How far back to copy; zero means everything the session holds.</param>
+            <returns>A session marked as a snapshot; empty when no session is running.</returns>
+            <remarks>Writers are not paused. Scopes still open at the cut are present as a <c>Begin</c> without an <c>End</c>.</remarks>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="window"/> is negative.</exception>
+        </member>
+        <member name="M:EmberTrace.Tracer.Start(EmberTrace.Sessions.SessionOptions)">
+            <summary>Starts the process-wide session.</summary>
+            <param name="options">Buffer sizes, limits, sampling and filters; the defaults when <see langword="null"/>.</param>
+            <exception cref="T:System.InvalidOperationException">A session is already running.</exception>
+            <exception cref="T:System.ArgumentException"><see cref="P:EmberTrace.Sessions.SessionOptions.MaxRetentionWindow"/> is set without <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropOldest"/>.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"><see cref="P:EmberTrace.Sessions.SessionOptions.MaxRetentionWindow"/> exceeds one day.</exception>
+        </member>
+        <member name="M:EmberTrace.Tracer.Stop">
+            <summary>Stops the process-wide session and returns what it recorded.</summary>
+            <returns>The session. It is immutable; an event being written by another thread at this moment is either fully in it or absent.</returns>
+            <exception cref="T:System.InvalidOperationException">No session is running.</exception>
+        </member>
+        <member name="P:EmberTrace.Tracer.IdCollisionMode">
+            <summary>What <see cref="M:EmberTrace.Tracer.Id(System.String)"/> does when two different names hash to the same id. Default <see cref="F:EmberTrace.TracerIdCollisionMode.Warn"/>; the initial value can be set through the <c>EmberTrace.IdCollisionMode</c> runtime configuration property.</summary>
+        </member>
+        <member name="P:EmberTrace.Tracer.IsRunning">
+            <summary>Whether the process-wide session is recording.</summary>
+        </member>
+        <member name="P:EmberTrace.Tracer.MaxTrackedNames">
+            <summary>How many names <see cref="M:EmberTrace.Tracer.Id(System.String)"/> remembers for collision detection and for resolving ids in sessions started with <see cref="P:EmberTrace.Sessions.SessionOptions.EnableRuntimeMetadata"/>. Default 16384; <c>0</c> means no limit. Names beyond the limit still get their id but are not remembered.</summary>
+        </member>
+        <member name="P:EmberTrace.Tracer.OnIdCollision">
+            <summary>Called when two different names hash to the same id, unless the mode is <see cref="F:EmberTrace.TracerIdCollisionMode.Ignore"/>. When set, it replaces the trace warning of <see cref="F:EmberTrace.TracerIdCollisionMode.Warn"/>.</summary>
+        </member>
+        <member name="T:EmberTrace.TracerIdCollision">
+            <summary>Two names that <see cref="M:EmberTrace.Tracer.Id(System.String)"/> hashed to the same id.</summary>
+        </member>
+        <member name="M:EmberTrace.TracerIdCollision.#ctor(System.Int32,System.String,System.String)">
+            <summary>Describes a collision.</summary>
+            <param name="id">The shared id.</param>
+            <param name="existingName">The name that owns the id.</param>
+            <param name="newName">The name that collided with it.</param>
+        </member>
+        <member name="P:EmberTrace.TracerIdCollision.ExistingName">
+            <summary>The name registered first, which keeps the id.</summary>
+        </member>
+        <member name="P:EmberTrace.TracerIdCollision.Id">
+            <summary>The id both names hash to.</summary>
+        </member>
+        <member name="P:EmberTrace.TracerIdCollision.NewName">
+            <summary>The name that was registered later.</summary>
+        </member>
+        <member name="T:EmberTrace.TracerIdCollisionMode">
+            <summary>How <see cref="M:EmberTrace.Tracer.Id(System.String)"/> reports two names with the same id.</summary>
+        </member>
+        <member name="F:EmberTrace.TracerIdCollisionMode.Ignore">
+            <summary>Say nothing; the events of both names are recorded under one id.</summary>
+        </member>
+        <member name="F:EmberTrace.TracerIdCollisionMode.Throw">
+            <summary>Call <see cref="P:EmberTrace.Tracer.OnIdCollision"/>, then throw <see cref="T:System.InvalidOperationException"/>.</summary>
+        </member>
+        <member name="F:EmberTrace.TracerIdCollisionMode.Warn">
+            <summary>Call <see cref="P:EmberTrace.Tracer.OnIdCollision"/>, or write a trace warning when no handler is set. The default.</summary>
+        </member>
+        <member name="T:EmberTrace.Tracing.Scope">
+            <summary>An open synchronous scope. Returned by <see cref="M:EmberTrace.Tracer.Scope(System.Int32)"/>; a <c>ref struct</c>, so it stays on the stack of the thread that opened it.</summary>
+        </member>
+        <member name="M:EmberTrace.Tracing.Scope.Dispose">
+            <summary>Closes the scope. Does nothing when the scope was opened while no session was running.</summary>
+        </member>
+        <member name="T:EmberTrace.TracingSession">
+            <summary>A tracing session of your own, independent of the process-wide <see cref="T:EmberTrace.Tracer"/>: nothing else records into it or can stop it.</summary>
+            <remarks>It can be started and stopped repeatedly. The recording methods have the cost and thread-safety of their <see cref="T:EmberTrace.Tracer"/> counterparts.</remarks>
+        </member>
+        <member name="M:EmberTrace.TracingSession.#ctor">
+            <summary>Creates a session that resolves names through the shared metadata registry.</summary>
+        </member>
+        <member name="M:EmberTrace.TracingSession.#ctor(EmberTrace.Metadata.TraceMetadataRegistry,System.Action{EmberTrace.Sessions.TraceSession})">
+            <summary>Creates a session with metadata of its own.</summary>
+            <param name="metadata">The registry the session resolves names from.</param>
+            <param name="onStopped">Receives every session this instance stops; optional.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="metadata"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.TracingSession.#ctor(System.Action{EmberTrace.Sessions.TraceSession})">
+            <summary>Creates a session that reports each stopped recording to a callback.</summary>
+            <param name="onStopped">Receives every session this instance stops, from <c>Stop</c> and from <c>Dispose</c>.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="onStopped"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Counter(System.Int32,System.Int64)">
+            <summary>Records a counter value into this session.</summary>
+            <param name="id">The counter id.</param>
+            <param name="value">The value at this moment.</param>
+            <seealso cref="M:EmberTrace.Tracer.Counter(System.Int32,System.Int64)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.CreateMetadata">
+            <summary>Returns the names and categories this session resolves ids with.</summary>
+            <returns>The metadata provider.</returns>
+            <seealso cref="M:EmberTrace.Tracer.CreateMetadata"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Dispose">
+            <summary>Stops the session if it is running, reporting it to the callback, and prevents further starts.</summary>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Flow(System.Int32)">
+            <summary>Starts a new flow in this session and returns a scope that ends it when disposed.</summary>
+            <param name="id">The id the flow events are recorded under.</param>
+            <returns>The flow; not valid when the session is not running.</returns>
+            <seealso cref="M:EmberTrace.Tracer.Flow(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowEnd(EmberTrace.Flow.FlowHandle)">
+            <summary>Ends the flow of a handle.</summary>
+            <param name="handle">A handle started by this session.</param>
+            <seealso cref="M:EmberTrace.Tracer.FlowEnd(EmberTrace.Flow.FlowHandle)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowEnd(System.Int32,System.Int64)">
+            <summary>Records the end of a flow into this session.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <param name="flowId">The flow; <c>0</c> is ignored.</param>
+            <seealso cref="M:EmberTrace.Tracer.FlowEnd(System.Int32,System.Int64)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowFromActivityCurrent(System.Int32)">
+            <summary>Records the flow of the current <see cref="T:System.Diagnostics.Activity"/> into this session.</summary>
+            <param name="id">The id the events are recorded under.</param>
+            <returns>The flow id, or <c>0</c> when the session is not running or there is no current W3C activity.</returns>
+            <seealso cref="M:EmberTrace.Tracer.FlowFromActivityCurrent(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowStart(System.Int32,System.Int64)">
+            <summary>Records the start of a flow into this session.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <param name="flowId">The flow; <c>0</c> is ignored.</param>
+            <seealso cref="M:EmberTrace.Tracer.FlowStart(System.Int32,System.Int64)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowStartNew(System.Int32)">
+            <summary>Allocates a flow id and records the start of that flow into this session.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <returns>The new flow id.</returns>
+            <seealso cref="M:EmberTrace.Tracer.FlowStartNew(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowStartNewHandle(System.Int32)">
+            <summary>Starts a new flow in this session and returns a handle that can be passed to other threads.</summary>
+            <param name="id">The id the flow events are recorded under.</param>
+            <returns>The handle; not valid when the session is not running.</returns>
+            <seealso cref="M:EmberTrace.Tracer.FlowStartNewHandle(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowStep(EmberTrace.Flow.FlowHandle)">
+            <summary>Records a step of the flow of a handle.</summary>
+            <param name="handle">A handle started by this session.</param>
+            <seealso cref="M:EmberTrace.Tracer.FlowStep(EmberTrace.Flow.FlowHandle)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.FlowStep(System.Int32,System.Int64)">
+            <summary>Records an intermediate point of a flow into this session.</summary>
+            <param name="id">The id the event is recorded under.</param>
+            <param name="flowId">The flow; <c>0</c> is ignored.</param>
+            <seealso cref="M:EmberTrace.Tracer.FlowStep(System.Int32,System.Int64)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Instant(System.Int32)">
+            <summary>Records a point event into this session.</summary>
+            <param name="id">The event id.</param>
+            <seealso cref="M:EmberTrace.Tracer.Instant(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.NewFlowId">
+            <summary>Allocates a flow id unique within this session.</summary>
+            <returns>A non-zero flow id.</returns>
+            <seealso cref="M:EmberTrace.Tracer.NewFlowId"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Scope(System.Int32)">
+            <summary>Opens a scope in this session on the current thread.</summary>
+            <param name="id">The scope id.</param>
+            <returns>The scope; a <c>ref struct</c> that cannot live across an <c>await</c>.</returns>
+            <seealso cref="M:EmberTrace.Tracer.Scope(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.ScopeAsync(System.Int32)">
+            <summary>Opens a scope in this session that may be closed on another thread.</summary>
+            <param name="id">The scope id.</param>
+            <returns>The scope, to dispose with <c>await using</c>.</returns>
+            <seealso cref="M:EmberTrace.Tracer.ScopeAsync(System.Int32)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Snapshot">
+            <summary>Copies everything this session holds, without stopping it.</summary>
+            <returns>A session marked as a snapshot; empty when not running.</returns>
+            <seealso cref="M:EmberTrace.Tracer.Snapshot"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Snapshot(System.TimeSpan)">
+            <summary>Copies the most recent part of this session, without stopping it.</summary>
+            <param name="window">How far back to copy; zero means everything the session holds.</param>
+            <returns>A session marked as a snapshot; empty when not running.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="window"/> is negative.</exception>
+            <seealso cref="M:EmberTrace.Tracer.Snapshot(System.TimeSpan)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Start(EmberTrace.Sessions.SessionOptions)">
+            <summary>Starts recording.</summary>
+            <param name="options">Buffer sizes, limits, sampling and filters; the defaults when <see langword="null"/>.</param>
+            <exception cref="T:System.ObjectDisposedException">The session has been disposed.</exception>
+            <exception cref="T:System.InvalidOperationException">The session is already running.</exception>
+            <seealso cref="M:EmberTrace.Tracer.Start(EmberTrace.Sessions.SessionOptions)"/>
+        </member>
+        <member name="M:EmberTrace.TracingSession.Stop">
+            <summary>Stops recording, remembers the result in <see cref="P:EmberTrace.TracingSession.LastSession"/> and passes it to the callback.</summary>
+            <returns>The recorded session.</returns>
+            <exception cref="T:System.InvalidOperationException">The session is not running.</exception>
+            <seealso cref="M:EmberTrace.Tracer.Stop"/>
+        </member>
+        <member name="P:EmberTrace.TracingSession.IsRunning">
+            <summary>Whether this session is recording.</summary>
+        </member>
+        <member name="P:EmberTrace.TracingSession.LastSession">
+            <summary>The result of the most recent stop, or <see langword="null"/> before the first one.</summary>
+        </member>
+    </members>
+</doc>

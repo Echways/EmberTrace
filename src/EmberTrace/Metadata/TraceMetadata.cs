@@ -4,60 +4,24 @@ public readonly record struct TraceMeta(int Id, string Name, string? Category);
 
 public static class TraceMetadata
 {
-    private static readonly List<ITraceMetadataProvider> Registered = new();
-    private static ITraceMetadataProvider? _snapshot;
-
     public static void Register(ITraceMetadataProvider provider)
     {
-        ArgumentNullException.ThrowIfNull(provider);
-
-        lock (Registered)
-        {
-            Registered.Add(provider);
-            Volatile.Write(ref _snapshot, null);
-        }
+        TraceMetadataRegistry.Shared.Register(provider);
     }
 
     public static bool Unregister(ITraceMetadataProvider provider)
     {
-        ArgumentNullException.ThrowIfNull(provider);
-
-        lock (Registered)
-        {
-            if (!Registered.Remove(provider))
-                return false;
-
-            Volatile.Write(ref _snapshot, null);
-            return true;
-        }
+        return TraceMetadataRegistry.Shared.Unregister(provider);
     }
 
     public static void Reset()
     {
-        lock (Registered)
-        {
-            Registered.Clear();
-            Volatile.Write(ref _snapshot, null);
-        }
+        TraceMetadataRegistry.Shared.Clear();
     }
 
     public static ITraceMetadataProvider CreateDefault()
     {
-        var snapshot = Volatile.Read(ref _snapshot);
-        if (snapshot is not null)
-            return snapshot;
-
-        lock (Registered)
-        {
-            snapshot = _snapshot;
-            if (snapshot is null)
-            {
-                snapshot = CompositeMetadataProvider.Create(Registered);
-                Volatile.Write(ref _snapshot, snapshot);
-            }
-
-            return snapshot;
-        }
+        return TraceMetadataRegistry.Shared.CreateProvider();
     }
 
     public static ITraceMetadataProvider FromEntries(IEnumerable<TraceMeta> entries)

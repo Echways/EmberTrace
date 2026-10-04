@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.Abstractions</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.Abstractions.Attributes.TraceAttribute">
+            <summary>Marks a method or a class for automatic instrumentation by the EmberTrace source generator.</summary>
+            <remarks>On a <c>partial</c> method declaration the generator emits the implementing part, which opens a scope and calls the <c>…Core</c> method holding the body. On a class it emits a <c>Traced…</c> decorator over the class's interface. Misuse is reported at build time: <c>ETG010</c> when the method is not a <c>partial</c> declaration without a body, <c>ETG011</c> when no compatible <c>…Core</c> member exists, <c>ETG012</c> for unsupported shapes, <c>ETG013</c> when a containing type is not <c>partial</c>, <c>ETG014</c> when the interface of a class is ambiguous.</remarks>
+        </member>
+        <member name="M:EmberTrace.Abstractions.Attributes.TraceAttribute.#ctor">
+            <summary>Traces the member under its default name, <c>TypeName.MethodName</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Abstractions.Attributes.TraceAttribute.#ctor(System.String)">
+            <summary>Traces the member under a fixed name that survives renames and new overloads.</summary>
+            <param name="name">The scope name. The id is the stable hash of this name unless <see cref="P:EmberTrace.Abstractions.Attributes.TraceAttribute.Id"/> is set.</param>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceAttribute.Category">
+            <summary>The category of the scope. When <see langword="null"/> the generator falls back to <see cref="T:EmberTrace.Abstractions.Attributes.TraceCategoryAttribute"/> on the method, then on the containing types from the innermost outward.</summary>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceAttribute.Id">
+            <summary>An explicit scope id. <c>0</c>, the default, means the id is the stable hash of the name, the same value <c>Tracer.Id(name)</c> returns.</summary>
+            <remarks>An id declared more than once in an assembly is reported as <c>ETG001</c>.</remarks>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceAttribute.Interface">
+            <summary>The interface the generated decorator implements, for an attribute applied to a class. Required only when the class implements more than one candidate interface; otherwise <c>ETG014</c> is reported.</summary>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceAttribute.Name">
+            <summary>The fixed scope name, or <see langword="null"/> when the default <c>TypeName.MethodName</c> is used.</summary>
+        </member>
+        <member name="T:EmberTrace.Abstractions.Attributes.TraceCategoryAttribute">
+            <summary>Assigns a category to a trace id declared as a <c>const int</c> field, or to the <see cref="T:EmberTrace.Abstractions.Attributes.TraceAttribute"/> methods of a method, class or struct.</summary>
+            <remarks>On a field that is not a <c>const int</c> the attribute is ignored and <c>ETG005</c> is reported. An empty category is reported as <c>ETG003</c>.</remarks>
+        </member>
+        <member name="M:EmberTrace.Abstractions.Attributes.TraceCategoryAttribute.#ctor(System.String)">
+            <summary>Assigns the category.</summary>
+            <param name="category">The category name shown in reports and exports and used by category filters.</param>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceCategoryAttribute.Category">
+            <summary>The category name.</summary>
+        </member>
+        <member name="T:EmberTrace.Abstractions.Attributes.TraceIdAttribute">
+            <summary>Declares the name and category of a trace id for the whole assembly. The source generator collects every declaration into one metadata provider and registers it when the assembly loads.</summary>
+            <remarks>Arguments that are not compile-time constants are reported as <c>ETG004</c> and the declaration is skipped. A repeated id is <c>ETG001</c>, an empty name <c>ETG002</c>, an empty category <c>ETG003</c>.</remarks>
+        </member>
+        <member name="M:EmberTrace.Abstractions.Attributes.TraceIdAttribute.#ctor(System.Int32,System.String,System.String)">
+            <summary>Declares a trace id.</summary>
+            <param name="id">The id passed to the tracer.</param>
+            <param name="name">The name shown for the id in reports and exports.</param>
+            <param name="category">The category of the id, or <see langword="null"/> for none.</param>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceIdAttribute.Category">
+            <summary>The category of the id, or <see langword="null"/> for none.</summary>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceIdAttribute.Id">
+            <summary>The declared id.</summary>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceIdAttribute.Name">
+            <summary>The name shown for the id.</summary>
+        </member>
+        <member name="T:EmberTrace.Abstractions.Attributes.TraceNameAttribute">
+            <summary>Gives a display name to a trace id declared as a <c>const int</c> field. Without it the field name is used.</summary>
+            <remarks>On a field that is not a <c>const int</c> the attribute is ignored and <c>ETG005</c> is reported.</remarks>
+        </member>
+        <member name="M:EmberTrace.Abstractions.Attributes.TraceNameAttribute.#ctor(System.String)">
+            <summary>Sets the display name.</summary>
+            <param name="name">The name shown for the id in reports and exports.</param>
+        </member>
+        <member name="P:EmberTrace.Abstractions.Attributes.TraceNameAttribute.Name">
+            <summary>The display name.</summary>
+        </member>
+    </members>
+</doc>
