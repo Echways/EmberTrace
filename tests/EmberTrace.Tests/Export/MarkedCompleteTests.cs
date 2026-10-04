@@ -66,6 +66,20 @@ public class MarkedCompleteTests
     }
 
     [TestMethod]
+    public void MarkedComplete_AnchorsFlowsOutsideAnySlice()
+    {
+        var flow = Tracer.Id("MarkedCompleteTests.Flow");
+
+        var result = TraceExport.MarkedComplete("revision", () => Tracer.FlowEnd(flow, Tracer.FlowStartNew(flow)),
+            new MarkedCompleteOptions { OutputPath = OutputPath });
+
+        var phases = Parse(result.SlicePath).Where(e => e.GetProperty("tid").GetInt32() != 0)
+            .Select(e => e.GetProperty("ph").GetString()).ToArray();
+
+        CollectionAssert.AreEqual(new[] { "M", "X", "s", "X", "f" }, phases);
+    }
+
+    [TestMethod]
     public void MarkedComplete_Unique_AppendsTheCallerLineToTheName()
     {
         var result = TraceExport.MarkedComplete("revision", static () => { },

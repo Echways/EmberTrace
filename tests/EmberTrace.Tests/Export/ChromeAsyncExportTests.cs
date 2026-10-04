@@ -45,8 +45,8 @@ public class ChromeAsyncExportTests
         Assert.HasCount(1, begins);
         Assert.HasCount(1, ends);
         Assert.AreEqual(
-            begins[0].GetProperty("id").GetInt64(),
-            ends[0].GetProperty("id").GetInt64());
+            begins[0].GetProperty("id2").GetProperty("local").GetInt64(),
+            ends[0].GetProperty("id2").GetProperty("local").GetInt64());
         Assert.IsLessThanOrEqualTo(
             ends[0].GetProperty("ts").GetDouble(),
             begins[0].GetProperty("ts").GetDouble());

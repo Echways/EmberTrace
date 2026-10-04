@@ -109,6 +109,8 @@ For each request that is not on `IgnoredPaths` and not addressed to the dump end
 - a flow that starts before the pipeline and ends after it. When `Activity.Current` is a W3C activity,
   the flow id is derived from its trace id, so the same flow id identifies that request in every
   service that took part in the distributed trace.
+  In Perfetto both ends show up as zero-duration markers named after the request, on the threads that
+  started and finished it, with the arrow between them.
 
 The flow id is published on the request:
 

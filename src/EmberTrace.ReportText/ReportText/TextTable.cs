@@ -13,6 +13,8 @@ internal sealed class TextTable
         AddRow(header);
     }
 
+    public int RowCount => _rows.Count;
+
     public void AddRow(params string[] cols)
     {
         var row = new string[_widths.Length];

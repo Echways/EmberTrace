@@ -96,7 +96,10 @@ internal static class ChromeJsonWriter
         json.WriteNumber("ts", new TickConverter(freq).ToUs(timestamp - baseTs));
         json.WriteNumber("pid", pid);
         json.WriteNumber("tid", trackId);
-        json.WriteNumber("id", asyncScopeId);
+        json.WritePropertyName("id2");
+        json.WriteStartObject();
+        json.WriteNumber("local", asyncScopeId);
+        json.WriteEndObject();
         json.WriteEndObject();
     }
 
@@ -143,6 +146,8 @@ internal static class ChromeJsonWriter
         json.WriteNumber("pid", pid);
         json.WriteNumber("tid", trackId);
         json.WriteNumber("id", flowId);
+        if (phase == "f")
+            json.WriteString("bp", "e");
 
         if (args == ChromeEventArgsMode.Detailed)
         {
@@ -152,6 +157,32 @@ internal static class ChromeJsonWriter
             json.WriteEndObject();
         }
 
+        json.WriteEndObject();
+    }
+
+    public static void WriteFlowAnchor(
+        Utf8JsonWriter json,
+        in TraceEventRecord e,
+        ITraceMetadataProvider? meta,
+        long baseTs,
+        long freq,
+        int pid)
+    {
+        meta.Resolve(e.Id, out var name, out var cat);
+
+        json.WriteStartObject();
+        json.WriteString("name", name);
+        json.WriteString("cat", cat);
+        json.WriteString("ph", "X");
+        json.WriteNumber("ts", new TickConverter(freq).ToUs(e.Timestamp - baseTs));
+        json.WriteNumber("dur", 0);
+        json.WriteNumber("pid", pid);
+        json.WriteNumber("tid", e.TrackId);
+        json.WritePropertyName("args");
+        json.WriteStartObject();
+        json.WriteNumber("id", e.Id);
+        json.WriteNumber("flow", e.FlowId);
+        json.WriteEndObject();
         json.WriteEndObject();
     }
 
