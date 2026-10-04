@@ -109,7 +109,9 @@ parent that fans out with `Task.WhenAll` is drawn wider than it ran.
 
 ## Screenshots
 
-![Analysis slice: aggregation, sorting, filters](../../assets/analysis-slice.png)
+![Analysis slice: the session behind the report, opened in Perfetto](../../assets/analysis-slice.png)
+
+![Flame graph: collapsed stacks opened in speedscope, Left Heavy view](../../assets/analysis-flame-graph.png)
 
 ## Links
 

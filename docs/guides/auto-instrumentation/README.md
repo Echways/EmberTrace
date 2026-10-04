@@ -225,3 +225,7 @@ See also:
 - [Generator and TraceId (metadata)](../../reference/source-generator/README.md)
 - [Roslyn analyzers](../../reference/roslyn-analyzers/README.md)
 - [Usage and API](../usage/README.md)
+
+## Screenshots
+
+![Generated wrapper: the sync and async `[Trace]` methods of `OrderService` as emitted under `obj/`](../../assets/auto-instrumentation-generated-code.png)

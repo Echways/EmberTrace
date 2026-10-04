@@ -192,3 +192,7 @@ Hosted service запускает сессию при старте хоста и
 - [Flight recorder (снапшоты на живой сессии)](../flight-recorder/README.ru.md)
 - [Runtime-счётчики](../runtime-counters/README.ru.md)
 - [Бинарный формат сессии (.ember)](../format/README.ru.md)
+
+## Скриншоты
+
+![Дамп `format=chrome` в Perfetto: scope'ы запросов, `Orders.Load`, медленный `Orders.Slow` и runtime-счётчики](../../assets/hosting-request-dump.png)

@@ -1,5 +1,7 @@
 using EmberTrace;
 using EmberTrace.Abstractions.Attributes;
+using EmberTrace.DocScreenshots;
+using EmberTrace.Flow;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
@@ -13,11 +15,11 @@ using EmberTrace.Sessions;
 [assembly: TraceId(Ids.Cpu, "CpuWork", "CPU")]
 [assembly: TraceId(Ids.Io, "IoWait", "IO")]
 [assembly: TraceId(Ids.Sort, "Sort", "CPU")]
-[assembly: TraceId(Ids.AsyncBlock, "AsyncBlock", "Async")]
+[assembly: TraceId(Ids.Allocate, "Allocate", "Memory")]
 [assembly: TraceId(Ids.JobFlow, "JobFlow", "Flow")]
 
-var outDir = ResolveOutDir();
 var projectDir = ResolveProjectDir();
+var outDir = Path.Combine(projectDir, "out");
 Directory.CreateDirectory(outDir);
 
 var scenarios = new List<Scenario>
@@ -28,14 +30,20 @@ var scenarios = new List<Scenario>
         () => RunFlowsPropagation(outDir)),
     new("export-opened", "Chrome Trace export to open in Perfetto/SpeedScope (Export guide).",
         () => RunExportOpened(outDir)),
-    new("analysis-slice", "Text report for analysis screenshot (Analysis guide).",
+    new("analysis-slice", "Text report with percentiles (Analysis guide).",
         () => RunAnalysisSlice(outDir)),
-    new("usage-instrumentation", "Code snippet for usage screenshot (Usage guide).",
-        () => WriteUsageSnippet(outDir)),
+    new("analysis-flame-graph", "Collapsed stacks for a flame graph (Analysis guide).",
+        () => RunAnalysisFlameGraph(outDir)),
+    new("usage-instrumentation", "Compiled instrumentation snippet (Usage guide).",
+        () => RunUsageInstrumentation(projectDir, outDir)),
     new("getting-started-first-trace", "Minimal first trace + report (Getting started).",
         () => RunGettingStartedFirstTrace(outDir)),
-    new("generator-generated-code", "Copy generator output from obj for screenshot.",
-        () => CopyGeneratorOutput(projectDir, outDir)),
+    new("runtime-counters-timeline", "GC, memory and thread pool counters next to scopes (Runtime counters guide).",
+        () => RunRuntimeCountersTimeline(outDir)),
+    new("generator-generated-code", "Generated metadata provider (Source generator reference).",
+        () => CopyGeneratedMetadata(projectDir, outDir)),
+    new("auto-instrumentation-generated-code", "Generated [Trace] wrapper (Auto-instrumentation guide).",
+        () => RunAutoInstrumentation(projectDir, outDir)),
     new("troubleshooting-common", "Before/after metadata report for troubleshooting.",
         () => RunTroubleshootingCommon(outDir))
 };
@@ -90,8 +98,7 @@ static string? ReadArgValue(string[] args, string longName, string shortName)
 
 static Task RunApiTracerPerfetto(string outDir)
 {
-    var options = DefaultSessionOptions();
-    Tracer.Start(options);
+    Tracer.Start(DefaultSessionOptions());
 
     using (Tracer.Scope(Ids.App))
     {
@@ -121,69 +128,68 @@ static Task RunApiTracerPerfetto(string outDir)
     }
 
     var session = Tracer.Stop();
-    var meta = Tracer.CreateMetadata();
-    var path = Path.Combine(outDir, "api-tracer-perfetto.json");
-    ExportChromeComplete(session, path, meta);
-    Console.WriteLine("Saved: " + path);
+    ExportChromeComplete(session, Path.Combine(outDir, "api-tracer-perfetto.json"));
     return Task.CompletedTask;
 }
 
 static async Task RunFlowsPropagation(string outDir)
 {
-    var options = DefaultSessionOptions();
-    Tracer.Start(options);
+    Tracer.Start(DefaultSessionOptions());
 
     await using (Tracer.ScopeAsync(Ids.App))
     {
-        var flowId = Tracer.FlowStartNew(Ids.JobFlow);
+        FlowHandle job;
 
         using (Tracer.Scope(Ids.Queue))
         {
-            Tracer.FlowStep(Ids.JobFlow, flowId);
+            job = Tracer.FlowStartNewHandle(Ids.JobFlow);
             CpuSpin(120_000);
         }
 
-        var t1 = Task.Run(async () =>
+        var parse = Task.Run(async () =>
         {
             await using (Tracer.ScopeAsync(Ids.Worker))
             {
-                Tracer.FlowStep(Ids.JobFlow, flowId);
-                CpuSpin(100_000);
+                using (Tracer.Scope(Ids.Parse))
+                {
+                    job.Step();
+                    CpuSpin(100_000);
+                }
+
                 await Task.Delay(40);
-                Tracer.FlowStep(Ids.JobFlow, flowId);
             }
         });
 
-        var t2 = Task.Run(async () =>
+        var load = Task.Run(async () =>
         {
             await using (Tracer.ScopeAsync(Ids.Worker))
             {
                 await Task.Delay(30);
-                Tracer.FlowStep(Ids.JobFlow, flowId);
-                SortWork(10_000);
+
+                using (Tracer.Scope(Ids.Load))
+                {
+                    job.Step();
+                    SortWork(10_000);
+                }
             }
         });
 
-        await Task.WhenAll(t1, t2).ConfigureAwait(false);
+        await Task.WhenAll(parse, load).ConfigureAwait(false);
 
         using (Tracer.Scope(Ids.Render))
         {
-            Tracer.FlowEnd(Ids.JobFlow, flowId);
+            job.End();
             CpuSpin(110_000);
         }
     }
 
     var session = Tracer.Stop();
-    var meta = Tracer.CreateMetadata();
-    var path = Path.Combine(outDir, "flows-propagation.json");
-    ExportChromeComplete(session, path, meta);
-    Console.WriteLine("Saved: " + path);
+    ExportChromeComplete(session, Path.Combine(outDir, "flows-propagation.json"));
 }
 
 static async Task RunExportOpened(string outDir)
 {
-    var options = DefaultSessionOptions();
-    Tracer.Start(options);
+    Tracer.Start(DefaultSessionOptions());
 
     using (Tracer.Scope(Ids.App))
     {
@@ -194,90 +200,94 @@ static async Task RunExportOpened(string outDir)
     await IoDelay(18);
 
     var session = Tracer.Stop();
-    var meta = Tracer.CreateMetadata();
+    ExportChromeComplete(session, Path.Combine(outDir, "export-opened.json"));
 
-    var completePath = Path.Combine(outDir, "export-opened.json");
     var beginEndPath = Path.Combine(outDir, "export-opened-beginend.json");
-    ExportChromeComplete(session, completePath, meta);
-    ExportChromeBeginEnd(session, beginEndPath, meta);
-
-    Console.WriteLine("Saved: " + completePath);
+    using var fs = File.Create(beginEndPath);
+    TraceExport.WriteChromeBeginEnd(session, fs, Tracer.CreateMetadata());
     Console.WriteLine("Saved: " + beginEndPath);
 }
 
 static async Task RunAnalysisSlice(string outDir)
 {
-    var options = DefaultSessionOptions();
-    Tracer.Start(options);
+    Tracer.Start(DefaultSessionOptions());
 
     using (Tracer.Scope(Ids.App))
     {
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 24; i++)
         {
-            CpuSpin(140_000);
-            SortWork(12_000);
+            CpuSpin(60_000 + i * 8_000);
+            SortWork(4_000 + i * 500);
         }
     }
 
     await IoDelay(25);
 
     var session = Tracer.Stop();
-    var processed = session.Process();
-    var meta = Tracer.CreateMetadata();
+    var report = TraceText.Write(session.Process(), Tracer.CreateMetadata(), 12, 6, includePercentiles: true);
 
-    var reportText = TraceText.Write(processed, meta, 12, 6);
-    var reportPath = Path.Combine(outDir, "analysis-slice.txt");
-    File.WriteAllText(reportPath, reportText);
-
-    var tracePath = Path.Combine(outDir, "analysis-slice.json");
-    ExportChromeComplete(session, tracePath, meta);
-
-    Console.WriteLine("Saved: " + reportPath);
-    Console.WriteLine("Saved: " + tracePath);
+    WriteText(Path.Combine(outDir, "analysis-slice.txt"), report);
+    ExportChromeComplete(session, Path.Combine(outDir, "analysis-slice.json"));
 }
 
-static Task WriteUsageSnippet(string outDir)
+static Task RunAnalysisFlameGraph(string outDir)
 {
-    var snippetPath = Path.Combine(outDir, "usage-instrumentation.cs");
-    var lines = new[]
+    Tracer.Start(DefaultSessionOptions());
+
+    using (Tracer.Scope(Ids.App))
     {
-        "using System.IO;",
-        "using System.Threading.Tasks;",
-        "using EmberTrace;",
-        "using EmberTrace.Abstractions.Attributes;",
-        "",
-        "[assembly: TraceId(1000, \"App\", \"App\")]",
-        "[assembly: TraceId(2100, \"IoWait\", \"IO\")]",
-        "",
-        "static async Task RunAsync()",
-        "{",
-        "    Tracer.Start();",
-        "",
-        "    using (Tracer.Scope(1000))",
-        "    {",
-        "        await using (Tracer.ScopeAsync(2100))",
-        "            await Task.Delay(10);",
-        "    }",
-        "",
-        "    var session = Tracer.Stop();",
-        "    var meta = Tracer.CreateMetadata();",
-        "",
-        "    Directory.CreateDirectory(\"out\");",
-        "    using var fs = File.Create(\"out/trace.json\");",
-        "    TraceExport.WriteChromeComplete(session, fs, meta: meta);",
-        "}",
-        "",
-        "await RunAsync();"
-    };
-    File.WriteAllText(snippetPath, string.Join(Environment.NewLine, lines));
-    Console.WriteLine("Saved: " + snippetPath);
+        using (Tracer.Scope(Ids.Warmup))
+        {
+            CpuSpin(4_000_000);
+        }
+
+        for (var frame = 0; frame < 20; frame++)
+        {
+            using (Tracer.Scope(Ids.Load))
+            {
+                using (Tracer.Scope(Ids.Parse))
+                {
+                    SortWork(4_000);
+                    CpuSpin(600_000);
+                }
+
+                CpuSpin(400_000);
+            }
+
+            using (Tracer.Scope(Ids.Render))
+            {
+                CpuSpin(900_000);
+                SortWork(3_000);
+            }
+        }
+    }
+
+    var session = Tracer.Stop();
+    var path = Path.Combine(outDir, "analysis-flame-graph.folded");
+
+    using (var file = File.CreateText(path))
+    {
+        TraceText.WriteCollapsedStacks(session.Process(), file, Tracer.CreateMetadata());
+    }
+
+    Console.WriteLine("Saved: " + path);
     return Task.CompletedTask;
+}
+
+static async Task RunUsageInstrumentation(string projectDir, string outDir)
+{
+    var tracePath = Path.Combine(outDir, "usage-instrumentation.json");
+    await UsageInstrumentation.RunAsync(tracePath).ConfigureAwait(false);
+    Console.WriteLine("Saved: " + tracePath);
+
+    var snippetPath = Path.Combine(outDir, "usage-instrumentation.cs");
+    File.Copy(Path.Combine(projectDir, "Snippets", "UsageInstrumentation.cs"), snippetPath, true);
+    Console.WriteLine("Saved: " + snippetPath);
 }
 
 static async Task RunGettingStartedFirstTrace(string outDir)
 {
-    var options = DefaultSessionOptions();
-    Tracer.Start(options);
+    Tracer.Start(DefaultSessionOptions());
 
     using (Tracer.Scope(Ids.App))
     {
@@ -287,69 +297,67 @@ static async Task RunGettingStartedFirstTrace(string outDir)
     await IoDelay(20);
 
     var session = Tracer.Stop();
-    var processed = session.Process();
-    var meta = Tracer.CreateMetadata();
+    var report = TraceText.Write(session.Process(), Tracer.CreateMetadata(), 8, 4);
 
-    var tracePath = Path.Combine(outDir, "getting-started-first-trace.json");
-    ExportChromeComplete(session, tracePath, meta);
-
-    var reportPath = Path.Combine(outDir, "getting-started-first-trace.txt");
-    var reportText = TraceText.Write(processed, meta, 8, 4);
-    File.WriteAllText(reportPath, reportText);
-
-    Console.WriteLine("Saved: " + tracePath);
-    Console.WriteLine("Saved: " + reportPath);
+    ExportChromeComplete(session, Path.Combine(outDir, "getting-started-first-trace.json"));
+    WriteText(Path.Combine(outDir, "getting-started-first-trace.txt"), report);
 }
 
-static Task CopyGeneratorOutput(string projectDir, string outDir)
+static async Task RunRuntimeCountersTimeline(string outDir)
 {
-    if (string.IsNullOrWhiteSpace(projectDir))
+    Tracer.Start(new SessionOptions
     {
-        Console.WriteLine("Project directory not found; cannot locate generator output.");
-        return Task.CompletedTask;
-    }
+        ChunkCapacity = 128 * 1024,
+        RuntimeCounters = RuntimeCounters.All,
+        RuntimeCounterInterval = TimeSpan.FromMilliseconds(5)
+    });
 
-    var objDir = Path.Combine(projectDir, "obj");
-    if (!Directory.Exists(objDir))
+    await using (Tracer.ScopeAsync(Ids.App))
     {
-        Console.WriteLine("obj/ not found; build the project first.");
-        return Task.CompletedTask;
-    }
-
-    string? sourcePath = null;
-
-    var exactName = "EmberTrace.GeneratedTraceMetadataProvider.g.cs";
-    foreach (var file in Directory.EnumerateFiles(objDir, exactName, SearchOption.AllDirectories))
-        if (LooksLikeGeneratorOutput(file))
+        var workers = Enumerable.Range(0, 3).Select(_ => Task.Run(() =>
         {
-            sourcePath = file;
-            break;
-        }
-
-    if (sourcePath == null)
-        foreach (var file in Directory.EnumerateFiles(objDir, "*.g.cs", SearchOption.AllDirectories))
-            if (LooksLikeGeneratorOutput(file))
+            using (Tracer.Scope(Ids.Worker))
             {
-                sourcePath = file;
-                break;
+                for (var i = 0; i < 10; i++)
+                {
+                    Allocate(48);
+                    SortWork(60_000);
+                }
             }
+        }));
 
-    if (sourcePath == null)
-    {
-        Console.WriteLine("Generator output not found; rebuild with -p:EmitCompilerGeneratedFiles=true.");
-        return Task.CompletedTask;
+        await Task.WhenAll(workers).ConfigureAwait(false);
     }
 
-    var destPath = Path.Combine(outDir, "generator-generated-code.cs");
-    File.Copy(sourcePath, destPath, true);
-    Console.WriteLine("Saved: " + destPath);
+    var session = Tracer.Stop();
+    ExportChromeComplete(session, Path.Combine(outDir, "runtime-counters-timeline.json"));
+}
+
+static Task CopyGeneratedMetadata(string projectDir, string outDir)
+{
+    CopyGenerated(projectDir, "EmberTrace.GeneratedTraceMetadataProvider.g.cs",
+        Path.Combine(outDir, "generator-generated-code.cs"));
     return Task.CompletedTask;
+}
+
+static async Task RunAutoInstrumentation(string projectDir, string outDir)
+{
+    Tracer.Start(DefaultSessionOptions());
+
+    var service = new OrderService();
+    for (var i = 0; i < 20; i++)
+        await service.PlaceAsync(i).ConfigureAwait(false);
+
+    var session = Tracer.Stop();
+    Console.WriteLine($"Recorded {session.EventCount} events through the generated wrappers.");
+
+    CopyGenerated(projectDir, "EmberTrace.Trace.*OrderService.g.cs",
+        Path.Combine(outDir, "auto-instrumentation-generated-code.cs"));
 }
 
 static Task RunTroubleshootingCommon(string outDir)
 {
-    var options = DefaultSessionOptions();
-    Tracer.Start(options);
+    Tracer.Start(DefaultSessionOptions());
 
     using (Tracer.Scope(Ids.App))
     {
@@ -360,58 +368,47 @@ static Task RunTroubleshootingCommon(string outDir)
     var session = Tracer.Stop();
     var processed = session.Process();
 
-    var withoutMeta = TraceText.Write(processed, null, 6, 4);
+    var withoutMeta = TraceText.Write(processed, TraceMetadata.FromEntries([]), 6, 4);
     var withMeta = TraceText.Write(processed, Tracer.CreateMetadata(), 6, 4);
 
-    var path = Path.Combine(outDir, "troubleshooting-common.txt");
-    var text = "== Without metadata ==" + Environment.NewLine +
-               withoutMeta + Environment.NewLine + Environment.NewLine +
-               "== With metadata ==" + Environment.NewLine +
-               withMeta;
-    File.WriteAllText(path, text);
-    Console.WriteLine("Saved: " + path);
+    WriteText(Path.Combine(outDir, "troubleshooting-common.txt"),
+        "== Without metadata ==" + Environment.NewLine +
+        withoutMeta + Environment.NewLine + Environment.NewLine +
+        "== With metadata ==" + Environment.NewLine +
+        withMeta);
     return Task.CompletedTask;
 }
 
-static bool LooksLikeGeneratorOutput(string path)
+static void CopyGenerated(string projectDir, string pattern, string destPath)
 {
-    const int maxChars = 8000;
-    using var reader = new StreamReader(path);
-    var buffer = new char[maxChars];
-    var read = reader.ReadBlock(buffer, 0, buffer.Length);
-    var text = new string(buffer, 0, read);
-    return text.Contains("GeneratedTraceMetadataProvider", StringComparison.Ordinal) &&
-           text.Contains("TraceMetadata.Register", StringComparison.Ordinal);
+    var generatedDir = Path.Combine(projectDir, "obj", "generated");
+    var source = Directory.Exists(generatedDir)
+        ? Directory.EnumerateFiles(generatedDir, pattern, SearchOption.AllDirectories).FirstOrDefault()
+        : null;
+
+    if (source is null)
+        throw new FileNotFoundException($"{pattern} not found under {generatedDir}; rebuild the project.");
+
+    File.Copy(source, destPath, true);
+    Console.WriteLine("Saved: " + destPath);
 }
 
-static void ExportChromeComplete(TraceSession session, string path, ITraceMetadataProvider meta)
+static void ExportChromeComplete(TraceSession session, string path)
 {
-    EnsureDir(path);
     using var fs = File.Create(path);
-    TraceExport.WriteChromeComplete(session, fs, meta);
+    TraceExport.WriteChromeComplete(session, fs, Tracer.CreateMetadata());
+    Console.WriteLine("Saved: " + path);
 }
 
-static void ExportChromeBeginEnd(TraceSession session, string path, ITraceMetadataProvider meta)
+static void WriteText(string path, string text)
 {
-    EnsureDir(path);
-    using var fs = File.Create(path);
-    TraceExport.WriteChromeBeginEnd(session, fs, meta);
+    File.WriteAllText(path, text);
+    Console.WriteLine("Saved: " + path);
 }
 
 static SessionOptions DefaultSessionOptions()
 {
-    return new SessionOptions
-    {
-        ChunkCapacity = 128 * 1024,
-        OverflowPolicy = OverflowPolicy.DropNew
-    };
-}
-
-static void EnsureDir(string path)
-{
-    var dir = Path.GetDirectoryName(path);
-    if (!string.IsNullOrEmpty(dir))
-        Directory.CreateDirectory(dir);
+    return new SessionOptions { ChunkCapacity = 128 * 1024 };
 }
 
 static void CpuSpin(int iters)
@@ -450,47 +447,24 @@ static void SortWork(int n)
         Console.WriteLine(a[0]);
 }
 
-static string ResolveOutDir()
+static void Allocate(int megabytes)
 {
-    var cwd = Directory.GetCurrentDirectory();
-    if (File.Exists(Path.Combine(cwd, "EmberTrace.slnx")))
-        return Path.Combine(cwd, "samples", "EmberTrace.DocScreenshots", "out");
-    if (File.Exists(Path.Combine(cwd, "EmberTrace.DocScreenshots.csproj")))
-        return Path.Combine(cwd, "out");
-    return Path.Combine(cwd, "out");
+    using var _ = Tracer.Scope(Ids.Allocate);
+
+    var blocks = new List<byte[]>(megabytes * 16);
+    for (var i = 0; i < megabytes * 16; i++)
+        blocks.Add(new byte[64 * 1024]);
+
+    GC.KeepAlive(blocks);
 }
 
 static string ResolveProjectDir()
 {
-    var baseDir = AppContext.BaseDirectory;
-    var probe = FindUpwards(baseDir, "EmberTrace.DocScreenshots.csproj");
-    if (!string.IsNullOrWhiteSpace(probe))
-        return Path.GetDirectoryName(probe) ?? string.Empty;
+    for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        if (File.Exists(Path.Combine(dir.FullName, "EmberTrace.DocScreenshots.csproj")))
+            return dir.FullName;
 
-    var cwd = Directory.GetCurrentDirectory();
-    probe = FindUpwards(cwd, "EmberTrace.DocScreenshots.csproj");
-    if (!string.IsNullOrWhiteSpace(probe))
-        return Path.GetDirectoryName(probe) ?? string.Empty;
-
-    var repoPath = Path.Combine(cwd, "samples", "EmberTrace.DocScreenshots", "EmberTrace.DocScreenshots.csproj");
-    if (File.Exists(repoPath))
-        return Path.GetDirectoryName(repoPath) ?? string.Empty;
-
-    return string.Empty;
-}
-
-static string FindUpwards(string startDir, string fileName)
-{
-    var current = new DirectoryInfo(startDir);
-    while (current is not null)
-    {
-        var candidate = Path.Combine(current.FullName, fileName);
-        if (File.Exists(candidate))
-            return candidate;
-        current = current.Parent;
-    }
-
-    return string.Empty;
+    return Directory.GetCurrentDirectory();
 }
 
 internal record Scenario(string Name, string Description, Func<Task> Run);
@@ -508,7 +482,7 @@ internal static class Ids
     public const int Cpu = 2100;
     public const int Io = 2200;
     public const int Sort = 2300;
-    public const int AsyncBlock = 2400;
+    public const int Allocate = 2400;
 
     public const int JobFlow = 3000;
 }

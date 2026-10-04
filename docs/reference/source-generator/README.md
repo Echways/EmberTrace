@@ -125,4 +125,4 @@ See also:
 
 ## Screenshots
 
-![Generated code: a file under `obj/` with the attributes and registration, as seen in the IDE](../../assets/generator-generated-code.png)
+![Generated code: the metadata provider and its module initializer as emitted under `obj/`](../../assets/generator-generated-code.png)

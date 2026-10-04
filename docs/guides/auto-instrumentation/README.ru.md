@@ -225,3 +225,7 @@ public sealed class TracedInventoryService : global::Acme.IInventoryService
 - [Генератор и TraceId (метаданные)](../../reference/source-generator/README.ru.md)
 - [Roslyn-анализаторы](../../reference/roslyn-analyzers/README.ru.md)
 - [Использование и API](../usage/README.ru.md)
+
+## Скриншоты
+
+![Сгенерированная обёртка: синхронный и асинхронный `[Trace]`-методы `OrderService` из `obj/`](../../assets/auto-instrumentation-generated-code.png)

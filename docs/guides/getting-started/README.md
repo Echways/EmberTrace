@@ -113,10 +113,18 @@ Open in:
 The repository contains a ready-to-run scenario with scopes + flows + async + export + report:
 
 ```bash
-dotnet run --project samples/EmberTrace.DocScreenshots -c Release
+dotnet run --project samples/EmberTrace.DocScreenshots -c Release -p:UseLocalEmberTrace=true
 # output files: samples/EmberTrace.DocScreenshots/out
 ```
 
 Next:
 - [Usage and API](../usage/README.md)
 - [Flow and async](../../concepts/flows/README.md)
+
+## Screenshots
+
+![First trace: the exported file opened in Perfetto](../../assets/getting-started-first-trace.png)
+
+## Links
+
+- [**Getting started**](../../assets/getting-started-first-trace.txt)
