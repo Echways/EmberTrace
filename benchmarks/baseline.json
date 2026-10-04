@@ -2,9 +2,9 @@
   "reference": "EmberTrace.Benchmarks.HotPathBenchmarks.Clock_TwoTimestamps",
   "threshold": 0.25,
   "benchmarks": {
-    "EmberTrace.Benchmarks.HotPathBenchmarks.Scope_BeginEnd": { "ratio": 1.65, "allocated": 0 },
-    "EmberTrace.Benchmarks.HotPathBenchmarks.Instant": { "ratio": 0.79, "allocated": 0 },
-    "EmberTrace.Benchmarks.HotPathBenchmarks.ScopeAsync_BeginEnd": { "ratio": 4.13, "allocated": 224 },
-    "EmberTrace.Benchmarks.HotPathBenchmarks.Trace_Async": { "ratio": 3.12, "allocated": 128 }
+    "EmberTrace.Benchmarks.HotPathBenchmarks.Scope_BeginEnd": { "ratio": 1.21, "allocated": 0 },
+    "EmberTrace.Benchmarks.HotPathBenchmarks.Instant": { "ratio": 0.58, "allocated": 0 },
+    "EmberTrace.Benchmarks.HotPathBenchmarks.ScopeAsync_BeginEnd": { "ratio": 2.72, "allocated": 224 },
+    "EmberTrace.Benchmarks.HotPathBenchmarks.Trace_Async": { "ratio": 2.24, "allocated": 128 }
   }
 }
