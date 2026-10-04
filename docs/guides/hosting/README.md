@@ -189,3 +189,7 @@ thrown.
 - [Flight recorder (live snapshots)](../flight-recorder/README.md)
 - [Runtime counters](../runtime-counters/README.md)
 - [Binary session format (.ember)](../format/README.md)
+
+## Screenshots
+
+![A `format=chrome` dump in Perfetto: request scopes, `Orders.Load`, a slow `Orders.Slow` and the runtime counters](../../assets/hosting-request-dump.png)

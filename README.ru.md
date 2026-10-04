@@ -78,14 +78,27 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 - `chrome://tracing` (Chrome)
 - Perfetto (веб-UI) — удобно для больших трасс
 
-## Пример из репозитория
+## Примеры из репозитория
 
-Самый полный пример — `samples/EmberTrace.DocScreenshots` (scopes + flows + async + экспорт + текстовый отчёт):
+| Пример | Что показывает |
+|--------|----------------|
+| [`BasicTracing`](samples/EmberTrace.BasicTracing) | scopes, текстовый отчёт с перцентилями, Chrome Trace, collapsed stacks, запись и чтение `.ember` |
+| [`ParallelWorkers`](samples/EmberTrace.ParallelWorkers) | рабочие потоки, flows и `AnalyzeFlows`, runtime-счётчики |
+| [`AutoInstrumentation`](samples/EmberTrace.AutoInstrumentation) | `[Trace]` на `partial`-методах |
+| [`FlightRecorder`](samples/EmberTrace.FlightRecorder) | `Tracer.Snapshot()` поверх ограниченного буфера `DropOldest` |
+| [`WebApi`](samples/EmberTrace.WebApi) | интеграция с ASP.NET Core, `/embertrace/dump`, захват медленных запросов |
+| [`NativeAot`](samples/EmberTrace.NativeAot) | публикация NativeAOT |
+| [`DocScreenshots`](samples/EmberTrace.DocScreenshots) | все сценарии, из которых получены изображения в `docs/assets` |
 
 ```bash
-dotnet run --project samples/EmberTrace.DocScreenshots -c Release
-# файлы появятся в samples/EmberTrace.DocScreenshots/out
+dotnet run --project samples/EmberTrace.BasicTracing -c Release -p:UseLocalEmberTrace=true
+# файлы появятся в ./out
 ```
+
+`-p:UseLocalEmberTrace=true` собирает пример на исходниках из этого репозитория, а не на опубликованных пакетах.
+
+Изображения и отчёты в `docs/assets` перегенерируются командой
+`python3 samples/EmberTrace.DocScreenshots/capture.py` (нужны Playwright с Chromium и Pygments).
 
 ## Документация
 
@@ -124,6 +137,14 @@ dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 **Пример простой трассы в Perfetto**
 
 ![Perfetto timeline](docs/assets/getting-started-first-trace.png)
+
+**Runtime-счётчики рядом со scopes**
+
+![Runtime-счётчики в Perfetto](docs/assets/runtime-counters-timeline.png)
+
+**Flame graph в speedscope**
+
+![Flame graph в speedscope](docs/assets/analysis-flame-graph.png)
 
 ## Полезные ссылки
 

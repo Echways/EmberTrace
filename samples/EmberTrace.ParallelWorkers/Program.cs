@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using EmberTrace;
 using EmberTrace.Abstractions.Attributes;
+using EmberTrace.Flow;
 using EmberTrace.Sessions;
 
 [assembly: TraceId(Ids.App, "App", "App")]
@@ -11,7 +11,7 @@ using EmberTrace.Sessions;
 [assembly: TraceId(Ids.BusyWait, "BusyWait", "CPU")]
 [assembly: TraceId(Ids.Io, "IO", "IO")]
 [assembly: TraceId(Ids.Cpu, "Cpu", "CPU")]
-
+[assembly: TraceId(Ids.Job, "Job", "Flow")]
 
 static int Fib(int n)
 {
@@ -56,18 +56,18 @@ static void CpuWork(int fibN, int sortN, int seed)
     Busy(40_000);
 }
 
-static void Worker(int workerId, int iterations)
+static void Worker(int workerId, int iterations, FlowHandle job)
 {
     using var s = Tracer.Scope(Ids.Worker);
+    job.Step();
 
-    var sw = Stopwatch.StartNew();
     for (var i = 0; i < iterations; i++)
         if ((i & 1) == 0)
             CpuWork(20, 15_000, workerId * 1000 + i);
         else
             SimulatedIo(5);
 
-    sw.Stop();
+    job.Step();
 }
 
 Tracer.Start(new SessionOptions
@@ -77,17 +77,20 @@ Tracer.Start(new SessionOptions
     RuntimeCounterInterval = TimeSpan.FromMilliseconds(20)
 });
 
-using (var app = Tracer.Scope(Ids.App))
+using (Tracer.Scope(Ids.App))
 {
-    using (var warmup = Tracer.Scope(Ids.Warmup))
+    using (Tracer.Scope(Ids.Warmup))
     {
         Busy(200_000);
         SortWork(5_000, 123);
     }
 
-    var t1 = Task.Run(() => Worker(1, 8));
-    var t2 = Task.Run(() => Worker(2, 8));
-    Task.WaitAll(t1, t2);
+    var jobs = new[] { Tracer.FlowStartNewHandle(Ids.Job), Tracer.FlowStartNewHandle(Ids.Job) };
+    var workers = jobs.Select((job, index) => Task.Run(() => Worker(index + 1, 8, job))).ToArray();
+    Task.WaitAll(workers);
+
+    foreach (var job in jobs)
+        job.End();
 }
 
 var session = Tracer.Stop();
@@ -96,10 +99,14 @@ var processed = session.Process();
 var meta = Tracer.CreateMetadata();
 Console.WriteLine(TraceText.Write(processed, meta, 12, 4));
 
-var path = Path.Combine(AppContext.BaseDirectory, "embertrace_complete.json");
+foreach (var flow in session.AnalyzeFlows())
+    Console.WriteLine($"Flow {flow.FlowId}: {flow.TotalDurationMs:F3} ms across {flow.Steps.Count} steps");
+
+Directory.CreateDirectory("out");
+var path = Path.Combine("out", "trace.json");
 using var fs = File.Create(path);
 TraceExport.WriteChromeComplete(session, fs, meta);
-Console.WriteLine(path);
+Console.WriteLine("Chrome trace: " + path);
 
 internal static class Ids
 {
@@ -113,4 +120,6 @@ internal static class Ids
 
     public const int Io = 3001;
     public const int Cpu = 3002;
+
+    public const int Job = 4001;
 }

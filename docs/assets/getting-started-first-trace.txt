@@ -1,6 +1,6 @@
 Summary
-Started: 2026-09-15T12:17:06.9839282+00:00
-Duration: 20.809 ms
+Started: 2026-10-04T11:18:40.4020342+00:00
+Duration: 20.871 ms
 Events: 6
 ScopeEvents: 6
 Threads: 1
@@ -14,22 +14,22 @@ MismatchedEnd: 0
 Hotspots (by inclusive)
 Id    Name     Category  Count  Incl ms  Excl ms  Excl%
 --    ----     --------  -----  -------  -------  -----
-2200  IoWait   IO        1      20.215   20.215   97.14
-1000  App      App       1      0.106    0.001    0.01 
-2100  CpuWork  CPU       1      0.105    0.105    0.50 
+2200  IoWait   IO        1      20.209   20.209   96.83
+1000  App      App       1      0.125    0.004    0.02 
+2100  CpuWork  CPU       1      0.121    0.121    0.58 
 
 Categories (by inclusive)
 Category  Count  Incl ms  Excl ms  Excl%
 --------  -----  -------  -------  -----
-IO        1      20.215   20.215   97.14
-App       1      0.106    0.001    0.01 
-CPU       1      0.105    0.105    0.50 
+IO        1      20.209   20.209   96.83
+App       1      0.125    0.004    0.02 
+CPU       1      0.121    0.121    0.58 
 
 Call trees
 
 Thread 7 (.NET TP Worker)
 Id      Name     Category  Count  Incl ms  Excl ms
 --      ----     --------  -----  -------  -------
-2200    IoWait   IO        1      20.215   20.215 
-1000    App      App       1      0.106    0.001  
-  2100  CpuWork  CPU       1      0.105    0.105  
+2200    IoWait   IO        1      20.209   20.209 
+1000    App      App       1      0.125    0.004  
+  2100  CpuWork  CPU       1      0.121    0.121  

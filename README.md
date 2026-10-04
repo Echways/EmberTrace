@@ -81,14 +81,28 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 - `chrome://tracing` (Chrome)
 - Perfetto (web UI) - convenient for large traces
 
-## Repository Example
+## Repository Examples
 
-The most complete example is `samples/EmberTrace.DocScreenshots` (scopes + flows + async + export + text report):
+| Sample | Shows |
+|--------|-------|
+| [`BasicTracing`](samples/EmberTrace.BasicTracing) | scopes, text report with percentiles, Chrome Trace, collapsed stacks, `.ember` round trip |
+| [`ParallelWorkers`](samples/EmberTrace.ParallelWorkers) | worker threads, flows with `AnalyzeFlows`, runtime counters |
+| [`AutoInstrumentation`](samples/EmberTrace.AutoInstrumentation) | `[Trace]` on `partial` methods |
+| [`FlightRecorder`](samples/EmberTrace.FlightRecorder) | `Tracer.Snapshot()` over a bounded `DropOldest` buffer |
+| [`WebApi`](samples/EmberTrace.WebApi) | ASP.NET Core hosting, `/embertrace/dump`, slow request capture |
+| [`NativeAot`](samples/EmberTrace.NativeAot) | NativeAOT publish |
+| [`DocScreenshots`](samples/EmberTrace.DocScreenshots) | every scenario behind the images in `docs/assets` |
 
 ```bash
-dotnet run --project samples/EmberTrace.DocScreenshots -c Release
-# files will be in samples/EmberTrace.DocScreenshots/out
+dotnet run --project samples/EmberTrace.BasicTracing -c Release -p:UseLocalEmberTrace=true
+# files will be in ./out
 ```
+
+`-p:UseLocalEmberTrace=true` builds a sample against the sources in this repository instead of the published
+packages.
+
+The images and reports in `docs/assets` are regenerated with
+`python3 samples/EmberTrace.DocScreenshots/capture.py` (requires Playwright with Chromium and Pygments).
 
 ## Documentation
 
@@ -127,6 +141,14 @@ dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 **Example of a simple trace in Perfetto**
 
 ![Perfetto timeline](docs/assets/getting-started-first-trace.png)
+
+**Runtime counters next to scopes**
+
+![Runtime counters in Perfetto](docs/assets/runtime-counters-timeline.png)
+
+**Flame graph in speedscope**
+
+![Flame graph in speedscope](docs/assets/analysis-flame-graph.png)
 
 ## Useful Links
 

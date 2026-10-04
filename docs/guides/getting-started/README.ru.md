@@ -113,7 +113,7 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 В репозитории есть готовый сценарий со scopes + flows + async + экспорт + отчёт:
 
 ```bash
-dotnet run --project samples/EmberTrace.DocScreenshots -c Release
+dotnet run --project samples/EmberTrace.DocScreenshots -c Release -p:UseLocalEmberTrace=true
 # выходные файлы: samples/EmberTrace.DocScreenshots/out
 ```
 
@@ -123,7 +123,7 @@ dotnet run --project samples/EmberTrace.DocScreenshots -c Release
 
 ## Скриншоты
 
-![Первый trace end-to-end: команда запуска + где появился файл + открытие в UI](../../assets/getting-started-first-trace.png)
+![Первый trace: экспортированный файл, открытый в Perfetto](../../assets/getting-started-first-trace.png)
 
 ## Ссылки
 

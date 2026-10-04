@@ -40,7 +40,8 @@ var workers = Enumerable.Range(0, 4)
 await Task.Delay(TimeSpan.FromSeconds(5));
 
 var snapshot = Tracer.Snapshot(TimeSpan.FromSeconds(2));
-var path = Path.Combine(Path.GetTempPath(), $"embertrace-flight-{DateTime.UtcNow:yyyyMMdd-HHmmss}.ember");
+Directory.CreateDirectory("out");
+var path = Path.Combine("out", $"flight-{DateTime.UtcNow:yyyyMMdd-HHmmss}{TraceFormat.FileExtension}");
 TraceFormat.Write(snapshot, path);
 
 Console.WriteLine($"Snapshot: {snapshot.EventCount} events over {snapshot.DurationMs:F1} ms");

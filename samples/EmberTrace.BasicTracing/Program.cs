@@ -24,22 +24,24 @@ static async Task IoWaitAsync(int ms)
 }
 
 Directory.CreateDirectory("out");
-Console.WriteLine("== EmberTrace.Demo ==");
+Console.WriteLine("== EmberTrace.BasicTracing ==");
 
 Tracer.Start();
 
 await using (Tracer.ScopeAsync(Ids.App))
 {
-    CpuWork(120_000);
-    await IoWaitAsync(40);
-    CpuWork(80_000);
+    for (var i = 0; i < 20; i++)
+    {
+        CpuWork(80_000 + i * 10_000);
+        await IoWaitAsync(2 + i % 5);
+    }
 }
 
 var session = Tracer.Stop();
 var meta = Tracer.CreateMetadata();
 
 var processed = session.Process();
-Console.WriteLine(TraceText.Write(processed, meta, 10, 4));
+Console.WriteLine(TraceText.Write(processed, meta, 10, 4, includePercentiles: true));
 
 var chromePath = Path.Combine("out", "trace.json");
 using (var fs = File.Create(chromePath))
@@ -47,13 +49,21 @@ using (var fs = File.Create(chromePath))
     TraceExport.WriteChromeComplete(session, fs, meta);
 }
 
-Console.WriteLine("OK: " + chromePath);
+Console.WriteLine("Chrome trace: " + chromePath);
+
+var foldedPath = Path.Combine("out", "trace.folded");
+using (var folded = File.CreateText(foldedPath))
+{
+    TraceText.WriteCollapsedStacks(processed, folded, meta);
+}
+
+Console.WriteLine("Collapsed stacks: " + foldedPath);
 
 var tracePath = Path.Combine("out", "session" + TraceFormat.FileExtension);
 TraceFormat.Write(session, tracePath);
 
 var reloaded = TraceFormat.Read(tracePath);
-Console.WriteLine($"Saved {new FileInfo(tracePath).Length} bytes, reloaded {reloaded.EventCount} events.");
+Console.WriteLine($"Binary session: {tracePath}, {new FileInfo(tracePath).Length} bytes, reloaded {reloaded.EventCount} events.");
 
 internal static class Ids
 {

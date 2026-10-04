@@ -74,3 +74,7 @@ that finished before the session started is not drawn.
 The sampler is one background thread at `BelowNormal` priority doing a handful of property reads per interval.
 It writes through the same lock-free path as any other event and adds nothing to your application's hot path.
 At the 50 ms default it produces roughly 200 events per second.
+
+## Screenshots
+
+![Runtime counters in Perfetto: GC pauses on the `EmberTrace.Runtime` track, counter tracks below the worker scopes](../../assets/runtime-counters-timeline.png)

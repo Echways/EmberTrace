@@ -110,7 +110,9 @@ TraceText.WriteCollapsedStacks(session.Process(), file, Tracer.CreateMetadata())
 
 ## Скриншоты
 
-![Срез анализа: агрегирование/сортировка/фильтры](../../assets/analysis-slice.png)
+![Срез анализа: сессия, по которой построен отчёт, в Perfetto](../../assets/analysis-slice.png)
+
+![Flame graph: collapsed stacks в speedscope, вид Left Heavy](../../assets/analysis-flame-graph.png)
 
 ## Ссылки
 

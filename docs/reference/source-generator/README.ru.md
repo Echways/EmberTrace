@@ -123,4 +123,4 @@ dotnet add package EmberTrace.Generator
 
 ## Скриншоты
 
-![Сгенерированный код: файл из `obj/` с атрибутами и регистрацией (вид в IDE)](../../assets/generator-generated-code.png)
+![Сгенерированный код: провайдер метаданных и его module initializer из `obj/`](../../assets/generator-generated-code.png)

@@ -1,8 +1,8 @@
 Summary
-Started: 2026-09-15T12:17:06.9358075+00:00
-Duration: 34.293 ms
-Events: 16
-ScopeEvents: 16
+Started: 2026-10-04T11:18:40.1897882+00:00
+Duration: 77.147 ms
+Events: 100
+ScopeEvents: 100
 Threads: 1
 DroppedEvents: 0
 DroppedChunks: 0
@@ -12,26 +12,26 @@ UnmatchedEnd: 0
 MismatchedEnd: 0
 
 Hotspots (by inclusive)
-Id    Name     Category  Count  Incl ms  Excl ms  Excl%
---    ----     --------  -----  -------  -------  -----
-2200  IoWait   IO        1      25.199   25.199   73.48
-1000  App      App       1      8.637    0.005    0.02 
-2300  Sort     CPU       3      8.034    8.034    23.43
-2100  CpuWork  CPU       3      0.597    0.597    1.74 
+Id    Name     Category  Count  Incl ms  Excl ms  Excl%  p50 ms  p95 ms  p99 ms
+--    ----     --------  -----  -------  -------  -----  ------  ------  ------
+1000  App      App       1      51.379   0.011    0.01   51.379  51.379  51.379
+2300  Sort     CPU       24     46.070   46.070   59.72  1.868   2.884   2.965 
+2200  IoWait   IO        1      25.236   25.236   32.71  25.236  25.236  25.236
+2100  CpuWork  CPU       24     5.297    5.297    6.87   0.221   0.336   0.347 
 
 Categories (by inclusive)
 Category  Count  Incl ms  Excl ms  Excl%
 --------  -----  -------  -------  -----
-IO        1      25.199   25.199   73.48
-App       1      8.637    0.005    0.02 
-CPU       6      8.631    8.631    25.17
+App       1      51.379   0.011    0.01 
+CPU       48     51.367   51.367   66.58
+IO        1      25.236   25.236   32.71
 
 Call trees
 
 Thread 7 (.NET TP Worker)
 Id      Name     Category  Count  Incl ms  Excl ms
 --      ----     --------  -----  -------  -------
-2200    IoWait   IO        1      25.199   25.199 
-1000    App      App       1      8.637    0.005  
-  2300  Sort     CPU       3      8.034    8.034  
-  2100  CpuWork  CPU       3      0.597    0.597  
+1000    App      App       1      51.379   0.011  
+  2300  Sort     CPU       24     46.070   46.070 
+  2100  CpuWork  CPU       24     5.297    5.297  
+2200    IoWait   IO        1      25.236   25.236 
