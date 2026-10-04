@@ -29,6 +29,7 @@ internal sealed class ProfilingState
         Sampling = sampling;
         StartTs = startTs;
         StartedAtUtc = startedAtUtc;
+        collector.WriterRetired = Forget;
     }
 
     public long Id { get; } = Interlocked.Increment(ref _nextId);
@@ -47,8 +48,13 @@ internal sealed class ProfilingState
     {
         return _writers.GetOrAdd(
             ThreadIdentity.Current,
-            static (_, state) =>
-                new ThreadWriter(state.Collector, state.Sampling, Interlocked.Increment(ref state._nextTrackId)),
+            static (key, state) =>
+                new ThreadWriter(state.Collector, state.Sampling, Interlocked.Increment(ref state._nextTrackId), key),
             this);
+    }
+
+    private void Forget(ThreadWriter writer)
+    {
+        _writers.TryRemove(new KeyValuePair<long, ThreadWriter>(writer.OwnerKey, writer));
     }
 }

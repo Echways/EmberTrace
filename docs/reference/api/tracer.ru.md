@@ -209,6 +209,30 @@ Tracer.OnIdCollision = c => logger.LogError("EmberTrace id collision: {Collision
 
 ---
 
+## Собственные сессии и метаданные
+
+`Tracer` — это одна сессия на процесс: в неё пишут сгенерированный `[Trace]`-код и интеграция с
+ASP.NET Core. Когда компоненту нужна запись, которую никто другой не видит и не может остановить,
+используй экземпляр:
+
+```csharp
+var metadata = new TraceMetadataRegistry();
+metadata.Register(TraceMetadata.FromEntries([new TraceMeta(1000, "Import", "Jobs")]));
+
+using var tracing = new TracingSession(metadata);
+tracing.Start();
+using (tracing.Scope(1000))
+{
+}
+
+var session = tracing.Stop();
+```
+
+`TraceMetadata.Register` и `TraceMetadata.CreateDefault` — сокращения для
+`TraceMetadataRegistry.Shared`; `TracingSession`, созданная без реестра, использует общий.
+
+---
+
 ## Скриншоты
 
 ![Tracer API in Perfetto](../../assets/api-tracer-perfetto.png)

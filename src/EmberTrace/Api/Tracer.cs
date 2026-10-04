@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using EmberTrace.Flow;
 using EmberTrace.Internal;
@@ -62,6 +63,12 @@ public static class Tracer
     public static AsyncScope ScopeAsync(int id)
     {
         return new AsyncScope(id, Default);
+    }
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static AsyncScope MethodScopeAsync(int id)
+    {
+        return new AsyncScope(id, Default, false);
     }
 
     public static long NewFlowId()
@@ -187,10 +194,12 @@ public readonly struct AsyncScope : IAsyncDisposable
     private readonly long _scopeId;
     private readonly long _parentScopeId;
     private readonly Profiler? _profiler;
+    private readonly bool _restoresContext;
 
-    internal AsyncScope(int id, Profiler profiler)
+    internal AsyncScope(int id, Profiler profiler, bool restoresContext = true)
     {
         _id = id;
+        _restoresContext = restoresContext;
 
         if (!profiler.IsRunning)
         {
@@ -212,7 +221,9 @@ public readonly struct AsyncScope : IAsyncDisposable
     {
         if (_profiler is not null)
         {
-            AsyncScopeContext.Set(_parentScopeId);
+            if (_restoresContext)
+                AsyncScopeContext.Set(_parentScopeId);
+
             _profiler.EndAsyncScope(_id, _scopeId, _parentScopeId);
         }
 

@@ -8,16 +8,26 @@ namespace EmberTrace;
 public sealed class TracingSession : IDisposable
 {
     private readonly Action<TraceSession>? _onStopped;
-    private readonly Profiler _profiler = new();
+    private readonly Profiler _profiler;
     private bool _disposed;
 
     public TracingSession()
     {
+        _profiler = new Profiler();
     }
 
     public TracingSession(Action<TraceSession> onStopped)
     {
         _onStopped = onStopped ?? throw new ArgumentNullException(nameof(onStopped));
+        _profiler = new Profiler();
+    }
+
+    public TracingSession(TraceMetadataRegistry metadata, Action<TraceSession>? onStopped = null)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+
+        _onStopped = onStopped;
+        _profiler = new Profiler(null, metadata);
     }
 
     public bool IsRunning => _profiler.IsRunning;

@@ -47,33 +47,68 @@ Chrome-поле `tid` — это id дорожки писателя, а не man
 
 ```csharp
 TraceExport.MarkedComplete(
-    name: "WarmPath",
-    outputPath: "out/warm_path.json",
-    body: () =>
-    {
-        using var _ = Tracer.Scope(Ids.App);
-        Work();
-    });
-```
-
-## SliceAndResume: окно внутри уже идущей сессии
-
-Если сессия уже запущена, можно «срезать» окно и продолжить запись:
-
-```csharp
-var result = TraceExport.MarkedCompleteEx(
-    name: "Slice",
-    outputPath: "out/slice.json",
-    body: () =>
+    "WarmPath",
+    () =>
     {
         using var _ = Tracer.Scope(Ids.App);
         Work();
     },
-    running: MarkedRunningSessionMode.SliceAndResume,
-    resumeOptions: new SessionOptions { ChunkCapacity = 64 * 1024 });
+    new MarkedCompleteOptions { OutputPath = "out/warm_path.json" });
+```
+
+Всё остальное задаётся через `MarkedCompleteOptions`: `Unique` добавляет к имени номер строки
+вызова, `Pid` и `ProcessName` подписывают процесс во вьюере. Без `OutputPath` файл попадает в
+`traces/<имя>_<utc-время>.json`. `MarkedCompleteAsync` принимает тело `Func<Task>`.
+
+## SliceAndResume: окно внутри уже идущей сессии
+
+Если сессия уже запущена, `MarkedComplete` бросает исключение, пока явно не попросить срезать её:
+
+```csharp
+var result = TraceExport.MarkedComplete(
+    "Slice",
+    () =>
+    {
+        using var _ = Tracer.Scope(Ids.App);
+        Work();
+    },
+    new MarkedCompleteOptions
+    {
+        OutputPath = "out/slice.json",
+        Running = MarkedRunningSessionMode.SliceAndResume
+    });
 
 result.SaveFullChromeComplete("out/slice_full.json", meta: Tracer.CreateMetadata());
 ```
+
+Идущая сессия не останавливается: окно вырезается из снапшота, поэтому flight recorder сохраняет
+историю, а другие потоки продолжают запись, пока выполняется тело. `result.CapturedSession` — это
+тот самый снапшот (`IsSnapshot` равно `true`).
+
+Чтобы работать со своей сессией, а не с глобальным `Tracer`, передай её в опциях:
+
+```csharp
+using var tracing = new TracingSession();
+
+TraceExport.MarkedComplete("Import", () => Import(tracing),
+    new MarkedCompleteOptions { Session = tracing, OutputPath = "out/import.json" });
+```
+
+## Переход с 0.3
+
+Перегрузки, помеченные устаревшими в 0.3, удалены в 0.4. Каждая из них выражается через вызов с опциями:
+
+| 0.3 | 0.4 |
+|---|---|
+| `MarkedComplete(name, outputPath, body)` | `MarkedComplete(name, body, new MarkedCompleteOptions { OutputPath = outputPath })` |
+| `MarkedComplete(name, body)` | `MarkedComplete(name, body, default)` |
+| `MarkedCompleteEx(...)` | `MarkedComplete(...)` — он и так возвращает `MarkedCompleteResult` |
+| `MarkedCompleteUnique(...)`, `MarkedCompleteExUnique(...)` | `new MarkedCompleteOptions { Unique = true }` |
+| аргументы `running:`, `pid:`, `processName:` | свойства `Running`, `Pid`, `ProcessName` |
+| перегрузки без имени (имя бралось из вызывающего метода) | передай `nameof(ВызывающийМетод)` |
+| возвращаемый `TraceSession` | `result.CapturedSession` |
+| варианты `...Async` | те же замены на `MarkedCompleteAsync` |
+| аргумент `resumeOptions:` / свойство `ResumeOptions` | удалено — сессия больше не перезапускается |
 
 См. также:
 - [Анализ и отчёты](../analysis/README.ru.md)

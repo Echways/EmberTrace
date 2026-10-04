@@ -32,5 +32,6 @@
         <Project Path="tests/EmberTrace.Generator.Tests/EmberTrace.Generator.Tests.csproj"/>
         <Project Path="tests/EmberTrace.Extensions.Hosting.Tests/EmberTrace.Extensions.Hosting.Tests.csproj"/>
         <Project Path="tests/EmberTrace.AutoInstrumentation.Tests/EmberTrace.AutoInstrumentation.Tests.csproj"/>
+        <Project Path="tests/EmberTrace.ApiDocs.Tests/EmberTrace.ApiDocs.Tests.csproj"/>
     </Folder>
 </Solution>

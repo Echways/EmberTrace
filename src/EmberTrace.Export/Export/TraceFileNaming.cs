@@ -19,20 +19,6 @@ internal static class TraceFileNaming
             Directory.CreateDirectory(dir);
     }
 
-    public static string MakeNameFromCaller(string? caller, string? tag)
-    {
-        var baseName = string.IsNullOrWhiteSpace(caller) ? "Marked" : caller;
-        if (string.IsNullOrWhiteSpace(tag))
-            return baseName;
-
-        return $"{baseName}_{SanitizeTag(tag)}";
-    }
-
-    public static string SanitizeTag(string tag)
-    {
-        return MapChars(tag, static c => char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_');
-    }
-
     public static string DefaultTracePath(string name)
     {
         var suffix = $"_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";

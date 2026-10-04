@@ -72,8 +72,8 @@ public class TraceSessionFactoryTests
     {
         var session = new TraceSession(
             [
-                Chunk(Event(3, 10, 1, 2), Event(2, 10, 2, 2), Event(1, 20, 3, 2)),
-                Chunk(Event(4, 10, 1, 1), Event(5, 30, 2, 1))
+                Chunk(2, (3, 10), (2, 10), (1, 20)),
+                Chunk(1, (4, 10), (5, 30))
             ],
             0, 30, new SessionOptions(), new Dictionary<int, string>(), 0, 0, 0, false);
 
@@ -81,17 +81,53 @@ public class TraceSessionFactoryTests
         CollectionAssert.AreEqual(new[] { 3, 2, 1, 4, 5 }, session.Events().Select(e => e.Id).ToArray());
     }
 
-    private static Chunk Chunk(params TraceEvent[] events)
+    [TestMethod]
+    public void FromEvents_WithUnorderedEvents_StillEnumeratesSortedAndPersists()
     {
-        var chunk = new Chunk(events.Length);
-        foreach (var e in events)
-            chunk.TryWrite(e);
+        var events = new[]
+        {
+            new TraceEventRecord(1, 1, 300, TraceEventKind.Instant, 0, 0, 3),
+            new TraceEventRecord(2, 1, 100, TraceEventKind.Instant, 0, 0, 1),
+            new TraceEventRecord(3, 2, 200, TraceEventKind.Instant, 0, 0, 1),
+            new TraceEventRecord(4, 1, 100, TraceEventKind.Instant, 0, 0, 2),
+            new TraceEventRecord(5, 2, 50, TraceEventKind.Instant, 0, 0, 2)
+        };
 
-        return chunk;
+        var session = TraceSession.FromEvents(events, 0, 300, 1_000_000);
+
+        CollectionAssert.AreEqual(new[] { 5, 2, 4, 3, 1 }, session.SortedEvents().Select(e => e.Id).ToArray());
+        Assert.AreEqual(5L, session.EventCount);
+
+        using var stream = new MemoryStream();
+        TraceFormat.Write(session, stream);
+        stream.Position = 0;
+
+        CollectionAssert.AreEqual(new[] { 5, 2, 4, 3, 1 },
+            TraceFormat.Read(stream).SortedEvents().Select(e => e.Id).ToArray());
     }
 
-    private static TraceEvent Event(int id, long timestamp, long sequence, int trackId)
+    [TestMethod]
+    public void FromEvents_WithInterleavedThreadsAndArbitrarySequences_KeepsEveryFieldOfEveryEvent()
     {
-        return new TraceEvent(id, 1, timestamp, TraceEventKind.Instant, 0, 0, sequence, trackId);
+        var events = new[]
+        {
+            new TraceEventRecord(1, 1, 100, TraceEventKind.Instant, 0, 0, 0, 1),
+            new TraceEventRecord(2, 2, 110, TraceEventKind.Counter, 0, 9, 40, 5),
+            new TraceEventRecord(3, 1, 120, TraceEventKind.Instant, 0, 0, 0, 1),
+            new TraceEventRecord(4, 2, 130, TraceEventKind.FlowStart, 77, 0, 41, 5),
+            new TraceEventRecord(5, 1, 140, TraceEventKind.Instant, 0, 0, 12, 1)
+        };
+
+        var session = TraceSession.FromEvents(events, 100, 140, 1_000_000);
+
+        CollectionAssert.AreEqual(events, session.SortedEvents());
+        CollectionAssert.AreEquivalent(events, session.Events());
+    }
+
+    private static Chunk Chunk(int trackId, params (int Id, long Timestamp)[] events)
+    {
+        return new Chunk(
+            events.Select(e => new TraceEvent(e.Id, e.Timestamp, TraceEventKind.Instant, 0, 0)).ToArray(),
+            1, trackId, 1);
     }
 }

@@ -18,13 +18,17 @@ internal sealed class SessionCollector
 
     private readonly ChunkPool _pool;
     private readonly List<Chunk> _quarantine = new();
+    private readonly bool _reclaimsDeadWriters;
     private readonly long _retentionTicks;
+    private readonly long _sweepIntervalTicks;
     private readonly object _sync = new();
     private readonly ThreadNameRegistry _threadNames = new();
+    private readonly List<ThreadWriter> _writers = new();
 
     private int _closed;
     private long _droppedChunks;
     private long _droppedEvents;
+    private long _nextSweepTimestamp;
     private int _overflowed;
     private long _sampledOutEvents;
     private long _snapshotDiscardedChunks;
@@ -48,6 +52,30 @@ internal sealed class SessionCollector
             var chunks = (_maxTotalEvents + chunkCapacity - 1) / chunkCapacity;
             _maxTotalChunks = chunks > int.MaxValue ? int.MaxValue : (int)Math.Max(1, chunks);
         }
+
+        _reclaimsDeadWriters = _policy == OverflowPolicy.DropOldest && (_retentionTicks > 0 || _maxTotalChunks > 0);
+        _sweepIntervalTicks = _retentionTicks > 0 ? Math.Min(_retentionTicks, Timestamp.Frequency) : Timestamp.Frequency;
+    }
+
+    public Action<ThreadWriter>? WriterRetired { get; set; }
+
+    public int WriterCount
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _writers.Count;
+            }
+        }
+    }
+
+    public void RegisterWriter(ThreadWriter writer)
+    {
+        lock (_sync)
+        {
+            _writers.Add(writer);
+        }
     }
 
     public bool IsClosed => Volatile.Read(ref _closed) == 1;
@@ -59,6 +87,7 @@ internal sealed class SessionCollector
 
     public ChunkCapture[] BeginSnapshot()
     {
+        SealDeadWriters(false);
         TrimExpired();
         Interlocked.Increment(ref _snapshotsInFlight);
 
@@ -117,7 +146,10 @@ internal sealed class SessionCollector
 
     public void Close()
     {
-        Interlocked.Exchange(ref _closed, 1);
+        lock (_sync)
+        {
+            Volatile.Write(ref _closed, 1);
+        }
     }
 
     public bool TryAcceptEvent()
@@ -201,36 +233,46 @@ internal sealed class SessionCollector
         if (IsClosed)
             return false;
 
+        SealDeadWriters(false);
         TrimExpired();
 
         if (_maxTotalChunks > 0 && Volatile.Read(ref _totalChunks) >= _maxTotalChunks)
         {
-            if (_policy == OverflowPolicy.DropOldest)
-            {
-                if (!TryDropOldestChunk(out var dropped) || dropped is null)
-                {
-                    MarkOverflow(OverflowReason.MaxTotalChunks);
-                    return false;
-                }
-
-                Recycle(dropped);
-                chunk = _pool.Rent();
-                RegisterChunk(chunk, false);
-                return true;
-            }
-
             if (_policy == OverflowPolicy.StopSession)
             {
                 MarkOverflow(OverflowReason.MaxTotalChunks);
                 Close();
+                return false;
             }
 
-            return false;
+            if (_policy != OverflowPolicy.DropOldest)
+                return false;
+
+            MakeRoom();
         }
 
         chunk = _pool.Rent();
-        RegisterChunk(chunk, true);
+        RegisterChunk(chunk);
         return true;
+    }
+
+    private void MakeRoom()
+    {
+        var swept = false;
+
+        while (Volatile.Read(ref _totalChunks) >= _maxTotalChunks)
+        {
+            if (TryDropOldestChunk(out var dropped) && dropped is not null)
+            {
+                Recycle(dropped);
+                continue;
+            }
+
+            if (swept || !SealDeadWriters(true))
+                return;
+
+            swept = true;
+        }
     }
 
     private static long RetentionTicks(TimeSpan window)
@@ -248,6 +290,55 @@ internal sealed class SessionCollector
         return count == 0 ? long.MinValue : chunk.Events[count - 1].Timestamp;
     }
 
+    private bool SealDeadWriters(bool force)
+    {
+        if (!_reclaimsDeadWriters || IsClosed)
+            return false;
+
+        var now = _clock();
+        if (!force && now < Volatile.Read(ref _nextSweepTimestamp))
+            return false;
+
+        Volatile.Write(ref _nextSweepTimestamp, now + _sweepIntervalTicks);
+
+        List<ThreadWriter>? retired = null;
+        var sealedAny = false;
+
+        lock (_sync)
+        {
+            var kept = 0;
+
+            for (var i = 0; i < _writers.Count; i++)
+            {
+                var writer = _writers[i];
+                if (writer.IsOwnerAlive)
+                {
+                    _writers[kept++] = writer;
+                    continue;
+                }
+
+                var chunk = writer.Abandon();
+                if (chunk is not null && _active.Remove(chunk))
+                {
+                    _inactive.Enqueue(chunk);
+                    sealedAny = true;
+                }
+
+                retired ??= new List<ThreadWriter>();
+                retired.Add(writer);
+            }
+
+            _writers.RemoveRange(kept, _writers.Count - kept);
+        }
+
+        var handler = WriterRetired;
+        if (retired is not null && handler is not null)
+            foreach (var writer in retired)
+                handler(writer);
+
+        return sealedAny;
+    }
+
     private void TrimExpired()
     {
         if (_retentionTicks <= 0 || IsClosed)
@@ -258,7 +349,7 @@ internal sealed class SessionCollector
 
         lock (_sync)
         {
-            while (_inactive.Count > 0)
+            while (!IsClosed && _inactive.Count > 0)
             {
                 var head = _inactive.Peek();
 
@@ -308,14 +399,13 @@ internal sealed class SessionCollector
         _pool.Return(chunk);
     }
 
-    private void RegisterChunk(Chunk chunk, bool incrementTotalChunks)
+    private void RegisterChunk(Chunk chunk)
     {
         lock (_sync)
         {
             _chunks.Add(chunk);
             _active.Add(chunk);
-            if (incrementTotalChunks)
-                Interlocked.Increment(ref _totalChunks);
+            Interlocked.Increment(ref _totalChunks);
         }
     }
 
@@ -335,6 +425,19 @@ internal sealed class SessionCollector
         if (_policy != OverflowPolicy.DropOldest)
             return false;
 
+        var dropped = DropOldestWhileOverEventLimit();
+
+        if (Interlocked.Read(ref _totalEvents) > _maxTotalEvents && SealDeadWriters(false))
+            dropped |= DropOldestWhileOverEventLimit();
+
+        if (dropped)
+            MarkOverflow(OverflowReason.MaxTotalEvents);
+
+        return dropped && Interlocked.Read(ref _totalEvents) <= _maxTotalEvents;
+    }
+
+    private bool DropOldestWhileOverEventLimit()
+    {
         List<Chunk>? toRecycle = null;
 
         lock (_sync)
@@ -353,15 +456,13 @@ internal sealed class SessionCollector
             }
         }
 
-        if (toRecycle is not null)
-        {
-            foreach (var chunk in toRecycle)
-                Recycle(chunk);
+        if (toRecycle is null)
+            return false;
 
-            MarkOverflow(OverflowReason.MaxTotalEvents);
-        }
+        foreach (var chunk in toRecycle)
+            Recycle(chunk);
 
-        return toRecycle is not null && Interlocked.Read(ref _totalEvents) <= _maxTotalEvents;
+        return true;
     }
 
     private bool TryDropOldestChunk(out Chunk? dropped)
@@ -376,6 +477,7 @@ internal sealed class SessionCollector
         {
             ReleaseEvents(dropped.Count);
             Interlocked.Increment(ref _droppedChunks);
+            Interlocked.Decrement(ref _totalChunks);
             MarkOverflow(OverflowReason.MaxTotalChunks);
         }
 
@@ -384,7 +486,7 @@ internal sealed class SessionCollector
 
     private bool TryDropOldestChunkLocked(out Chunk? dropped)
     {
-        while (_inactive.Count > 0)
+        while (!IsClosed && _inactive.Count > 0)
         {
             var candidate = _inactive.Dequeue();
             if (_active.Contains(candidate))
@@ -423,6 +525,7 @@ internal sealed class SessionCollector
             _inactive.Clear();
             _active.Clear();
             _quarantine.Clear();
+            _writers.Clear();
             _threadNames.Clear();
             Volatile.Write(ref _snapshotsInFlight, 0);
             Volatile.Write(ref _snapshotDiscardedChunks, 0L);

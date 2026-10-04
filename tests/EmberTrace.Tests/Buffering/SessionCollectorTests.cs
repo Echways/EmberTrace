@@ -216,4 +216,37 @@ public class SessionCollectorTests
         Assert.HasCount(2, collector.Chunks);
         Assert.AreEqual(0L, collector.DroppedChunks);
     }
+
+    [TestMethod]
+    [DataRow(0, 1)]
+    [DataRow(1, 2)]
+    public void Close_WhileARentIsInFlight_KeepsEveryRecordedChunk(int retentionSeconds, int clockCallsBeforeClose)
+    {
+        var now = 1_000L;
+        var remaining = int.MaxValue;
+        SessionCollector collector = null!;
+        collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 2, capacity: 2,
+            retention: TimeSpan.FromSeconds(retentionSeconds), clock: () =>
+            {
+                if (--remaining == 0)
+                    collector.Close();
+
+                return now;
+            });
+
+        Assert.IsTrue(collector.TryRentChunk(out var first));
+        Assert.IsTrue(collector.TryRentChunk(out _));
+        first!.TryWrite(Collectors.Event(timestamp: now));
+        first.TryWrite(Collectors.Event(timestamp: now));
+        collector.MarkChunkInactive(first);
+
+        now += 5 * Timestamp.Frequency;
+        remaining = clockCallsBeforeClose;
+        collector.TryRentChunk(out _);
+
+        Assert.IsTrue(collector.IsClosed);
+        Assert.AreEqual(2, first.Count);
+        CollectionAssert.Contains(collector.Chunks.ToArray(), first);
+        Assert.AreEqual(0L, collector.DroppedChunks);
+    }
 }

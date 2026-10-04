@@ -35,6 +35,22 @@ public class ChunkPoolTests
     }
 
     [TestMethod]
+    public void Return_BeyondTheRetentionCap_LetsTheChunkGo()
+    {
+        var pool = new ChunkPool(4, 2);
+        var chunks = new[] { new Chunk(4), new Chunk(4), new Chunk(4) };
+
+        foreach (var chunk in chunks)
+            pool.Return(chunk);
+
+        Assert.AreEqual(2, pool.Retained);
+        Assert.AreSame(chunks[0], pool.Rent());
+        Assert.AreSame(chunks[1], pool.Rent());
+        Assert.AreEqual(0, pool.Retained);
+        Assert.IsFalse(chunks.Contains(pool.Rent()));
+    }
+
+    [TestMethod]
     public void ReturnAndRent_MultiThreaded_PreservesAllChunks()
     {
         var pool = new ChunkPool(8);

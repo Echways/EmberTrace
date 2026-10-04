@@ -24,8 +24,12 @@ Tracer.Start(new SessionOptions
   memory. Set both: the window is what you want, the chunk cap is what protects the process
   when the event rate spikes.
 - The window is enforced when a writer thread rotates to a new chunk, and again when a
-  snapshot is taken. A chunk still owned by an idle thread is never trimmed, so a thread that
-  stops producing events keeps its last partial chunk.
+  snapshot is taken. A live thread that stops producing events keeps its last partial chunk.
+  A thread that has exited does not: its chunk is sealed by a sweep that runs at most once
+  per second (or once per window, if the window is shorter) and then expires like any other.
+- `MaxTotalChunks` never silences a thread. When every chunk belongs to a live thread, a new
+  thread still gets one and the session holds up to one chunk per live thread above the
+  limit; the surplus is evicted as soon as chunks fill.
 
 ## Taking a snapshot
 

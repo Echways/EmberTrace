@@ -14,23 +14,24 @@ internal sealed class Profiler
 {
     private static readonly TimeSpan MaxRetentionWindowLimit = TimeSpan.FromDays(1);
 
-    [ThreadStatic] private static long _cachedSessionId;
     [ThreadStatic] private static ThreadWriter? _cachedWriter;
     private readonly TimeProvider _clock;
+    private readonly TraceMetadataRegistry _registry;
     private int _enabled;
     private ITraceMetadataProvider? _metadata;
     private long _nextFlowId;
     private RuntimeCounterSampler? _runtimeSampler;
     private ProfilingState? _state;
 
-    public Profiler(TimeProvider? clock = null)
+    public Profiler(TimeProvider? clock = null, TraceMetadataRegistry? registry = null)
     {
         _clock = clock ?? TimeProvider.System;
+        _registry = registry ?? TraceMetadataRegistry.Shared;
     }
 
     public bool IsRunning => Volatile.Read(ref _enabled) == 1;
 
-    public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
+    public ITraceMetadataProvider Metadata => _metadata ?? _registry.CreateProvider();
 
     public void Start(SessionOptions? options = null)
     {
@@ -41,10 +42,11 @@ internal sealed class Profiler
             throw new InvalidOperationException("Profiler session already running.");
 
         var chunkCapacity = Math.Max(1024, opts.ChunkCapacity);
-        var collector = new SessionCollector(opts, new ChunkPool(chunkCapacity), chunkCapacity);
+        var collector = new SessionCollector(opts, new ChunkPool(chunkCapacity, ChunkPool.DefaultMaxRetained),
+            chunkCapacity);
         _nextFlowId = 0;
 
-        var meta = TraceMetadata.CreateDefault();
+        var meta = _registry.CreateProvider();
         if (opts.EnableRuntimeMetadata)
             meta = TraceMetadata.Combine(meta, Tracer.Names);
 
@@ -89,10 +91,10 @@ internal sealed class Profiler
         var collector = state.Collector;
         collector.Close();
 
-        foreach (var writer in state.Writers)
-            writer.DrainAndDetach();
-
         var chunks = SnapshotBuilder.HandOver(collector.Chunks);
+
+        foreach (var writer in state.Writers)
+            writer.Detach();
 
         return new TraceSession(
             chunks,
@@ -310,7 +312,7 @@ internal sealed class Profiler
     private void Write(int id, TraceEventKind kind, long flowId, long value)
     {
         var state = _state;
-        if (state is null || state.Collector.IsClosed)
+        if (state is null)
             return;
 
         var filter = state.CategoryFilter;
@@ -318,7 +320,7 @@ internal sealed class Profiler
             return;
 
         var writer = _cachedWriter;
-        if (writer is null || _cachedSessionId != state.Id)
+        if (writer is null || !writer.BelongsTo(state.Collector))
             writer = AcquireWriter(state);
 
         writer.Write(id, kind, flowId, value);
@@ -338,7 +340,6 @@ internal sealed class Profiler
     {
         var writer = state.GetWriter();
         _cachedWriter = writer;
-        _cachedSessionId = state.Id;
         return writer;
     }
 }

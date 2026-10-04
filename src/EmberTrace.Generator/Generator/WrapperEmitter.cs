@@ -141,7 +141,7 @@ internal static class WrapperEmitter
         Indent(sb, indent).AppendLine("{");
         Indent(sb, indent + 1)
             .Append("await using var ").Append(ScopeVariable)
-            .Append(" = global::EmberTrace.Tracer.ScopeAsync(")
+            .Append(" = global::EmberTrace.Tracer.MethodScopeAsync(")
             .Append(method.Id.ToString(CultureInfo.InvariantCulture)).AppendLine(");");
         Indent(sb, indent + 1)
             .Append(item.ReturnsValue ? "return await " : "await ")

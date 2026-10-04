@@ -6,4 +6,14 @@
     </PropertyGroup>
 
     <Target Name="EmberTrace_ValidateDirectoryBuildFiles" BeforeTargets="PrepareForBuild"/>
+
+    <PropertyGroup>
+        <AuthoredApiDocs>$(MSBuildProjectDirectory)/$(AssemblyName).xml</AuthoredApiDocs>
+    </PropertyGroup>
+
+    <Target Name="EmberTrace_UseAuthoredApiDocs"
+            AfterTargets="CoreCompile"
+            Condition="Exists('$(AuthoredApiDocs)') And '@(DocFileItem)' != ''">
+        <Copy SourceFiles="$(AuthoredApiDocs)" DestinationFiles="@(DocFileItem)" SkipUnchangedFiles="false"/>
+    </Target>
 </Project>

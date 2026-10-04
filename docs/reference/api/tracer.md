@@ -211,6 +211,29 @@ Writes a counter value.
 
 ---
 
+## Sessions and metadata of your own
+
+`Tracer` is one process-wide session: generated `[Trace]` code and the ASP.NET Core integration
+write to it. When a component needs a recording that nothing else can see or stop, use an instance:
+
+```csharp
+var metadata = new TraceMetadataRegistry();
+metadata.Register(TraceMetadata.FromEntries([new TraceMeta(1000, "Import", "Jobs")]));
+
+using var tracing = new TracingSession(metadata);
+tracing.Start();
+using (tracing.Scope(1000))
+{
+}
+
+var session = tracing.Stop();
+```
+
+`TraceMetadata.Register` and `TraceMetadata.CreateDefault` are shorthand for
+`TraceMetadataRegistry.Shared`; a `TracingSession` created without a registry uses the shared one.
+
+---
+
 ## Screenshots
 
 ![Tracer API in Perfetto](../../assets/api-tracer-perfetto.png)

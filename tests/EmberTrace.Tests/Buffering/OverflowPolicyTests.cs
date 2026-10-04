@@ -158,25 +158,18 @@ public class OverflowPolicyTests
     }
 
     [TestMethod]
-    public void DropOldest_MaxTotalChunks_WithoutAnInactiveChunk_RefusesWithoutClosing()
-    {
-        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxChunks: 1, capacity: 8);
-
-        Assert.IsTrue(collector.TryRentChunk(out _));
-
-        Assert.IsFalse(collector.TryRentChunk(out _));
-        Assert.IsTrue(collector.WasOverflow);
-        Assert.IsFalse(collector.IsClosed);
-    }
-
-    [TestMethod]
     public void DropOldest_EventLimitWithoutAChunkLimit_DerivesTheChunkLimit()
     {
         var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: 5, capacity: 4);
 
+        Assert.IsTrue(collector.TryRentChunk(out var first));
         Assert.IsTrue(collector.TryRentChunk(out _));
+        collector.MarkChunkInactive(first!);
+
         Assert.IsTrue(collector.TryRentChunk(out _));
-        Assert.IsFalse(collector.TryRentChunk(out _));
+
+        Assert.HasCount(2, collector.Chunks);
+        Assert.AreEqual(1L, collector.DroppedChunks);
     }
 
     [TestMethod]

@@ -1,0 +1,253 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.Extensions.Hosting</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions">
+            <summary>Options of the HTTP endpoint that downloads a snapshot of the running session. Bound from <c>EmberTrace:Dump</c>.</summary>
+            <remarks>An enabled endpoint must have at least one guard, or startup validation fails: <see cref="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.RestrictToLoopback"/>, <see cref="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.ApiKey"/>, <see cref="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.AuthorizationPolicy"/>, or the explicit opt-out <see cref="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.AllowAnonymous"/>.</remarks>
+        </member>
+        <member name="F:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.ApiKeyHeader">
+            <summary>The request header that carries the API key, <c>X-EmberTrace-Key</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.#ctor">
+            <summary>Creates the default options: the endpoint is off.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.AllowAnonymous">
+            <summary>Acknowledges that the endpoint is exposed without any other guard. Default <see langword="false"/>. Key <c>EmberTrace:Dump:AllowAnonymous</c>.</summary>
+            <remarks>It grants nothing by itself; it only lets validation pass when loopback restriction is off and neither an API key nor a policy is set.</remarks>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.ApiKey">
+            <summary>A shared secret the caller must send in the <c>X-EmberTrace-Key</c> header; a request without the right key gets 401. <see langword="null"/>, the default, disables the check. Must be at least 16 characters. Key <c>EmberTrace:Dump:ApiKey</c>.</summary>
+            <remarks>The comparison is constant-time.</remarks>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.AuthorizationPolicy">
+            <summary>The name of an ASP.NET Core authorization policy the endpoint requires. <see langword="null"/>, the default, requires none. Key <c>EmberTrace:Dump:AuthorizationPolicy</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.Enabled">
+            <summary>Whether the endpoint answers. Default <see langword="false"/>: a mapped endpoint returns 404. Key <c>EmberTrace:Dump:Enabled</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.FileNamePrefix">
+            <summary>The first part of the file names of downloads, shutdown dumps and slow-request captures. Default <c>embertrace</c>. Key <c>EmberTrace:Dump:FileNamePrefix</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.MaxWindow">
+            <summary>The longest window a caller may request; longer requests are clamped. Default 5 minutes. Key <c>EmberTrace:Dump:MaxWindow</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.Path">
+            <summary>The route of the endpoint; it must start with <c>/</c>. Default <c>/embertrace/dump</c>. Requests to it are never traced. Key <c>EmberTrace:Dump:Path</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.RestrictToLoopback">
+            <summary>Whether only loopback callers are served; anyone else, and any request that carries <c>X-Forwarded-For</c> or <c>Forwarded</c>, gets 404. Default <see langword="true"/>. Key <c>EmberTrace:Dump:RestrictToLoopback</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.Window">
+            <summary>How much history a download holds when the request has no <c>window</c> parameter. Zero means everything the session holds. Default 10 seconds. Key <c>EmberTrace:Dump:Window</c>.</summary>
+        </member>
+        <member name="T:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions">
+            <summary>Options of the EmberTrace hosting integration, bound from the <c>EmberTrace</c> configuration section. The defaults describe a flight recorder: the last 30 seconds, oldest events dropped first.</summary>
+        </member>
+        <member name="F:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.SectionName">
+            <summary>The default configuration section, <c>EmberTrace</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.#ctor">
+            <summary>Creates the default options.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.ChunkCapacity">
+            <summary>Events per chunk; see <see cref="P:EmberTrace.Sessions.SessionOptions.ChunkCapacity"/>. Default 4096. Key <c>EmberTrace:ChunkCapacity</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.DisabledCategories">
+            <summary>Category names whose events are not recorded. Default empty. Key <c>EmberTrace:DisabledCategories</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.Dump">
+            <summary>Options of the download endpoint. Section <c>EmberTrace:Dump</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.EnableRuntimeMetadata">
+            <summary>Whether names registered at run time through <c>Tracer.Id(name)</c>, request routes among them, are resolved in the recorded session. Default <see langword="true"/>. Key <c>EmberTrace:EnableRuntimeMetadata</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.Enabled">
+            <summary>Whether the host starts a session at startup. Default <see langword="true"/>. Key <c>EmberTrace:Enabled</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.EnabledCategories">
+            <summary>When not empty, only events of these category names are recorded. Default empty. Key <c>EmberTrace:EnabledCategories</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.MaxEventsPerSecond">
+            <summary>The per-thread event rate limit; <c>0</c>, the default, means no limit. Key <c>EmberTrace:MaxEventsPerSecond</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.MaxRetentionWindow">
+            <summary>How much history the recorder keeps. Zero turns the window off. Requires <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropOldest"/>. Default 30 seconds. Key <c>EmberTrace:MaxRetentionWindow</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.MaxTotalChunks">
+            <summary>The chunk limit that bounds memory; <c>0</c> means no limit. Default 1024, about 134 MB with the default chunk capacity. Key <c>EmberTrace:MaxTotalChunks</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.MaxTotalEvents">
+            <summary>The event limit; <c>0</c>, the default, means no limit. Key <c>EmberTrace:MaxTotalEvents</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.OverflowPolicy">
+            <summary>What happens when a limit is reached. Default <see cref="F:EmberTrace.Sessions.OverflowPolicy.DropOldest"/>. Key <c>EmberTrace:OverflowPolicy</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.Requests">
+            <summary>Options of request tracing. Section <c>EmberTrace:Requests</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.RuntimeCounterInterval">
+            <summary>How often runtime counters are sampled; must be positive. Default 50 ms. Key <c>EmberTrace:RuntimeCounterInterval</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.RuntimeCounters">
+            <summary>Which runtime counter groups are sampled. Default <see cref="F:EmberTrace.Sessions.RuntimeCounters.None"/>. Key <c>EmberTrace:RuntimeCounters</c>, for example <c>"Gc, Memory"</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.SampleEveryNGlobal">
+            <summary>Records one event of every N; <c>0</c> or <c>1</c>, the default, records all. Key <c>EmberTrace:SampleEveryNGlobal</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.ShutdownDumpDirectory">
+            <summary>The directory an <c>.ember</c> file with the whole session is written to when the host stops. <see langword="null"/>, the default, writes nothing. Key <c>EmberTrace:ShutdownDumpDirectory</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions.SlowRequests">
+            <summary>Options of the automatic capture of slow requests. Section <c>EmberTrace:SlowRequests</c>.</summary>
+        </member>
+        <member name="T:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions">
+            <summary>Options of the middleware that traces HTTP requests. Bound from <c>EmberTrace:Requests</c>.</summary>
+        </member>
+        <member name="F:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.DefaultIgnoredPaths">
+            <summary>The paths ignored when none are configured: <c>/health</c>, <c>/healthz</c> and <c>/embertrace</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.#ctor">
+            <summary>Creates the default options.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.Category">
+            <summary>The category of request scopes. Default <c>Http</c>. Key <c>EmberTrace:Requests:Category</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.Enabled">
+            <summary>Whether the middleware records a scope per request. Default <see langword="true"/>. Key <c>EmberTrace:Requests:Enabled</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.IgnoredPaths">
+            <summary>Path prefixes, each starting with <c>/</c>, whose requests are not traced. Matching is by whole segments and ignores case. Default <see cref="F:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.DefaultIgnoredPaths"/>. Key <c>EmberTrace:Requests:IgnoredPaths</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.MaxTrackedRoutes">
+            <summary>How many distinct route names get a scope id of their own; further routes are recorded as <c>HTTP &lt;method&gt;</c>. Must be positive. Default 1024. Key <c>EmberTrace:Requests:MaxTrackedRoutes</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.RecordFlow">
+            <summary>Whether every request starts a flow, taken from the current <see cref="T:System.Diagnostics.Activity"/> when there is one, so that work on other threads can be linked to it. Default <see langword="true"/>. Key <c>EmberTrace:Requests:RecordFlow</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceRequestOptions.UseRoutePattern">
+            <summary>Whether a request is named by method and route pattern, <c>GET /orders/{id}</c>, when routing has matched an endpoint; otherwise, and when <see langword="false"/>, by method alone. Default <see langword="true"/>. Key <c>EmberTrace:Requests:UseRoutePattern</c>.</summary>
+        </member>
+        <member name="T:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions">
+            <summary>Options of the capture that saves the recent history to disk when a request runs long. Bound from <c>EmberTrace:SlowRequests</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions.#ctor">
+            <summary>Creates the default options: capture is off.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions.Cooldown">
+            <summary>The minimum time between two captures; at least one millisecond. Default 1 minute. Key <c>EmberTrace:SlowRequests:Cooldown</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions.Directory">
+            <summary>The directory <c>.ember</c> captures are written to. Required when capture is enabled. Key <c>EmberTrace:SlowRequests:Directory</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions.Enabled">
+            <summary>Whether slow requests are captured. Requires request tracing. Default <see langword="false"/>. Key <c>EmberTrace:SlowRequests:Enabled</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions.Threshold">
+            <summary>The request duration from which a capture is taken; must be positive. Default 1 second. Key <c>EmberTrace:SlowRequests:Threshold</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceSlowRequestOptions.Window">
+            <summary>How much history a capture holds; it is extended to cover the whole slow request. Zero means everything the session holds. Default 10 seconds. Key <c>EmberTrace:SlowRequests:Window</c>.</summary>
+        </member>
+        <member name="T:EmberTrace.Extensions.Hosting.Http.EmberTraceHttpContextExtensions">
+            <summary>Access to what the request-tracing middleware stored on the <c>HttpContext</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Http.EmberTraceHttpContextExtensions.GetEmberTraceFlowId(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>Returns the flow id of the current request, to pass to <c>Tracer.FlowStep</c> from work the request hands to other threads.</summary>
+            <param name="context">The current request.</param>
+            <returns>The flow id, or <c>0</c> when the request is not traced or flows are off.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:EmberTrace.Extensions.Hosting.Http.EmberTraceMiddleware">
+            <summary>Records one async scope per HTTP request into the process-wide <see cref="T:EmberTrace.Tracer"/>, with a flow that spans the request.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Http.EmberTraceMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate,Microsoft.Extensions.Options.IOptionsMonitor{EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions})">
+            <summary>Creates the middleware; called by the pipeline.</summary>
+            <param name="next">The rest of the pipeline.</param>
+            <param name="options">The options, re-read on every request.</param>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Http.EmberTraceMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>Runs the rest of the pipeline inside a request scope. Does nothing extra when no session is running, request tracing is off or the path is ignored.</summary>
+            <param name="context">The current request.</param>
+            <returns>A task that completes when the pipeline has finished.</returns>
+        </member>
+        <member name="T:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder">
+            <summary>Owns the lifetime of the session the host records into. Registered as a singleton by <c>AddEmberTrace</c>.</summary>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder.#ctor(Microsoft.Extensions.Options.IOptions{EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions},Microsoft.Extensions.Logging.ILogger{EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder})">
+            <summary>Creates the recorder; called by the container.</summary>
+            <param name="options">The hosting options.</param>
+            <param name="logger">Receives start, stop and conflict messages.</param>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder.Snapshot(System.TimeSpan)">
+            <summary>Copies the recent history of the running session without stopping it.</summary>
+            <param name="window">How far back to copy; zero means everything the session holds.</param>
+            <returns>The snapshot; empty when no session is running.</returns>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder.TryStart">
+            <summary>Starts the process-wide session from the configured options.</summary>
+            <returns><see langword="true"/> when this call started the session; <see langword="false"/> when tracing is disabled, a session started elsewhere is already running, or the recorder has started one already.</returns>
+        </member>
+        <member name="M:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder.TryStop">
+            <summary>Stops the session, if this recorder started it.</summary>
+            <returns>The stopped session, or <see langword="null"/> when the recorder does not own the running session.</returns>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder.IsRunning">
+            <summary>Whether the process-wide session is running, whoever started it.</summary>
+        </member>
+        <member name="P:EmberTrace.Extensions.Hosting.Recording.EmberTraceRecorder.OwnsSession">
+            <summary>Whether the running session was started by this recorder and will be stopped by it.</summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Builder.EmberTraceApplicationBuilderExtensions">
+            <summary>Adds EmberTrace request tracing to the ASP.NET Core pipeline.</summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Builder.EmberTraceApplicationBuilderExtensions.UseEmberTrace(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>Adds the middleware that records a scope per request. Place it after <c>UseRouting</c> so that requests are named by their route pattern.</summary>
+            <param name="app">The application pipeline.</param>
+            <returns>The same pipeline.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="app"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Builder.EmberTraceEndpointRouteBuilderExtensions">
+            <summary>Maps the EmberTrace download endpoint.</summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Builder.EmberTraceEndpointRouteBuilderExtensions.MapEmberTraceDump(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)">
+            <summary>Maps a <c>GET</c> endpoint at <see cref="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.Path"/> that returns a snapshot of the running session as a file.</summary>
+            <param name="endpoints">The endpoint route builder.</param>
+            <returns>The endpoint, for further conventions.</returns>
+            <remarks>Query parameters: <c>format</c> is <c>ember</c> (the default), <c>chrome</c> or <c>collapsed</c>; <c>window</c> is seconds or a <c>TimeSpan</c>, clamped to <see cref="P:EmberTrace.Extensions.Hosting.Configuration.EmberTraceDumpOptions.MaxWindow"/>. Status codes: 200 with the file and the <c>X-EmberTrace-Events</c> and <c>X-EmberTrace-Dropped</c> headers; 400 for an unknown format; 401 for a missing or wrong API key; 404 when the endpoint is disabled or the caller is not allowed; 503 when no session is running.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="endpoints"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:Microsoft.Extensions.DependencyInjection.EmberTraceServiceCollectionExtensions">
+            <summary>Registers the EmberTrace hosting integration.</summary>
+        </member>
+        <member name="M:Microsoft.Extensions.DependencyInjection.EmberTraceServiceCollectionExtensions.AddEmberTrace(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.Extensions.Configuration.IConfiguration,System.Action{EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions})">
+            <summary>Registers the recorder that starts a session with the host and stops it on shutdown, binding the options from the given configuration.</summary>
+            <param name="services">The service collection.</param>
+            <param name="configuration">The <c>EmberTrace</c> section itself, or a configuration that contains it.</param>
+            <param name="configure">Adjusts the options after binding.</param>
+            <returns>The same service collection.</returns>
+            <remarks>Options are validated at startup; an invalid combination stops the host with a message that names the offending key.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="services"/> or <paramref name="configuration"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:Microsoft.Extensions.DependencyInjection.EmberTraceServiceCollectionExtensions.AddEmberTrace(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.Action{EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions})">
+            <summary>Registers the recorder that starts a session with the host and stops it on shutdown, binding the options from the <c>EmberTrace</c> configuration section.</summary>
+            <param name="services">The service collection.</param>
+            <param name="configure">Adjusts the options after binding.</param>
+            <returns>The same service collection.</returns>
+            <remarks>Options are validated at startup; an invalid combination stops the host with a message that names the offending key.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:Microsoft.Extensions.DependencyInjection.EmberTraceServiceCollectionExtensions.AddEmberTrace(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.String,System.Action{EmberTrace.Extensions.Hosting.Configuration.EmberTraceOptions})">
+            <summary>Registers the recorder that starts a session with the host and stops it on shutdown, binding the options from a named configuration section.</summary>
+            <param name="services">The service collection.</param>
+            <param name="sectionName">The configuration section to bind.</param>
+            <param name="configure">Adjusts the options after binding.</param>
+            <returns>The same service collection.</returns>
+            <remarks>Options are validated at startup; an invalid combination stops the host with a message that names the offending key.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentException"><paramref name="sectionName"/> is empty or white space.</exception>
+        </member>
+    </members>
+</doc>

@@ -126,4 +126,48 @@ public class TracingSessionLifecycleTests
         Assert.AreEqual(200_000L, stopped.EventCount);
         Assert.IsLessThan(1_000_000, allocated);
     }
+
+    [TestMethod]
+    public void Stop_WhileOtherThreadsWrite_ReturnsAConsistentSession()
+    {
+        const int id = 7301;
+
+        for (var round = 0; round < 20; round++)
+        {
+            using var tracing = new TracingSession();
+            tracing.Start(new SessionOptions { ChunkCapacity = 1024 });
+            using var stop = new ManualResetEventSlim();
+
+            var writers = Enumerable.Range(0, 4).Select(_ => new Thread(() =>
+            {
+                while (!stop.IsSet)
+                    using (tracing.Scope(id))
+                    {
+                    }
+            })).ToArray();
+
+            foreach (var writer in writers)
+                writer.Start();
+
+            Thread.Sleep(5);
+            var session = tracing.Stop();
+            var count = session.EventCount;
+            var first = session.SortedEvents();
+
+            stop.Set();
+            foreach (var writer in writers)
+                writer.Join();
+
+            Assert.AreEqual(count, session.EventCount);
+            CollectionAssert.AreEqual(first, session.SortedEvents());
+            Assert.IsTrue(first.All(e => e.Id == id && e.Timestamp > 0 && e.Kind is TraceEventKind.Begin or TraceEventKind.End));
+
+            foreach (var track in first.GroupBy(e => e.TrackId))
+            {
+                var sequences = track.Select(e => e.Sequence).ToArray();
+                CollectionAssert.AreEqual(
+                    Enumerable.Range(0, sequences.Length).Select(i => sequences[0] + i).ToArray(), sequences);
+            }
+        }
+    }
 }

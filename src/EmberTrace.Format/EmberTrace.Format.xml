@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.Format</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.TraceFormat">
+            <summary>Reads and writes sessions in the binary <c>.ember</c> format.</summary>
+        </member>
+        <member name="F:EmberTrace.TraceFormat.FileExtension">
+            <summary>The conventional file extension of a persisted session, including the dot.</summary>
+        </member>
+        <member name="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.IO.Stream)">
+            <summary>Writes a session, with its thread names and the metadata of every id it uses, to a stream.</summary>
+            <param name="session">The session to persist.</param>
+            <param name="destination">The stream to write to. It is flushed and left open.</param>
+        </member>
+        <member name="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.String)">
+            <summary>Writes a session to a file, creating its directory and replacing an existing file.</summary>
+            <param name="session">The session to persist.</param>
+            <param name="path">The file to create.</param>
+        </member>
+        <member name="M:EmberTrace.TraceFormat.Read(System.IO.Stream)">
+            <summary>Reads a session written by <see cref="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.IO.Stream)"/>.</summary>
+            <param name="source">The stream positioned at the start of the session.</param>
+            <returns>The session, carrying the metadata that was stored with it.</returns>
+            <exception cref="T:System.IO.InvalidDataException">The stream is not an EmberTrace session or was written by a newer version.</exception>
+        </member>
+        <member name="M:EmberTrace.TraceFormat.Read(System.String)">
+            <summary>Reads a session from a file.</summary>
+            <param name="path">The file to read.</param>
+            <returns>The session, carrying the metadata that was stored with it.</returns>
+        </member>
+    </members>
+</doc>

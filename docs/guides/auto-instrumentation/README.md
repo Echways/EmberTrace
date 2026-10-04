@@ -74,10 +74,13 @@ public partial global::System.Threading.Tasks.Task<int> GetAsync(int id)
 [global::System.Diagnostics.DebuggerNonUserCode]
 private async global::System.Threading.Tasks.Task<int> GetAsync__EmberTraceTraced(int id)
 {
-    await using var __emberTraceScope = global::EmberTrace.Tracer.ScopeAsync(814080860);
+    await using var __emberTraceScope = global::EmberTrace.Tracer.MethodScopeAsync(814080860);
     return await GetAsyncCore(id).ConfigureAwait(false);
 }
 ```
+
+`MethodScopeAsync` is `ScopeAsync` for a scope that covers a whole `async` method: it skips the
+context restore that the runtime performs anyway when the method returns. Do not call it by hand.
 
 `[DebuggerNonUserCode]` sits on the helper only: stepping into a traced method lands in your `…Core`
 body, while the wrapper itself stays visible to Just My Code because that declaration *is* your method.

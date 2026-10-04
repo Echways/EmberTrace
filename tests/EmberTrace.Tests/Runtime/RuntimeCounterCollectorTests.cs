@@ -124,46 +124,84 @@ public class RuntimeCounterCollectorTests
         var metrics = new FakeRuntimeMetrics { GcIndex = 4, GcPauseTicks = 250 };
         var collector = new RuntimeCounterCollector(RuntimeCounters.GcPauses, metrics);
 
-        var first = new RecordingSink();
-        collector.Sample(10_000, first);
-
-        var repeated = new RecordingSink();
-        collector.Sample(20_000, repeated);
+        var baseline = new RecordingSink();
+        collector.Sample(10_000, baseline);
 
         metrics.GcIndex = 5;
+        var first = new RecordingSink();
+        collector.Sample(20_000, first);
+
+        var repeated = new RecordingSink();
+        collector.Sample(30_000, repeated);
+
+        metrics.GcIndex = 6;
         metrics.GcPauseTicks = 100;
         var advanced = new RecordingSink();
-        collector.Sample(30_000, advanced);
+        collector.Sample(40_000, advanced);
 
-        CollectionAssert.AreEqual(new[] { (RuntimeCounterIds.GcPause, 9_750L, 10_000L) }, first.Spans);
+        Assert.IsEmpty(baseline.Spans);
+        CollectionAssert.AreEqual(new[] { (RuntimeCounterIds.GcPause, 19_750L, 20_000L) }, first.Spans);
         Assert.IsEmpty(repeated.Spans);
-        CollectionAssert.AreEqual(new[] { (RuntimeCounterIds.GcPause, 29_900L, 30_000L) }, advanced.Spans);
+        CollectionAssert.AreEqual(new[] { (RuntimeCounterIds.GcPause, 39_900L, 40_000L) }, advanced.Spans);
         Assert.IsEmpty(first.Counters);
+    }
+
+    [TestMethod]
+    public void GcPause_LongerThanTheSamplingInterval_StartsAtThePreviousSample()
+    {
+        var metrics = new FakeRuntimeMetrics { GcIndex = 1, GcPauseTicks = 500 };
+        var collector = new RuntimeCounterCollector(RuntimeCounters.GcPauses, metrics);
+        collector.Sample(1_000, new RecordingSink());
+
+        metrics.GcIndex = 2;
+        var sink = new RecordingSink();
+        collector.Sample(1_200, sink);
+
+        CollectionAssert.AreEqual(new[] { (RuntimeCounterIds.GcPause, 1_000L, 1_200L) }, sink.Spans);
+    }
+
+    [TestMethod]
+    public void EverySample_IsStampedInNonDecreasingOrderWithThePauseFirst()
+    {
+        var metrics = BusyMetrics();
+        metrics.GcIndex = 1;
+        metrics.GcPauseTicks = 5_000;
+        var collector = new RuntimeCounterCollector(RuntimeCounters.All, metrics);
+        var sink = new RecordingSink();
+
+        for (var sample = 1; sample <= 4; sample++)
+        {
+            metrics.GcIndex++;
+            collector.Sample(sample * 1_000, sink);
+        }
+
+        CollectionAssert.AreEqual(sink.Timestamps.Order().ToArray(), sink.Timestamps);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                (RuntimeCounterIds.GcPause, 1_000L, 2_000L), (RuntimeCounterIds.GcPause, 2_000L, 3_000L),
+                (RuntimeCounterIds.GcPause, 3_000L, 4_000L)
+            },
+            sink.Spans);
     }
 
     [TestMethod]
     [DataRow(0L, 4L)]
     [DataRow(-5L, 4L)]
+    [DataRow(250L, 3L)]
     [DataRow(250L, 0L)]
-    public void GcPause_WithoutAPauseOrAGc_EmitsNothing(long pauseTicks, long gcIndex)
+    public void GcPause_WithoutAPauseOrANewGc_EmitsNothing(long pauseTicks, long gcIndex)
     {
-        var sink = new RecordingSink();
-        var metrics = new FakeRuntimeMetrics { GcIndex = gcIndex, GcPauseTicks = pauseTicks };
+        var metrics = new FakeRuntimeMetrics { GcIndex = 3, GcPauseTicks = 250 };
+        var collector = new RuntimeCounterCollector(RuntimeCounters.GcPauses, metrics);
+        collector.Sample(10_000, new RecordingSink());
 
-        new RuntimeCounterCollector(RuntimeCounters.GcPauses, metrics).Sample(10_000, sink);
+        metrics.GcIndex = gcIndex;
+        metrics.GcPauseTicks = pauseTicks;
+        var sink = new RecordingSink();
+        collector.Sample(20_000, sink);
 
         Assert.IsEmpty(sink.Spans);
-    }
-
-    [TestMethod]
-    public void GcPause_LongerThanTheTimeline_IsClampedToZero()
-    {
-        var sink = new RecordingSink();
-        var metrics = new FakeRuntimeMetrics { GcIndex = 1, GcPauseTicks = 500 };
-
-        new RuntimeCounterCollector(RuntimeCounters.GcPauses, metrics).Sample(200, sink);
-
-        CollectionAssert.AreEqual(new[] { (RuntimeCounterIds.GcPause, 0L, 200L) }, sink.Spans);
     }
 
     [TestMethod]
@@ -229,15 +267,19 @@ public class RuntimeCounterCollectorTests
     {
         public List<(int Id, long Value)> Counters { get; } = [];
         public List<(int Id, long Start, long End)> Spans { get; } = [];
+        public List<long> Timestamps { get; } = [];
 
-        public void Counter(int id, long value)
+        public void Counter(int id, long value, long timestamp)
         {
             Counters.Add((id, value));
+            Timestamps.Add(timestamp);
         }
 
         public void Span(int id, long startTimestamp, long endTimestamp)
         {
             Spans.Add((id, startTimestamp, endTimestamp));
+            Timestamps.Add(startTimestamp);
+            Timestamps.Add(endTimestamp);
         }
 
         public long Value(int id)

@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EmberTrace.Export</name>
+    </assembly>
+    <members>
+        <member name="T:EmberTrace.MarkedCompleteOptions">
+            <summary>Options of <see cref="M:EmberTrace.TraceExport.MarkedComplete(System.String,System.Action,EmberTrace.MarkedCompleteOptions,System.Int32)"/> and <see cref="M:EmberTrace.TraceExport.MarkedCompleteAsync(System.String,System.Func{System.Threading.Tasks.Task},EmberTrace.MarkedCompleteOptions,System.Int32)"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteOptions.OutputPath">
+            <summary>The file the slice is written to. When <see langword="null"/> or blank, the file is <c>traces/&lt;name&gt;_&lt;UTC timestamp&gt;.json</c> under the current directory.</summary>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteOptions.Pid">
+            <summary>The process id written into the Chrome trace. <c>0</c>, the default, is written as <c>1</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteOptions.ProcessName">
+            <summary>The process name shown by the trace viewer. <see langword="null"/>, the default, is written as <c>EmberTrace</c>.</summary>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteOptions.Running">
+            <summary>What to do when the target session is already running. The default is <see cref="F:EmberTrace.MarkedRunningSessionMode.ThrowIfRunning"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteOptions.Session">
+            <summary>The session to record into. <see langword="null"/>, the default, means the process-wide <see cref="T:EmberTrace.Tracer"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteOptions.Unique">
+            <summary>Whether the calling line number is appended to the name as <c>_L&lt;line&gt;</c>, so that two calls with the same name get different markers and files. Default <see langword="false"/>.</summary>
+        </member>
+        <member name="T:EmberTrace.MarkedCompleteResult">
+            <summary>What <see cref="M:EmberTrace.TraceExport.MarkedComplete(System.String,System.Action,EmberTrace.MarkedCompleteOptions,System.Int32)"/> recorded: the session it captured and the window of the marker inside it.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedCompleteResult.CapturedSession">
+            <summary>The session the slice was cut from: the stopped session when the call started it, a snapshot of the running session otherwise.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedCompleteResult.MarkerId">
+            <summary>The id of the marker scope that wraps the body, <c>Tracer.Id(Name)</c>.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedCompleteResult.Name">
+            <summary>The effective marker name, with the line suffix when <see cref="P:EmberTrace.MarkedCompleteOptions.Unique"/> is set.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedCompleteResult.SlicePath">
+            <summary>The path of the Chrome trace file that was written.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedCompleteResult.WindowMaxTimestamp">
+            <summary>The timestamp of the marker's <c>End</c>, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks; the end of the captured session when the marker was not found in it.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedCompleteResult.WindowMinTimestamp">
+            <summary>The timestamp of the marker's <c>Begin</c>, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks; the start of the captured session when the marker was not found in it.</summary>
+        </member>
+        <member name="M:EmberTrace.MarkedCompleteResult.EnumerateSliceEvents(System.Boolean)">
+            <summary>Enumerates the events of the captured session whose timestamp lies inside the marker window, in no particular order.</summary>
+            <param name="excludeMarkerBeginEnd">Whether the <c>Begin</c> and <c>End</c> of the marker itself are left out. Default <see langword="true"/>.</param>
+            <returns>The events of the window, from every thread.</returns>
+        </member>
+        <member name="M:EmberTrace.MarkedCompleteResult.SaveFullChromeComplete(System.String,EmberTrace.Metadata.ITraceMetadataProvider,System.Boolean,System.Int32,System.String)">
+            <summary>Writes the whole captured session, not only the marker window, as a Chrome trace of complete events.</summary>
+            <param name="outputPath">The file to create. Its directory is created when missing.</param>
+            <param name="meta">Names and categories for ids; the metadata of the session when <see langword="null"/>.</param>
+            <param name="sortByStartTimestamp">Whether scopes are written in start order.</param>
+            <param name="pid">The process id written into the trace.</param>
+            <param name="processName">The process name shown by the viewer.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="outputPath"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:EmberTrace.MarkedCompleteResult.HasWindow">
+            <summary>Whether the window is not empty. <see langword="false"/> only for a default-initialized result.</summary>
+        </member>
+        <member name="T:EmberTrace.MarkedRunningSessionMode">
+            <summary>What <see cref="M:EmberTrace.TraceExport.MarkedComplete(System.String,System.Action,EmberTrace.MarkedCompleteOptions,System.Int32)"/> does when the session it targets is already running.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedRunningSessionMode.SliceAndResume">
+            <summary>Record into the running session and cut the slice from a snapshot of it. The session is never stopped, so it keeps its history and other threads keep recording.</summary>
+        </member>
+        <member name="F:EmberTrace.MarkedRunningSessionMode.ThrowIfRunning">
+            <summary>Throw <see cref="T:System.InvalidOperationException"/> and leave the running session untouched.</summary>
+        </member>
+        <member name="T:EmberTrace.TraceExport">
+            <summary>Writes sessions in the Chrome Trace JSON format read by <c>chrome://tracing</c> and Perfetto, and captures short marked windows.</summary>
+        </member>
+        <member name="M:EmberTrace.TraceExport.MarkedComplete(System.String,System.Action,EmberTrace.MarkedCompleteOptions,System.Int32)">
+            <summary>Runs a body inside a marker scope and writes everything recorded during it, on every thread, to a Chrome trace file.</summary>
+            <param name="name">The marker name; it names the root scope of the slice and, without <see cref="P:EmberTrace.MarkedCompleteOptions.OutputPath"/>, the file.</param>
+            <param name="body">The code to record.</param>
+            <param name="options">Where to record and where to write.</param>
+            <param name="line">The calling line, supplied by the compiler; used by <see cref="P:EmberTrace.MarkedCompleteOptions.Unique"/>.</param>
+            <returns>The captured session and the marker window.</returns>
+            <remarks>When the target session is not running the call starts it with default options and stops it after the body. When it is running, <see cref="F:EmberTrace.MarkedRunningSessionMode.SliceAndResume"/> cuts the slice from a snapshot without interrupting the session. An exception thrown by the body is rethrown, with its original stack trace, after the slice has been written.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="name"/> or <paramref name="body"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">The target session is running and <see cref="P:EmberTrace.MarkedCompleteOptions.Running"/> is <see cref="F:EmberTrace.MarkedRunningSessionMode.ThrowIfRunning"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.TraceExport.MarkedCompleteAsync(System.String,System.Func{System.Threading.Tasks.Task},EmberTrace.MarkedCompleteOptions,System.Int32)">
+            <summary>Awaits a body inside an async marker scope and writes everything recorded during it to a Chrome trace file.</summary>
+            <param name="name">The marker name; it names the root scope of the slice and, without <see cref="P:EmberTrace.MarkedCompleteOptions.OutputPath"/>, the file.</param>
+            <param name="body">The asynchronous code to record.</param>
+            <param name="options">Where to record and where to write.</param>
+            <param name="line">The calling line, supplied by the compiler; used by <see cref="P:EmberTrace.MarkedCompleteOptions.Unique"/>.</param>
+            <returns>A task that completes with the captured session and the marker window once the file is written.</returns>
+            <remarks>Behaves as <see cref="M:EmberTrace.TraceExport.MarkedComplete(System.String,System.Action,EmberTrace.MarkedCompleteOptions,System.Int32)"/>; an exception from the body faults the returned task after the slice has been written.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="name"/> or <paramref name="body"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">The target session is running and <see cref="P:EmberTrace.MarkedCompleteOptions.Running"/> is <see cref="F:EmberTrace.MarkedRunningSessionMode.ThrowIfRunning"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.TraceExport.WriteChromeBeginEnd(EmberTrace.Sessions.TraceSession,System.IO.Stream,EmberTrace.Metadata.ITraceMetadataProvider,System.Boolean,System.Int32,System.String)">
+            <summary>Writes a session as a Chrome trace with a separate <c>B</c> and <c>E</c> event per scope, exactly as recorded.</summary>
+            <param name="session">The session to export.</param>
+            <param name="output">The stream that receives UTF-8 JSON. It is flushed and left open.</param>
+            <param name="meta">Names and categories for ids; the metadata of the session when <see langword="null"/>.</param>
+            <param name="sortByTimestamp">Whether events are written ordered by timestamp, then track, then sequence. Default <see langword="true"/>.</param>
+            <param name="pid">The process id written into the trace.</param>
+            <param name="processName">The process name shown by the viewer.</param>
+            <remarks>Pick this form for tools that pair events themselves or when unbalanced scopes must stay visible. Async scopes are written as <c>b</c>/<c>e</c> pairs; flows, instants and counters are included.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> or <paramref name="output"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:EmberTrace.TraceExport.WriteChromeComplete(EmberTrace.Sessions.TraceSession,System.IO.Stream,EmberTrace.Metadata.ITraceMetadataProvider,System.Boolean,System.Int32,System.String)">
+            <summary>Writes a session as a Chrome trace with one complete <c>X</c> event per scope, carrying its duration.</summary>
+            <param name="session">The session to export.</param>
+            <param name="output">The stream that receives UTF-8 JSON. It is flushed and left open.</param>
+            <param name="meta">Names and categories for ids; the metadata of the session when <see langword="null"/>.</param>
+            <param name="sortByStartTimestamp">Whether scopes are written ordered by start timestamp, then track, then sequence. Default <see langword="true"/>.</param>
+            <param name="pid">The process id written into the trace.</param>
+            <param name="processName">The process name shown by the viewer.</param>
+            <remarks>The recommended form: half the events of the begin/end form and no pairing left to the viewer. Async scopes are written as <c>b</c>/<c>e</c> pairs; flows, instants and counters are included.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> or <paramref name="output"/> is <see langword="null"/>.</exception>
+        </member>
+    </members>
+</doc>

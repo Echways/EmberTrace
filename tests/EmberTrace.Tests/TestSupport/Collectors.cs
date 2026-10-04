@@ -29,6 +29,6 @@ internal static class Collectors
 
     public static TraceEvent Event(int id = 7, long timestamp = 100)
     {
-        return new TraceEvent(id, 1, timestamp, TraceEventKind.Instant, 0, 0);
+        return new TraceEvent(id, timestamp, TraceEventKind.Instant, 0, 0);
     }
 }
