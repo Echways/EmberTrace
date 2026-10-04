@@ -16,7 +16,7 @@ public class ChromeTraceExportTests
     [TestMethod]
     public void WriteChromeComplete_EmitsNestedSpansWithDepthParentAndCategory()
     {
-        var spans = Complete(Session()).Where(e => Phase(e) == "X").ToArray();
+        var spans = Scopes(Complete(Session()));
 
         Assert.HasCount(2, spans);
         AssertEvent(spans[0], "Outer", "App", 1_000, 1);
@@ -52,6 +52,83 @@ public class ChromeTraceExportTests
     }
 
     [TestMethod]
+    public void AsyncScope_IsScopedToTheProcess()
+    {
+        var session = new TraceScript().AsyncBegin(Outer, 1_000, 9).AsyncEnd(Outer, 5_000, 9, thread: 2).ToSession();
+
+        foreach (var events in new[] { Complete(session), BeginEnd(session) })
+        {
+            var phases = events.Where(e => Phase(e) is "b" or "e").ToArray();
+
+            Assert.HasCount(2, phases);
+            Assert.IsTrue(phases.All(e => e.GetProperty("id2").GetProperty("local").GetInt64() == 9));
+            Assert.IsFalse(phases.Any(e => e.TryGetProperty("id", out _)));
+        }
+    }
+
+    [TestMethod]
+    public void WriteChromeComplete_FlowOutsideAnySlice_IsAnchoredByAZeroDurationSliceWrittenRightBeforeIt()
+    {
+        var events = Complete(Session());
+        var start = Array.FindIndex(events, e => Phase(e) == "s");
+        var anchor = events[start - 1];
+
+        Assert.AreEqual("X", Phase(anchor));
+        AssertEvent(anchor, "Job", "", 3_000, 2);
+        Assert.AreEqual(0.0, anchor.GetProperty("dur").GetDouble());
+        Assert.AreEqual(Job, anchor.GetProperty("args").GetProperty("id").GetInt32());
+        Assert.AreEqual(FlowId, anchor.GetProperty("args").GetProperty("flow").GetInt64());
+    }
+
+    [TestMethod]
+    public void WriteChromeComplete_AnchorsAFlowUnlessTheLatestSliceOnItsTrackIsStillRunning()
+    {
+        var events = Complete(FlowSession());
+
+        CollectionAssert.AreEqual(new[] { 5_000.0, 6_000.0, 8_000.0, 9_500.0 }, AnchorTimestamps(events));
+        Assert.IsLessThan(
+            Array.FindIndex(events, e => Phase(e) is "s" or "t" or "f"),
+            Array.FindLastIndex(events, e => Phase(e) == "X" && !IsAnchor(e)));
+    }
+
+    [TestMethod]
+    public void WriteChromeBeginEnd_AnchorsAFlowUnlessAnOpenSliceIsOnTopOfItsTrack()
+    {
+        CollectionAssert.AreEqual(new[] { 8_000.0, 9_500.0 }, AnchorTimestamps(BeginEnd(FlowSession())));
+    }
+
+    [TestMethod]
+    public void WriteChromeComplete_Unsorted_AnchorsTheSameFlows()
+    {
+        var events = Parse(stream =>
+            TraceExport.WriteChromeComplete(FlowSession(), stream, sortByStartTimestamp: false));
+
+        CollectionAssert.AreEqual(new[] { 5_000.0, 6_000.0, 8_000.0, 9_500.0 }, AnchorTimestamps(events));
+    }
+
+    [TestMethod]
+    public void FlowInsideAnUnclosedScope_IsAnchoredOnlyWhereTheScopeIsNotExported()
+    {
+        var session = new TraceScript()
+            .Begin(Outer, 1_000)
+            .Flow(TraceEventKind.FlowStart, Job, 2_000, FlowId)
+            .ToSession(end: 5_000);
+
+        CollectionAssert.AreEqual(new[] { 2_000.0 }, AnchorTimestamps(Complete(session)));
+        Assert.IsEmpty(AnchorTimestamps(BeginEnd(session)));
+    }
+
+    [TestMethod]
+    public void FlowEnd_BindsToTheEnclosingSlice()
+    {
+        foreach (var events in new[] { Complete(FlowSession()), BeginEnd(FlowSession()) })
+        {
+            Assert.AreEqual("e", events.Single(e => Phase(e) == "f").GetProperty("bp").GetString());
+            Assert.IsFalse(events.Where(e => Phase(e) is "s" or "t").Any(e => e.TryGetProperty("bp", out _)));
+        }
+    }
+
+    [TestMethod]
     public void WriteChromeComplete_NamesTheProcessAndEveryTrackIncludingTheSyntheticOne()
     {
         var events = Complete(Session(), pid: 42, processName: "svc");
@@ -74,7 +151,8 @@ public class ChromeTraceExportTests
             new[]
             {
                 ("B", "Outer", 1_000.0), ("B", "Inner", 2_000.0), ("i", "Tick", 2_500.0), ("C", "Queue", 2_600.0),
-                ("s", "Job", 3_000.0), ("E", "Inner", 4_000.0), ("f", "Job", 5_000.0), ("E", "Outer", 9_000.0)
+                ("X", "Job", 3_000.0), ("s", "Job", 3_000.0), ("E", "Inner", 4_000.0), ("f", "Job", 5_000.0),
+                ("E", "Outer", 9_000.0)
             },
             events.Where(e => Phase(e) != "M")
                 .Select(e => (Phase(e), e.GetProperty("name").GetString(), e.GetProperty("ts").GetDouble()))
@@ -86,8 +164,7 @@ public class ChromeTraceExportTests
     {
         var session = Session(start: 1_500);
 
-        var spans = Complete(session).Where(e => Phase(e) == "X").ToArray();
-        AssertEvent(spans.Single(), "Inner", "", 500, 1);
+        AssertEvent(Scopes(Complete(session)).Single(), "Inner", "", 500, 1);
 
         var scopes = BeginEnd(session).Where(e => Phase(e) is "B" or "E")
             .Select(e => (Phase(e), e.GetProperty("name").GetString()))
@@ -143,6 +220,40 @@ public class ChromeTraceExportTests
                 Meta.Of((Outer, "Outer", "App"), (Inner, "Inner", null), (Tick, "Tick", "Marks"), (Queue, "Queue", null),
                     (Job, "Job", null)),
                 new Dictionary<int, string> { [1] = "main" });
+    }
+
+    private static TraceSession FlowSession()
+    {
+        return new TraceScript()
+            .Begin(Outer, 1_000)
+            .Flow(TraceEventKind.FlowStart, Job, 1_000, FlowId)
+            .Begin(Inner, 2_000)
+            .Flow(TraceEventKind.FlowStep, Job, 3_000, FlowId)
+            .End(Inner, 4_000)
+            .Flow(TraceEventKind.FlowStep, Job, 5_000, FlowId)
+            .Flow(TraceEventKind.FlowStep, Job, 6_000, FlowId)
+            .Instant(Tick, 7_000)
+            .Flow(TraceEventKind.FlowStep, Job, 8_000, FlowId)
+            .End(Outer, 9_000)
+            .Flow(TraceEventKind.FlowEnd, Job, 9_500, FlowId)
+            .ToSession();
+    }
+
+    private static JsonElement[] Scopes(JsonElement[] events)
+    {
+        return events.Where(e => Phase(e) == "X" && !IsAnchor(e)).ToArray();
+    }
+
+    private static double[] AnchorTimestamps(JsonElement[] events)
+    {
+        return events.Where(e => Phase(e) == "X" && IsAnchor(e))
+            .Select(e => e.GetProperty("ts").GetDouble())
+            .ToArray();
+    }
+
+    private static bool IsAnchor(JsonElement e)
+    {
+        return e.GetProperty("args").TryGetProperty("flow", out _);
     }
 
     private static JsonElement[] Complete(TraceSession session, int pid = 1, string processName = "EmberTrace")

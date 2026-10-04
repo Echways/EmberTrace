@@ -369,38 +369,6 @@ public static class TraceExport
 
         WriteSyntheticTopLevel(json, pid, minTs, maxTs, freq, markerId, markerName);
 
-        var flows = CollectFlows(events);
-        flows.Sort(static (a, b) => CompareEventOrder(a.Timestamp, a.Tid, a.Sequence, b.Timestamp, b.Tid, b.Sequence));
-
-        var markers = CollectInstantCounters(events);
-        markers.Sort(static (a, b) =>
-            CompareEventOrder(a.Timestamp, a.TrackId, a.Sequence, b.Timestamp, b.TrackId, b.Sequence));
-
-        var fi = 0;
-        var mi = 0;
-        while (fi < flows.Count || mi < markers.Count)
-        {
-            if (mi >= markers.Count || (fi < flows.Count && flows[fi].Timestamp <= markers[mi].Timestamp))
-            {
-                var f = flows[fi];
-                WriteFlowEvent(json, f.Id, f.Tid, f.Timestamp, f.FlowId, f.Phase, meta, minTs, freq, pid,
-                    ChromeEventArgsMode.Detailed);
-                fi++;
-                continue;
-            }
-
-            var m = markers[mi++];
-            switch (m.Kind)
-            {
-                case TraceEventKind.Instant:
-                    WriteInstantEvent(json, m, meta, minTs, freq, pid);
-                    break;
-                case TraceEventKind.Counter:
-                    WriteCounterEvent(json, m, meta, minTs, freq, pid);
-                    break;
-            }
-        }
-
         var complete = new List<CompleteSpan>(events.Count / 2);
         var asyncSpans = new List<AsyncSpan>();
         ScopeCollector.CollectComplete(new ScopeReader(events, maxTs), minTs, complete, asyncSpans);
@@ -411,78 +379,25 @@ public static class TraceExport
             CompareEventOrder(a.StartTs, a.StartTrackId, a.Sequence, b.StartTs, b.StartTrackId, b.Sequence));
 
         for (var i = 0; i < asyncSpans.Count; i++)
-        {
-            var span = asyncSpans[i];
-            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, minTs, freq, pid,
-                "b");
-            WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, minTs, freq, pid, "e");
-        }
+            WriteAsyncSpan(json, asyncSpans[i], meta, minTs, freq, pid);
 
         for (var i = 0; i < complete.Count; i++)
             WriteCompleteEvent(json, complete[i], meta, minTs, freq, pid, ChromeEventArgsMode.Detailed);
+
+        ChromeTraceExporter.WriteMarkers(json, events.FindAll(IsMarker), complete, meta, minTs, freq, pid);
 
         json.WriteEndArray();
         json.WriteEndObject();
         json.Flush();
     }
 
-    private static List<FlowEv> CollectFlows(List<TraceEventRecord> events)
+    private static bool IsMarker(TraceEventRecord e)
     {
-        var list = new List<FlowEv>();
-
-        for (var i = 0; i < events.Count; i++)
+        return e.Kind switch
         {
-            var e = events[i];
-            if (e.FlowId == 0)
-                continue;
-
-            var ph = e.Kind switch
-            {
-                TraceEventKind.FlowStart => "s",
-                TraceEventKind.FlowStep => "t",
-                TraceEventKind.FlowEnd => "f",
-                _ => null
-            };
-
-            if (ph is null)
-                continue;
-
-            list.Add(new FlowEv(e.Id, e.TrackId, e.Timestamp, e.Sequence, e.FlowId, ph));
-        }
-
-        return list;
-    }
-
-    private static List<TraceEventRecord> CollectInstantCounters(List<TraceEventRecord> events)
-    {
-        var list = new List<TraceEventRecord>();
-        for (var i = 0; i < events.Count; i++)
-        {
-            var e = events[i];
-            if (e.Kind == TraceEventKind.Instant || e.Kind == TraceEventKind.Counter)
-                list.Add(e);
-        }
-
-        return list;
-    }
-
-    private readonly struct FlowEv
-    {
-        public readonly int Id;
-        public readonly int Tid;
-        public readonly long Timestamp;
-        public readonly long Sequence;
-        public readonly long FlowId;
-        public readonly string Phase;
-
-        public FlowEv(int id, int tid, long timestamp, long sequence, long flowId, string phase)
-        {
-            Id = id;
-            Tid = tid;
-            Timestamp = timestamp;
-            Sequence = sequence;
-            FlowId = flowId;
-            Phase = phase;
-        }
+            TraceEventKind.Instant or TraceEventKind.Counter => true,
+            TraceEventKind.FlowStart or TraceEventKind.FlowStep or TraceEventKind.FlowEnd => e.FlowId != 0,
+            _ => false
+        };
     }
 }

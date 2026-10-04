@@ -41,6 +41,17 @@ of one session, so a thread that dies and lets the runtime hand its `ManagedThre
 gets a row of its own instead of one spliced row. The managed thread id is what the row is named after,
 through the emitted `thread_name` metadata.
 
+How scopes and flows are laid out for the viewer:
+
+- a synchronous scope is a slice on its thread row;
+- an async scope (`ScopeAsync`) is a process-scoped async event (`"id2": {"local": ...}`), so Perfetto
+  draws it on an async row inside the process group;
+- a flow event binds to the slice that is running on its thread at that moment (`FlowEnd` is written
+  with `"bp": "e"`). When there is none — the flow was emitted outside any synchronous scope, for example
+  directly inside `ScopeAsync`, or after a nested scope or an instant — the exporter writes a
+  zero-duration slice named after the flow at the same timestamp, and the arrow attaches to it. Such an
+  anchor carries the flow id in `args.flow`, which is how to tell it from a recorded scope.
+
 ## MarkedComplete: capture a short window
 
 Useful when you do not want to manage `Start/Stop` manually around a small section.

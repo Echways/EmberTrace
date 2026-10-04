@@ -137,6 +137,28 @@ public class ReportTextTests
         Assert.Contains("Thread 8" + Nl, report);
     }
 
+    [TestMethod]
+    public void Write_OmitsThreadsWithoutCallTreeRows()
+    {
+        var trace = new TraceScript()
+            .AsyncBegin(Disk, 0, 9)
+            .AsyncEnd(Disk, 1_000, 9, thread: 5)
+            .Span(Cpu, 2_000, 3_000, 2)
+            .ToSession()
+            .Process();
+
+        var report = TraceText.Write(trace, Metadata());
+        var filtered = TraceText.Write(trace, Metadata(), categoryFilter: "io");
+
+        Assert.HasCount(3, trace.Threads);
+        Assert.Contains("Threads: 3" + Nl, report);
+        Assert.Contains("Thread 1" + Nl, report);
+        Assert.Contains("Thread 2" + Nl, report);
+        Assert.DoesNotContain("Thread 5", report);
+        Assert.Contains("Thread 1" + Nl, filtered);
+        Assert.DoesNotContain("Thread 2", filtered);
+    }
+
     private static ProcessedTrace Trace()
     {
         return new TraceScript()

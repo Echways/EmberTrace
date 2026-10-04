@@ -60,6 +60,8 @@ Tracer.FlowFromActivityCurrent(Ids.JobFlow);
 - Always close a flow (`End`), otherwise the chain will look "broken" in visualization.
 - Flow is a **link**, not a duration. Duration is represented by `Scope`.
 - A good use case: link "request accepted" -> "queued" -> "processed" -> "responded".
+- A flow point does not need a synchronous scope around it. Inside one, the arrow attaches to the scope;
+  outside, the export adds a zero-duration marker slice for the arrow to attach to.
 
 See also:
 - [Export](../../guides/export/README.md)

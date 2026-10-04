@@ -1,6 +1,6 @@
 Summary
-Started: 2026-10-04T11:18:40.1897882+00:00
-Duration: 77.147 ms
+Started: 2026-10-04T12:00:31.8426356+00:00
+Duration: 106.449 ms
 Events: 100
 ScopeEvents: 100
 Threads: 1
@@ -14,24 +14,24 @@ MismatchedEnd: 0
 Hotspots (by inclusive)
 Id    Name     Category  Count  Incl ms  Excl ms  Excl%  p50 ms  p95 ms  p99 ms
 --    ----     --------  -----  -------  -------  -----  ------  ------  ------
-1000  App      App       1      51.379   0.011    0.01   51.379  51.379  51.379
-2300  Sort     CPU       24     46.070   46.070   59.72  1.868   2.884   2.965 
-2200  IoWait   IO        1      25.236   25.236   32.71  25.236  25.236  25.236
-2100  CpuWork  CPU       24     5.297    5.297    6.87   0.221   0.336   0.347 
+1000  App      App       1      80.630   0.051    0.05   80.630  80.630  80.630
+2300  Sort     CPU       24     73.669   73.669   69.21  3.015   4.981   5.003 
+2200  IoWait   IO        1      25.235   25.235   23.71  25.235  25.235  25.235
+2100  CpuWork  CPU       24     6.910    6.910    6.49   0.287   0.434   0.450 
 
 Categories (by inclusive)
 Category  Count  Incl ms  Excl ms  Excl%
 --------  -----  -------  -------  -----
-App       1      51.379   0.011    0.01 
-CPU       48     51.367   51.367   66.58
-IO        1      25.236   25.236   32.71
+App       1      80.630   0.051    0.05 
+CPU       48     80.579   80.579   75.70
+IO        1      25.235   25.235   23.71
 
 Call trees
 
-Thread 7 (.NET TP Worker)
+Thread 6 (.NET TP Worker)
 Id      Name     Category  Count  Incl ms  Excl ms
 --      ----     --------  -----  -------  -------
-1000    App      App       1      51.379   0.011  
-  2300  Sort     CPU       24     46.070   46.070 
-  2100  CpuWork  CPU       24     5.297    5.297  
-2200    IoWait   IO        1      25.236   25.236 
+1000    App      App       1      80.630   0.051  
+  2300  Sort     CPU       24     73.669   73.669 
+  2100  CpuWork  CPU       24     6.910    6.910  
+2200    IoWait   IO        1      25.235   25.235 

@@ -108,15 +108,19 @@ internal static class TextReportWriter
         for (var i = 0; i < trace.Threads.Count; i++)
         {
             var th = trace.Threads[i];
-            sb.AppendLine();
-            sb.AppendLine(th.Name is null ? $"Thread {th.ThreadId}" : $"Thread {th.ThreadId} ({th.Name})");
 
             var t = new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms");
             t.AddSeparator();
+            var heading = t.RowCount;
 
             for (var c = 0; c < th.Root.Children.Count; c++)
                 WriteNode(t, th.Root.Children[c], meta, 0, maxDepth, trace.DurationMs, categoryFilter, minPercent);
 
+            if (t.RowCount == heading)
+                continue;
+
+            sb.AppendLine();
+            sb.AppendLine(th.Name is null ? $"Thread {th.ThreadId}" : $"Thread {th.ThreadId} ({th.Name})");
             t.WriteTo(sb);
         }
     }
