@@ -47,6 +47,10 @@ def parse_trx(path: Path) -> Run:
         run.failures.append((path.name, f"unreadable trx file: {exc}", ""))
         return run
 
+    method = root.find(".//t:TestDefinitions/t:UnitTest/t:TestMethod", NS)
+    if method is not None and method.get("codeBase"):
+        run.name = Path(method.get("codeBase")).stem
+
     for result in root.findall(".//t:Results/t:UnitTestResult", NS):
         outcome = (result.get("outcome") or "").lower()
         run.duration += parse_duration(result.get("duration"))

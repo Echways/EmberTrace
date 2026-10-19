@@ -16,7 +16,12 @@ runs:
   using: composite
   steps:
     - shell: bash
-      run: echo "NUGET_PACKAGES=${GITHUB_WORKSPACE}/.nuget/packages" >> "$GITHUB_ENV"
+      run: |
+        {
+          echo "NUGET_PACKAGES=${GITHUB_WORKSPACE}/.nuget/packages"
+          echo "DOTNET_NOLOGO=true"
+          echo "DOTNET_CLI_TELEMETRY_OPTOUT=true"
+        } >> "$GITHUB_ENV"
 
     - uses: actions/setup-dotnet@v6
       with:

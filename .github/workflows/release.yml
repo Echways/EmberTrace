@@ -16,13 +16,6 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  SOLUTION: EmberTrace.slnx
-  CONFIGURATION: Release
-  DOTNET_NOLOGO: 'true'
-  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
-
 jobs:
   verify:
     name: Verify tag
@@ -77,35 +70,9 @@ jobs:
     permissions:
       contents: read
 
-  pack:
-    name: Pack ${{ needs.verify.outputs.version }}
-    needs: [verify, ci]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-
-      - run: |
-          dotnet pack "$SOLUTION" -c "$CONFIGURATION" --no-restore \
-            -p:UseLocalEmberTrace=true \
-            -p:ContinuousIntegrationBuild=true \
-            -o artifacts/packages
-
-      - run: |
-          python3 .github/scripts/nupkg_check.py \
-            --version "${{ needs.verify.outputs.version }}" artifacts/packages
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-packages
-          path: artifacts/packages
-          retention-days: 90
-          if-no-files-found: error
-
   publish:
     name: Publish to NuGet.org
-    needs: [verify, pack]
+    needs: [verify, ci]
     if: needs.verify.outputs.dry_run != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -124,7 +91,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: release-packages
+          name: packages
           path: artifacts/packages
 
       - name: NuGet login (OIDC)
@@ -146,36 +113,6 @@ jobs:
           done
           .github/scripts/nuget_push.sh "${packages[@]}"
 
-  publish-meta:
-    name: Publish meta package
-    needs: [verify, pack, publish]
-    if: needs.verify.outputs.dry_run != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      id-token: write
-    environment:
-      name: nuget
-      url: https://www.nuget.org/packages/EmberTrace.All
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-        with:
-          restore: 'false'
-          cache: 'false'
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-packages
-          path: artifacts/packages
-
-      - name: NuGet login (OIDC)
-        id: login
-        uses: NuGet/login@v1
-        with:
-          user: ${{ secrets.NUGET_USER }}
-
       - name: Push EmberTrace.All
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
@@ -188,7 +125,7 @@ jobs:
 
   github-release:
     name: GitHub Release
-    needs: [verify, pack, publish, publish-meta]
+    needs: [verify, publish]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -201,7 +138,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: release-packages
+          name: packages
           path: artifacts/packages
 
       - env:
