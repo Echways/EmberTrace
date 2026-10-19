@@ -210,13 +210,13 @@ fixes, and attempting all three in one code action makes Fix All fragile.
 
 ## Overhead
 
-Measured with `benchmarks/EmberTrace.Benchmarks`, 10,000 operations per benchmark invocation, no session
-running:
+Measured with `benchmarks/EmberTrace.Benchmarks` (BenchmarkDotNet 0.15.8, .NET 10.0.11, Intel Core i5-12450H),
+10,000 operations per benchmark invocation, no session running:
 
 | Benchmark | Mean | Allocated |
 |-----------|------|-----------|
-| `Trace_Sync_SessionStopped` | 5.29 us | — |
-| `Trace_Async_SessionStopped` | 11.72 us | 72 B |
+| `Trace_Sync_SessionStopped` | 5.20 us | — |
+| `Trace_Async_SessionStopped` | 12.01 us | 72 B |
 
 The 72 bytes are the benchmark method's own state machine, not a per-call allocation: the async wrapper
 never enters an `async` method while the session is stopped.

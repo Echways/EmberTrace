@@ -6,6 +6,7 @@
         <IsTestProject>true</IsTestProject>
         <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <ThreadPoolMinThreads>64</ThreadPoolMinThreads>
     </PropertyGroup>
 
     <ItemGroup>
