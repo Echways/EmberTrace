@@ -68,6 +68,15 @@ var id = Tracer.Id("MySubsystem.Request");
 using var _ = Tracer.Scope(id);
 ```
 
+Не вызывай `Tracer.Id` на каждый скоуп: он хэширует строку и ищет имя в реестре при каждом вызове. Создай `TraceName`
+один раз, в `static readonly` поле, и передавай его в `Tracer.Scope`:
+
+```csharp
+private static readonly TraceName Request = new("MySubsystem.Request");
+
+using var _ = Tracer.Scope(Request);
+```
+
 Категорию можно хешировать так же:
 
 ```csharp
@@ -120,6 +129,42 @@ var meta = Tracer.CreateMetadata();
 
 Для dev‑сценариев можно включить runtime‑метаданные: `EnableRuntimeMetadata = true`.
 В этом режиме `Tracer.Id("Name")` автоматически регистрирует имя с категорией `Default`.
+
+## Измерение коротких операций
+
+Скоуп имеет фиксированную цену. На машине, с которой сняты эти цифры (`ScopeBenchmarks`, короткий джоб на Linux),
+открытие и закрытие одного занимает около 157 нс против около 61 нс на два вызова `Stopwatch.GetTimestamp()`, а
+`Tracer.Id(...)` на каждом вызове добавляет ещё около 93 нс (используй `TraceName`, см. выше). Запусти
+`ScopeBenchmarks`, чтобы получить свои числа.
+
+Для операции в единицы микросекунд скоуп на каждый вызов измеряет в основном сам скоуп. Оберни пачку и раздели на её
+размер:
+
+```csharp
+private static readonly TraceName ParseBatch = new("Parse.Batch");
+
+using (Tracer.Scope(ParseBatch))
+{
+    for (var i = 0; i < items.Length; i++)
+        Parse(items[i]);
+}
+```
+
+Время на элемент — это `AverageMs / items.Length` этого скоупа. Как правило, скоуп короче 20 собственных накладных
+расходов нужно измерять пачкой. `OverheadCalibration.Measure()` запускает отдельную сессию и возвращает цену на текущей
+машине:
+
+```csharp
+var overhead = OverheadCalibration.Measure();
+
+Console.WriteLine($"scope: {overhead.ScopeNs:F0} ns; wrap at least {overhead.MinBatchWorkNs(5):F0} ns of work per scope");
+Console.WriteLine(TraceText.Write(session.Process(), includePercentiles: true, overhead: overhead));
+```
+
+`MinBatchWorkNs(5)` — работа, которую должен обернуть один скоуп, чтобы накладные расходы остались ниже 5%; `CorrectMs`
+вычитает один скоуп из измеренной длительности; отчёт помечает скоупы, медиана которых меньше 20 накладных расходов,
+как `overhead-dominated`. Запускай калибровку на той же машине и с теми же настройками, что и измеряемый код, при
+остановленном трейсере.
 
 ## Практические рекомендации
 

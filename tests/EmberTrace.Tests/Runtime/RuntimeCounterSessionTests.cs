@@ -11,7 +11,8 @@ public class RuntimeCounterSessionTests
 {
     private const int ScopeId = 1000;
 
-    private static readonly int[] GcIds = [RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2];
+    private static readonly int[] GcIds =
+        [RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2];
 
     [TestMethod]
     public void Session_WithoutRuntimeCounters_EmitsNoReservedIds()

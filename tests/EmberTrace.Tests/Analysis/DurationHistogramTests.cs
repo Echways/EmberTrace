@@ -32,10 +32,10 @@ public class DurationHistogramTests
     [TestMethod]
     public void BucketIndices_AreContiguousAcrossMagnitudeBoundaries()
     {
-        Assert.AreEqual(63, DurationHistogram.BucketIndexOf(63));
-        Assert.AreEqual(64, DurationHistogram.BucketIndexOf(64));
-        Assert.AreEqual(95, DurationHistogram.BucketIndexOf(127));
-        Assert.AreEqual(96, DurationHistogram.BucketIndexOf(128));
+        Assert.AreEqual(511, DurationHistogram.BucketIndexOf(511));
+        Assert.AreEqual(512, DurationHistogram.BucketIndexOf(512));
+        Assert.AreEqual(767, DurationHistogram.BucketIndexOf(1023));
+        Assert.AreEqual(768, DurationHistogram.BucketIndexOf(1024));
     }
 
     [TestMethod]
@@ -43,7 +43,7 @@ public class DurationHistogramTests
     {
         var index = DurationHistogram.BucketIndexOf(long.MaxValue);
 
-        Assert.AreEqual(1887, index);
+        Assert.AreEqual(14335, index);
         Assert.AreEqual(long.MaxValue, DurationHistogram.UpperBoundOf(index));
     }
 
@@ -60,7 +60,7 @@ public class DurationHistogramTests
     }
 
     [TestMethod]
-    public void LargeValues_StayWithinThreePointTwoPercent()
+    public void LargeValues_StayWithinOneTwoHundredFiftySixth()
     {
         long value = 64;
         while (value < 1L << 40)
@@ -68,9 +68,33 @@ public class DurationHistogramTests
             var reported = DurationHistogram.UpperBoundOf(DurationHistogram.BucketIndexOf(value));
             var error = (double)(reported - value) / value;
 
-            Assert.IsLessThan(0.0313, error);
+            Assert.IsLessThan(0.0040, error);
             value = (long)(value * 1.37) + 1;
         }
+    }
+
+    [TestMethod]
+    [DataRow(50.0)]
+    [DataRow(95.0)]
+    [DataRow(99.0)]
+    public void PercentileTicks_RelativeError_IsBelowHalfPercent(double percentile)
+    {
+        var random = new Random(42);
+        var values = new long[100_000];
+        var histogram = new DurationHistogram();
+        for (var i = 0; i < values.Length; i++)
+        {
+            values[i] = random.NextInt64(1_000, 10_000_001);
+            histogram.Add(values[i]);
+        }
+
+        Array.Sort(values);
+        var rank = (int)Math.Ceiling(percentile / 100.0 * values.Length);
+        var exact = values[rank - 1];
+
+        var relativeError = Math.Abs(histogram.PercentileTicks(percentile) - exact) / (double)exact;
+
+        Assert.IsLessThanOrEqualTo(0.005, relativeError);
     }
 
     [TestMethod]
@@ -86,9 +110,9 @@ public class DurationHistogramTests
         Assert.AreEqual(1000, histogram.MinTicks);
         Assert.AreEqual(1_000_000, histogram.MaxTicks);
 
-        Assert.IsLessThan(1032L, histogram.PercentileTicks(50));
-        Assert.IsLessThan(1032L, histogram.PercentileTicks(95));
-        Assert.IsLessThan(1032L, histogram.PercentileTicks(99));
+        Assert.IsLessThan(1005L, histogram.PercentileTicks(50));
+        Assert.IsLessThan(1005L, histogram.PercentileTicks(95));
+        Assert.IsLessThan(1005L, histogram.PercentileTicks(99));
         Assert.AreEqual(1_000_000L, histogram.PercentileTicks(100));
     }
 

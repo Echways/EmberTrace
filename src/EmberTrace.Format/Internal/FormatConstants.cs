@@ -2,7 +2,7 @@ namespace EmberTrace.Format.Internal;
 
 internal static class FormatConstants
 {
-    public const ushort Version = 1;
+    public const ushort Version = 2;
     public const int MinimumHeaderSize = 72;
     public const int HeaderSize = 80;
     public const int MaxStringBytes = 1 << 20;
@@ -17,6 +17,7 @@ internal static class FormatConstants
         public const byte ThreadNames = 1;
         public const byte Metadata = 2;
         public const byte Events = 3;
+        public const byte Environment = 4;
     }
 
     public static class EventFlags

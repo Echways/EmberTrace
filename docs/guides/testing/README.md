@@ -64,9 +64,9 @@ var baseline = TraceFormat.Read("baselines/checkout.ember").Analyze();
 
 ## Percentile accuracy
 
-Durations are bucketed in a log-linear histogram with 5 significant bits, so a reported percentile is within 3.125% of
+Durations are bucketed in a log-linear histogram with 8 significant bits, so a reported percentile is within 0.39% of
 the true value and is always rounded **up** — a gate never passes because a latency was under-reported. Durations below
-64 ticks are recorded exactly, and `MinMs`/`MaxMs` are always exact.
+512 ticks are recorded exactly, and `MinMs`/`MaxMs` are always exact.
 
 See also:
 - [Analysis and reports](../analysis/README.md)

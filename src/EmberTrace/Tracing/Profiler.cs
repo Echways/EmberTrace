@@ -16,6 +16,7 @@ internal sealed class Profiler
 
     [ThreadStatic] private static ThreadWriter? _cachedWriter;
     private readonly TimeProvider _clock;
+    private readonly IEnvironmentReader _environmentReader;
     private readonly TraceMetadataRegistry _registry;
     private int _enabled;
     private ITraceMetadataProvider? _metadata;
@@ -23,8 +24,12 @@ internal sealed class Profiler
     private RuntimeCounterSampler? _runtimeSampler;
     private ProfilingState? _state;
 
-    public Profiler(TimeProvider? clock = null, TraceMetadataRegistry? registry = null)
+    public Profiler(
+        TimeProvider? clock = null,
+        TraceMetadataRegistry? registry = null,
+        IEnvironmentReader? environmentReader = null)
     {
+        _environmentReader = environmentReader ?? SystemEnvironmentReader.Instance;
         _clock = clock ?? TimeProvider.System;
         _registry = registry ?? TraceMetadataRegistry.Shared;
     }
@@ -59,9 +64,11 @@ internal sealed class Profiler
 
         var sampling = new SamplingPolicy(opts.SampleEveryNGlobal, opts.SampleEveryNById, opts.MaxEventsPerSecond);
 
+        var environment = CaptureEnvironment(opts);
+
         _metadata = meta;
         _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now(),
-            _clock.GetUtcNow());
+            _clock.GetUtcNow(), environment);
 
         if (opts.RuntimeCounters != RuntimeCounters.None)
         {
@@ -109,7 +116,9 @@ internal sealed class Profiler
             state.Metadata,
             0,
             false,
-            state.StartedAtUtc);
+            state.StartedAtUtc,
+            state.Environment,
+            CaptureEnvironment(state.Options));
     }
 
     public TraceSession Snapshot(TimeSpan window)
@@ -147,11 +156,27 @@ internal sealed class Profiler
                 state.Metadata,
                 0,
                 true,
-                cutUtc - Stopwatch.GetElapsedTime(start, cut));
+                cutUtc - Stopwatch.GetElapsedTime(start, cut),
+                state.Environment);
         }
         finally
         {
             collector.EndSnapshot();
+        }
+    }
+
+    private TraceEnvironment? CaptureEnvironment(SessionOptions options)
+    {
+        if (!options.CaptureEnvironment)
+            return null;
+
+        try
+        {
+            return EnvironmentProbe.Capture(_environmentReader, options.Tags);
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 

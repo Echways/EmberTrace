@@ -71,6 +71,26 @@ using (Tracer.Scope(Tracer.Id("load")))
 }
 ```
 
+### `Scope Tracer.Scope(TraceName name)`
+То же, что `Tracer.Scope(name.Id)`.
+
+`TraceName` хэширует и регистрирует строку один раз, в конструкторе. `Tracer.Scope(Tracer.Id("load"))` повторяет
+хэширование и поиск в реестре при каждом вызове; короткий замер показал около 93 нс сверх примерно 158 нс самого
+скоупа (`Scope_IdPerCall_SingleThread` против `Scope_BeginEnd_SingleThread` в `ScopeBenchmarks`), `TraceName`
+убирает эту цену. Храни его в статическом поле:
+
+```csharp
+private static readonly TraceName Load = new("load", "IO");
+
+using (Tracer.Scope(Load))
+{
+    Load();
+}
+```
+
+Конструктор сообщает о коллизии хэша так же, как `Tracer.Id` (см. `Tracer.IdCollisionMode`). Неявного приведения к
+`int` нет.
+
 ### `AsyncScope Tracer.ScopeAsync(int id)`
 Async-friendly scope, реализующий `IAsyncDisposable`.
 

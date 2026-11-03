@@ -45,7 +45,8 @@ internal static class DecoratorDiscovery
         foreach (var member in MembersOf(target))
             switch (member)
             {
-                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method when TraceMethodShape.HasTraceableSignature(method):
+                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method
+                    when TraceMethodShape.HasTraceableSignature(method):
                     methods.Add(Method(type, method));
                     break;
                 case IMethodSymbol { MethodKind: MethodKind.Ordinary } method:

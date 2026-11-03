@@ -14,13 +14,13 @@ public class FuzzTests
     [DataRow(90210, false)]
     public void RandomScopeStreams_KeepEveryEventAccountedFor(int seed, bool strict)
     {
-        var session = RandomSession(seed, threads: 4, events: 600);
+        var session = RandomSession(seed, 4, 600);
         var events = session.Events();
         var begins = events.Count(e => e.Kind == TraceEventKind.Begin);
         var ends = events.Count(e => e.Kind == TraceEventKind.End);
 
         var stats = session.Analyze(strict);
-        var processed = session.Process(strict, groupByThread: false);
+        var processed = session.Process(strict, false);
         var closed = stats.ByTotalTimeDesc.Sum(r => r.Count);
 
         Assert.AreEqual(begins, closed + stats.UnmatchedBeginCount);
@@ -31,7 +31,8 @@ public class FuzzTests
         Assert.AreEqual(stats.MismatchedEndCount, processed.MismatchedEndCount);
         Assert.IsTrue(stats.ByTotalTimeDesc.All(r => r.MinMs >= 0 && r.MinMs <= r.MaxMs));
 
-        Assert.AreEqual(begins + ends, PhaseCount(stream => TraceExport.WriteChromeBeginEnd(session, stream), "B", "E"));
+        Assert.AreEqual(begins + ends,
+            PhaseCount(stream => TraceExport.WriteChromeBeginEnd(session, stream), "B", "E"));
         Assert.AreEqual(session.Analyze().ByTotalTimeDesc.Sum(r => r.Count),
             PhaseCount(stream => TraceExport.WriteChromeComplete(session, stream), "X"));
     }

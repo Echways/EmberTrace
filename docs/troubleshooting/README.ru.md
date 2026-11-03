@@ -53,6 +53,29 @@ await using (Tracer.ScopeAsync(Ids.Io))
 - при необходимости поменяй `OverflowPolicy` (`DropNew`, `DropOldest`, `StopSession`)
 - проверь лимиты `MaxTotalEvents`, `MaxTotalChunks`, `MaxEventsPerSecond`
 
+## Медиана и среднее расходятся
+
+**Причина:** длительности скоупа образуют два кластера (путь с кэшем и без, блокировка, за которую иногда борются), поэтому
+медиана следует за кластером с большим числом замеров и сильно сдвигается при небольшом изменении их соотношения.
+Отчёт помечает такой скоуп `*` и `median unreliable`; `row.Shape.IsBimodal` равен `true`.
+
+**Решение:**
+- смотри `row.Shape` (`P25Ms`, `P75Ms`, `MeanMs`) и `row.Warmup()` вместо одного числа
+- раздели скоуп по ветвям (`Tracer.Scope` на каждый путь), чтобы в каждом был один кластер
+- при сравнении наборов запусков бимодальный скоуп получает `Inconclusive` при `Statistic.Median`: используй
+  `Statistic.Mean` или раздели скоуп
+
+## Запуски одного и того же кода расходятся / смешанные governor процессора
+
+**Причина:** состояние машины менялось между запусками (governor `powersave` против `performance`, turbo, другой рантайм
+или настройка `DOTNET_*`, affinity или лимиты cgroup).
+
+**Решение:**
+- сравни `session.Environment` через `EnvironmentCompatibility.Compare` или смотри `RunSetComparison.Mismatches`
+- сопоставь `session.EnvironmentAtStop` с `session.Environment`: governor, изменившийся за время прогона, виден там
+- включи `ComparisonOptions.RequireCompatibleEnvironment`, чтобы любое блокирующее различие делало все вердикты
+  `Inconclusive`, и перезапусти на одной фиксированной конфигурации
+
 ## Flow «обрывается»
 
 **Причина:** не вызван `FlowEnd(...)` / `handle.End()`.

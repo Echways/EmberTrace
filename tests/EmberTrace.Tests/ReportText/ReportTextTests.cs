@@ -95,7 +95,7 @@ public class ReportTextTests
         var meta = Meta.Of(Enumerable.Range(1, 11)
             .Select(id => (id, "scope-" + id, (string?)(id == 11 ? "IO" : "CPU"))).ToArray());
 
-        var report = TraceText.Write(script.ToSession().Process(), meta, topHotspots: 10, categoryFilter: "IO");
+        var report = TraceText.Write(script.ToSession().Process(), meta, 10, categoryFilter: "IO");
 
         Assert.Contains("scope-11", Section(report, "Hotspots (by inclusive)", "Categories"));
     }
@@ -103,7 +103,7 @@ public class ReportTextTests
     [TestMethod]
     public void Write_TopHotspots_LimitsTheHotspotRows()
     {
-        var report = TraceText.Write(Trace(), Metadata(), topHotspots: 1);
+        var report = TraceText.Write(Trace(), Metadata(), 1);
         var hotspots = Section(report, "Hotspots (by inclusive)", "Categories");
 
         Assert.Contains("DiskRead", hotspots);
@@ -157,6 +157,61 @@ public class ReportTextTests
         Assert.DoesNotContain("Thread 5", report);
         Assert.Contains("Thread 1" + Nl, filtered);
         Assert.DoesNotContain("Thread 2", filtered);
+    }
+
+    [TestMethod]
+    public void Report_BimodalScope_PrintsWarningFootnote()
+    {
+        var script = new TraceScript();
+        long ts = 0;
+        for (var i = 0; i < 40; i++)
+        {
+            var duration = i % 2 == 0 ? 1_000L : 2_000L;
+            script.Span(Disk, ts, ts + duration);
+            ts += duration + 10;
+        }
+
+        var report = TraceText.Write(script.ToSession().Process(), Metadata(), includePercentiles: true);
+
+        StringAssert.Contains(report, "median unreliable");
+        StringAssert.Contains(report, "DiskRead*");
+        StringAssert.Contains(report, "p25 ms");
+        StringAssert.Contains(report, "p75 ms");
+    }
+
+    [TestMethod]
+    public void Report_ScopeOverTheSampleLimit_MarksApproximatePercentiles()
+    {
+        var script = new TraceScript();
+        for (var i = 0; i < 100_001; i++)
+            script.Span(Cpu, i * 100L, i * 100L + 50);
+        script.Span(Disk, 20_000_000, 20_000_100);
+
+        var report = TraceText.Write(script.ToSession().Process(), Metadata(), includePercentiles: true);
+
+        var hotspots = Section(report, "Hotspots", "Categories");
+        var compute = hotspots.Split(Nl).Single(l => l.Contains("Compute"));
+        var disk = hotspots.Split(Nl).Single(l => l.Contains("DiskRead"));
+        StringAssert.Contains(compute, "~");
+        Assert.DoesNotContain("~", disk);
+        StringAssert.Contains(hotspots, "~ approximate");
+    }
+
+    [TestMethod]
+    public void Report_ExactScopes_PrintNoApproximationFootnote()
+    {
+        var report = TraceText.Write(Trace(), Metadata(), includePercentiles: true);
+
+        Assert.DoesNotContain("approximate", report);
+    }
+
+    [TestMethod]
+    public void Report_OrdinaryScope_HasNoWarningFootnote()
+    {
+        var report = TraceText.Write(Trace(), Metadata(), includePercentiles: true);
+
+        Assert.DoesNotContain("median unreliable", report);
+        Assert.DoesNotContain("*", report);
     }
 
     private static ProcessedTrace Trace()

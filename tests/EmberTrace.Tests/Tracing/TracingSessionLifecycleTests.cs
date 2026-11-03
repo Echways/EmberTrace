@@ -160,7 +160,8 @@ public class TracingSessionLifecycleTests
 
             Assert.AreEqual(count, session.EventCount);
             CollectionAssert.AreEqual(first, session.SortedEvents());
-            Assert.IsTrue(first.All(e => e.Id == id && e.Timestamp > 0 && e.Kind is TraceEventKind.Begin or TraceEventKind.End));
+            Assert.IsTrue(first.All(e =>
+                e.Id == id && e.Timestamp > 0 && e.Kind is TraceEventKind.Begin or TraceEventKind.End));
 
             foreach (var track in first.GroupBy(e => e.TrackId))
             {

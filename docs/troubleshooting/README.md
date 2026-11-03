@@ -53,6 +53,28 @@ await using (Tracer.ScopeAsync(Ids.Io))
 - change `OverflowPolicy` if needed (`DropNew`, `DropOldest`, `StopSession`)
 - check limits `MaxTotalEvents`, `MaxTotalChunks`, `MaxEventsPerSecond`
 
+## Median and mean disagree
+
+**Cause:** the scope's durations form two clusters (a cached and an uncached path, a lock that is sometimes contended),
+so the median follows whichever cluster has more samples and a small shift of the mix moves it a lot. The report marks
+such a scope with `*` and `median unreliable`; `row.Shape.IsBimodal` is `true`.
+
+**Fix:**
+- read `row.Shape` (`P25Ms`, `P75Ms`, `MeanMs`) and `row.Warmup()` instead of a single number
+- split the scope by branch (`Tracer.Scope` per path) so each has one cluster
+- when comparing sets of runs, a bimodal scope is `Inconclusive` under `Statistic.Median`: use `Statistic.Mean` or split it
+
+## Runs of the same code disagree / mixed CPU governors
+
+**Cause:** the machine state changed between runs (CPU governor `powersave` against `performance`, turbo, a different
+runtime or `DOTNET_*` setting, affinity or cgroup limits).
+
+**Fix:**
+- compare `session.Environment` with `EnvironmentCompatibility.Compare`, or read `RunSetComparison.Mismatches`
+- check `session.EnvironmentAtStop` against `session.Environment`: a governor that changed during the run shows up there
+- set `ComparisonOptions.RequireCompatibleEnvironment` to make every verdict `Inconclusive` while a blocking difference
+  exists, and rerun on one fixed configuration
+
 ## Flow is "broken"
 
 **Cause:** `FlowEnd(...)` / `handle.End()` was not called.

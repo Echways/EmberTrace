@@ -5,7 +5,7 @@ namespace EmberTrace.Analysis.Stats;
 
 public sealed class DurationHistogram
 {
-    private const int ExplicitBits = 5;
+    private const int ExplicitBits = 8;
     private const int SubBucketCount = 1 << (ExplicitBits + 1);
     private const int BucketsPerMagnitude = 1 << ExplicitBits;
     private const int MinMagnitude = ExplicitBits + 1;

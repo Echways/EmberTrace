@@ -12,4 +12,5 @@ public sealed class HotspotRow
     public double P50Ms { get; init; }
     public double P95Ms { get; init; }
     public double P99Ms { get; init; }
+    public DistributionShape? Shape { get; init; }
 }

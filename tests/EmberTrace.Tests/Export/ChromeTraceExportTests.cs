@@ -131,7 +131,7 @@ public class ChromeTraceExportTests
     [TestMethod]
     public void WriteChromeComplete_NamesTheProcessAndEveryTrackIncludingTheSyntheticOne()
     {
-        var events = Complete(Session(), pid: 42, processName: "svc");
+        var events = Complete(Session(), 42, "svc");
 
         Assert.IsTrue(events.All(e => e.GetProperty("pid").GetInt32() == 42));
         Assert.AreEqual("process_name", events[0].GetProperty("name").GetString());
@@ -162,7 +162,7 @@ public class ChromeTraceExportTests
     [TestMethod]
     public void EventsBeforeTheSessionStart_AreSkippedAndTimestampsAreRelativeToIt()
     {
-        var session = Session(start: 1_500);
+        var session = Session(1_500);
 
         AssertEvent(Scopes(Complete(session)).Single(), "Inner", "", 500, 1);
 
@@ -217,7 +217,8 @@ public class ChromeTraceExportTests
             .Flow(TraceEventKind.FlowEnd, Job, 5_000, FlowId)
             .End(Outer, 9_000)
             .ToSession(start, 10_000,
-                Meta.Of((Outer, "Outer", "App"), (Inner, "Inner", null), (Tick, "Tick", "Marks"), (Queue, "Queue", null),
+                Meta.Of((Outer, "Outer", "App"), (Inner, "Inner", null), (Tick, "Tick", "Marks"),
+                    (Queue, "Queue", null),
                     (Job, "Job", null)),
                 new Dictionary<int, string> { [1] = "main" });
     }

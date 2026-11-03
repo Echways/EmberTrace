@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using EmberTrace.Analysis.Calibration;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
 
@@ -14,7 +15,8 @@ internal static class TextReportWriter
         int maxDepth = 3,
         string? categoryFilter = null,
         double minPercent = 0,
-        bool includePercentiles = false)
+        bool includePercentiles = false,
+        OverheadReport? overhead = null)
     {
         var sb = new StringBuilder(32_768);
 
@@ -33,7 +35,7 @@ internal static class TextReportWriter
         sb.AppendLine($"MismatchedEnd: {trace.MismatchedEndCount}");
         sb.AppendLine();
 
-        WriteHotspots(sb, trace, meta, topHotspots, categoryFilter, minPercent, includePercentiles);
+        WriteHotspots(sb, trace, meta, topHotspots, categoryFilter, minPercent, includePercentiles, overhead);
         sb.AppendLine();
         if (WriteCategoryGroups(sb, trace, meta, categoryFilter))
             sb.AppendLine();
@@ -49,17 +51,24 @@ internal static class TextReportWriter
         int top,
         string? categoryFilter,
         double minPercent,
-        bool includePercentiles)
+        bool includePercentiles,
+        OverheadReport? overhead)
     {
         sb.AppendLine("Hotspots (by inclusive)");
 
-        var t = includePercentiles
-            ? new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%", "p50 ms", "p95 ms", "p99 ms")
-            : new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%");
+        var headers = new List<string> { "Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%" };
+        if (includePercentiles)
+            headers.AddRange(["p25 ms", "p50 ms", "p75 ms", "p95 ms", "p99 ms"]);
+        if (overhead is not null)
+            headers.Add("Note");
+
+        var t = new TextTable(headers.ToArray());
 
         t.AddSeparator();
 
         var shown = 0;
+        var anyUnreliable = false;
+        var anyApproximate = false;
         foreach (var r in trace.HotspotsByInclusiveDesc)
         {
             if (shown >= top)
@@ -69,10 +78,13 @@ internal static class TextReportWriter
             if (!MatchesCategory(categoryFilter, cat) || Percent(r.InclusiveMs, trace.DurationMs) < minPercent)
                 continue;
 
-            var cells = new List<string>(10)
+            var unreliable = r.Shape is { MedianReliable: false };
+            anyUnreliable |= unreliable;
+
+            var cells = new List<string>(12)
             {
                 r.Id.ToString(),
-                name,
+                unreliable ? name + "*" : name,
                 cat,
                 r.Count.ToString(),
                 r.InclusiveMs.ToString("F3"),
@@ -81,13 +93,34 @@ internal static class TextReportWriter
             };
 
             if (includePercentiles)
-                cells.AddRange([r.P50Ms.ToString("F3"), r.P95Ms.ToString("F3"), r.P99Ms.ToString("F3")]);
+            {
+                var approximate = r.Shape is null;
+                anyApproximate |= approximate;
+                var mark = approximate ? "~" : string.Empty;
+                cells.AddRange([
+                    r.Shape is { } shape ? shape.P25Ms.ToString("F3") : string.Empty,
+                    mark + r.P50Ms.ToString("F3"),
+                    r.Shape is { } upper ? upper.P75Ms.ToString("F3") : string.Empty,
+                    mark + r.P95Ms.ToString("F3"),
+                    mark + r.P99Ms.ToString("F3")
+                ]);
+            }
+
+            if (overhead is not null)
+                cells.Add(overhead.IsOverheadDominated(r.P50Ms) ? "overhead-dominated" : string.Empty);
 
             t.AddRow(cells.ToArray());
             shown++;
         }
 
         t.WriteTo(sb);
+
+        if (anyApproximate)
+            sb.AppendLine(
+                "~ approximate: more completions than the sample limit, percentiles come from the histogram (error up to 0.39%)");
+
+        if (anyUnreliable)
+            sb.AppendLine("* median unreliable: bimodal, or the mean differs from the median by more than 25%");
     }
 
     private static double Percent(double part, double total)
@@ -220,5 +253,4 @@ internal static class TextReportWriter
 
         return string.Equals(filter, category, StringComparison.OrdinalIgnoreCase);
     }
-
 }

@@ -50,7 +50,8 @@ internal sealed class EmberTraceHostedService : IHostedService
             return;
 
         var path = Path.Combine(directory,
-            DumpFileName.Create(_options.Dump.FileNamePrefix, "shutdown", DateTimeOffset.UtcNow, TraceFormat.FileExtension));
+            DumpFileName.Create(_options.Dump.FileNamePrefix, "shutdown", DateTimeOffset.UtcNow,
+                TraceFormat.FileExtension));
 
         try
         {

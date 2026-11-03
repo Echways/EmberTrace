@@ -67,10 +67,10 @@ public class CallTreeTests
     {
         var trace = TraceSession.FromEvents(
         [
-            new(1, 7, 10, TraceEventKind.Begin, 0, 0, 1, 1),
-            new(1, 7, 20, TraceEventKind.End, 0, 0, 2, 1),
-            new(2, 7, 30, TraceEventKind.Begin, 0, 0, 1, 2),
-            new(2, 7, 40, TraceEventKind.End, 0, 0, 2, 2)
+            new TraceEventRecord(1, 7, 10, TraceEventKind.Begin, 0, 0, 1, 1),
+            new TraceEventRecord(1, 7, 20, TraceEventKind.End, 0, 0, 2, 1),
+            new TraceEventRecord(2, 7, 30, TraceEventKind.Begin, 0, 0, 1, 2),
+            new TraceEventRecord(2, 7, 40, TraceEventKind.End, 0, 0, 2, 2)
         ], 0, 40, 1_000_000).Process();
 
         CollectionAssert.AreEqual(new[] { (1, 7, 1), (2, 7, 2) },

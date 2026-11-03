@@ -206,5 +206,4 @@ public static class OpenTelemetryExport
             return ActivitySpanId.CreateFromBytes(bytes);
         }
     }
-
 }

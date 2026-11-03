@@ -96,8 +96,8 @@ public class TraceAnalysisTests
     {
         var session = TraceSession.FromEvents(
         [
-            new(5, 7, 10, TraceEventKind.Begin, 0, 0, 1, 1),
-            new(5, 7, 1000, TraceEventKind.End, 0, 0, 1, 2)
+            new TraceEventRecord(5, 7, 10, TraceEventKind.Begin, 0, 0, 1, 1),
+            new TraceEventRecord(5, 7, 1000, TraceEventKind.End, 0, 0, 1, 2)
         ], 10, 1000, 1_000_000);
 
         var stats = session.Analyze();
@@ -146,7 +146,7 @@ public class TraceAnalysisTests
             .ToSession();
 
         CollectionAssert.AreEqual(new[] { 2L, 3L, 1L }, session.AnalyzeFlows().Select(f => f.FlowId).ToArray());
-        CollectionAssert.AreEqual(new[] { 2L, 3L }, session.AnalyzeFlows(top: 2).Select(f => f.FlowId).ToArray());
+        CollectionAssert.AreEqual(new[] { 2L, 3L }, session.AnalyzeFlows(2).Select(f => f.FlowId).ToArray());
     }
 
     [TestMethod]

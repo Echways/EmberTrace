@@ -169,8 +169,8 @@ public sealed class EmberTraceMiddlewareTests
     {
         var middleware = Create(static _ => throw new InvalidOperationException("boom"));
 
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => middleware.InvokeAsync(Request("GET", "/orders/17", "/orders/{id}")));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            middleware.InvokeAsync(Request("GET", "/orders/17", "/orders/{id}")));
 
         CollectionAssert.AreEqual(
             new[] { TraceEventKind.FlowStart, TraceEventKind.Begin, TraceEventKind.FlowEnd, TraceEventKind.End },
@@ -250,8 +250,8 @@ public sealed class EmberTraceMiddlewareTests
             throw new InvalidOperationException("boom");
         }, monitor);
 
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => middleware.InvokeAsync(Request("GET", "/orders/17", "/orders/{id}")));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            middleware.InvokeAsync(Request("GET", "/orders/17", "/orders/{id}")));
     }
 
     [TestMethod]

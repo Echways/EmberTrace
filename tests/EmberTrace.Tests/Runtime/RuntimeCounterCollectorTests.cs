@@ -102,10 +102,15 @@ public class RuntimeCounterCollectorTests
     }
 
     [TestMethod]
-    [DataRow(RuntimeCounters.Gc, new[] { RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2 })]
+    [DataRow(RuntimeCounters.Gc,
+        new[] { RuntimeCounterIds.GcGen0, RuntimeCounterIds.GcGen1, RuntimeCounterIds.GcGen2 })]
     [DataRow(RuntimeCounters.Memory, new[] { RuntimeCounterIds.HeapBytes, RuntimeCounterIds.AllocatedBytes })]
     [DataRow(RuntimeCounters.ThreadPool,
-        new[] { RuntimeCounterIds.ThreadPoolThreads, RuntimeCounterIds.ThreadPoolQueue, RuntimeCounterIds.ThreadPoolCompleted })]
+        new[]
+        {
+            RuntimeCounterIds.ThreadPoolThreads, RuntimeCounterIds.ThreadPoolQueue,
+            RuntimeCounterIds.ThreadPoolCompleted
+        })]
     [DataRow(RuntimeCounters.Exceptions, new[] { RuntimeCounterIds.Exceptions })]
     [DataRow(RuntimeCounters.None, new int[0])]
     public void EnabledGroups_EmitOnlyTheirOwnCounters(RuntimeCounters enabled, int[] expectedIds)

@@ -42,7 +42,8 @@ public sealed class AddEmberTraceTests
     {
         using var provider = Build(services => services.AddEmberTrace(), Configuration());
 
-        CollectionAssert.AreEqual(EmberTraceRequestOptions.DefaultIgnoredPaths, OptionsOf(provider).Requests.IgnoredPaths);
+        CollectionAssert.AreEqual(EmberTraceRequestOptions.DefaultIgnoredPaths,
+            OptionsOf(provider).Requests.IgnoredPaths);
     }
 
     [TestMethod]
@@ -95,7 +96,8 @@ public sealed class AddEmberTraceTests
     {
         using var provider = Build(services => services.AddEmberTrace().AddEmberTrace(), Configuration());
 
-        Assert.AreSame(provider.GetRequiredService<EmberTraceRecorder>(), provider.GetRequiredService<EmberTraceRecorder>());
+        Assert.AreSame(provider.GetRequiredService<EmberTraceRecorder>(),
+            provider.GetRequiredService<EmberTraceRecorder>());
         Assert.AreSame(TimeProvider.System, provider.GetRequiredService<TimeProvider>());
         Assert.AreEqual(1, provider.GetServices<IHostedService>().Count(s => s is EmberTraceHostedService));
         Assert.AreEqual(1, provider.GetServices<IValidateOptions<EmberTraceOptions>>().Count());

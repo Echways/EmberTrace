@@ -43,7 +43,7 @@ public class TraceFormatErrorTests
     [TestMethod]
     public void Read_OnTruncatedEventSection_Throws()
     {
-        var session = new TraceScript().Span(1, 10, 20).ToSession(start: 10);
+        var session = new TraceScript().Span(1, 10, 20).ToSession(10);
 
         using var full = new MemoryStream();
         TraceFormat.Write(session, full);

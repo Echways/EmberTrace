@@ -45,7 +45,8 @@ public sealed class EmberTraceHostedServiceTests
     [TestMethod]
     public async Task StopAsync_WritesAReadableShutdownDump()
     {
-        var service = Create(new EmberTraceOptions { ShutdownDumpDirectory = _directory, Dump = { FileNamePrefix = "app" } });
+        var service = Create(new EmberTraceOptions
+        { ShutdownDumpDirectory = _directory, Dump = { FileNamePrefix = "app" } });
         await service.StartAsync(CancellationToken.None);
         var probe = Tracer.Id("shutdown-probe");
         Tracer.Instant(probe);

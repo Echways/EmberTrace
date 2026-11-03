@@ -8,7 +8,8 @@ public class TraceCandidateTests
 {
     [TestMethod]
     [DataRow("public int M(int a) { using var scope = Tracer.Scope(1); return a; }")]
-    [DataRow("public async Task<int> M(int a) { await using var scope = Tracer.ScopeAsync(1); await Task.Yield(); return a; }")]
+    [DataRow(
+        "public async Task<int> M(int a) { await using var scope = Tracer.ScopeAsync(1); await Task.Yield(); return a; }")]
     [DataRow("public static void M() { using var scope = Tracer.Scope(1); }")]
     public async Task MethodOpeningWithAManualScope_ReportsETA004OnItsName(string method)
     {
@@ -27,8 +28,10 @@ public class TraceCandidateTests
     [DataRow("public void M() { using var stream = new System.IO.MemoryStream(); }")]
     [DataRow("public void M() { var ts = new TracingSession(); using var scope = ts.Scope(1); }")]
     [DataRow("public unsafe int M(int* a) { using var scope = Tracer.Scope(1); return *a; }")]
-    [DataRow("public int M(int a) { using var scope = Tracer.Scope(1); return MCore(a); } private int MCore(int a) => a;")]
-    [DataRow("[Trace] public partial int M(int a); private int MCore(int a) { using var scope = Tracer.Scope(1); return a; }")]
+    [DataRow(
+        "public int M(int a) { using var scope = Tracer.Scope(1); return MCore(a); } private int MCore(int a) => a;")]
+    [DataRow(
+        "[Trace] public partial int M(int a); private int MCore(int a) { using var scope = Tracer.Scope(1); return a; }")]
     public async Task MethodsThatCannotOrNeedNotBecomePartial_ReportNothing(string members)
     {
         Assert.IsEmpty(await Diagnostics(members));
@@ -58,7 +61,8 @@ public class TraceCandidateTests
         "private partial int M(int a);", "private int MCore(int a)")]
     [DataRow("public static int M(int a) { using var scope = Tracer.Scope(1); return a; }",
         "public static partial int M(int a);", "private static int MCore(int a)")]
-    [DataRow("internal async Task<int> M(int a) { await using var scope = Tracer.ScopeAsync(1); await Task.Yield(); return a; }",
+    [DataRow(
+        "internal async Task<int> M(int a) { await using var scope = Tracer.ScopeAsync(1); await Task.Yield(); return a; }",
         "internal partial Task<int> M(int a);", "private async Task<int> MCore(int a)")]
     public async Task Fix_SplitsTheMethodIntoATracedDeclarationAndACoreThatCompiles(
         string method, string expectedDeclaration, string expectedCore)

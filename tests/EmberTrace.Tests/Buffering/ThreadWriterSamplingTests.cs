@@ -184,7 +184,8 @@ public class ThreadWriterSamplingTests
 
     private static void RunOnThreads(int count, Action body)
     {
-        var threads = Enumerable.Range(0, count).Select(_ => new Thread(() => body()) { IsBackground = true }).ToArray();
+        var threads = Enumerable.Range(0, count).Select(_ => new Thread(() => body()) { IsBackground = true })
+            .ToArray();
 
         foreach (var thread in threads)
             thread.Start();

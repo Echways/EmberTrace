@@ -58,7 +58,9 @@ public class DecoratorTests
 
         using (var provider = services.BuildServiceProvider())
         using (var scope = provider.CreateScope())
+        {
             Assert.AreEqual(1, scope.ServiceProvider.GetRequiredService<IConnectionPool>().Lease());
+        }
 
         Assert.AreEqual(1, log.Sync);
         Assert.AreEqual(0, log.Async);
@@ -74,7 +76,9 @@ public class DecoratorTests
 
         await using (var provider = services.BuildServiceProvider())
         await using (var scope = provider.CreateAsyncScope())
+        {
             Assert.AreEqual(1, scope.ServiceProvider.GetRequiredService<IConnectionPool>().Lease());
+        }
 
         Assert.AreEqual(0, log.Sync);
         Assert.AreEqual(1, log.Async);

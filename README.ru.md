@@ -113,6 +113,13 @@ dotnet run --project samples/EmberTrace.BasicTracing -c Release -p:UseLocalEmber
 - [Автоинструментация через [Trace]](docs/guides/auto-instrumentation/README.ru.md)
 - [Устранение неполадок](docs/troubleshooting/README.ru.md)
 
+## Измерение коротких операций
+
+Скоуп стоит здесь около 157 нс (`ScopeBenchmarks`, `Scope_BeginEnd_SingleThread`; два вызова
+`Stopwatch.GetTimestamp()` стоят около 61 нс), поэтому скоуп вокруг операции размером в микросекунду измеряет в основном
+самого себя. Оборачивай одним скоупом пачку операций и проверяй цену на своей машине через
+`OverheadCalibration.Measure()`. См. [Использование и API](docs/guides/usage/README.ru.md#измерение-коротких-операций).
+
 ## Сборка и тесты
 
 Требуется SDK, указанный в `global.json`.

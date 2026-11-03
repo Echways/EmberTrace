@@ -4,14 +4,342 @@
         <name>EmberTrace.Analysis</name>
     </assembly>
     <members>
+        <member name="T:EmberTrace.Analysis.Calibration.OverheadCalibration">
+            <summary>Measures what a scope costs on this machine, so short scopes can be judged against it.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadCalibration.Measure(System.Collections.Generic.IReadOnlyList{System.Int32},System.Int32)">
+            <summary>Runs a private session and times scopes around trivial work against the same loops without
+                scopes.
+            </summary>
+            <param name="batchSizes">How many work items one scope wraps in each measurement; <c>1, 10, 100, 1000</c> when
+                <see langword="null"/>.
+            </param>
+            <param name="iterations">How many work items each measurement runs.</param>
+            <returns>The cost of one scope, the timer resolution and the per-item cost for every batch size.</returns>
+            <remarks>Each figure is the median of five repetitions. Run it on the machine and settings the measured code
+                runs on.
+            </remarks>
+            <exception cref="T:System.InvalidOperationException">The tracer is already running.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="iterations"/>
+                or a batch size is not positive.
+            </exception>
+        </member>
+        <member name="T:EmberTrace.Analysis.Calibration.OverheadReport">
+            <summary>The measured cost of tracing on this machine.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.#ctor(System.Double,System.Double,System.Collections.Generic.IReadOnlyDictionary{System.Int32,System.Double})">
+            <summary>Creates the report.</summary>
+            <param name="ScopeNs">The cost of opening and closing one scope, in nanoseconds.</param>
+            <param name="TimerQuantumNs">The smallest step of the timestamp clock, in nanoseconds.</param>
+            <param name="NsPerItemByBatch">For each batch size, the tracing cost per work item, in nanoseconds.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Calibration.OverheadReport.NsPerItemByBatch">
+            <summary>For each batch size, the tracing cost per work item, in nanoseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Calibration.OverheadReport.ScopeNs">
+            <summary>The cost of opening and closing one scope, in nanoseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Calibration.OverheadReport.TimerQuantumNs">
+            <summary>The smallest step of the timestamp clock, in nanoseconds.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.CorrectMs(System.Double)">
+            <summary>Subtracts the cost of one scope from a measured duration.</summary>
+            <param name="measuredMs">The duration of a scope, in milliseconds.</param>
+            <returns>The corrected duration, never below zero.</returns>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.IsOverheadDominated(System.Double)">
+            <summary>Tells whether the cost of a scope exceeds 5% of a duration, that is, the scope is shorter than 20
+                times its own overhead.
+            </summary>
+            <param name="medianMs">The typical duration of the scope, in milliseconds.</param>
+            <returns>
+                <see langword="true"/>
+                when the overhead is a noticeable part of the duration.
+            </returns>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.MinBatchWorkNs(System.Double)">
+            <summary>Gives the shortest amount of work one scope should wrap for its cost to stay under a tolerance.
+            </summary>
+            <param name="maxOverheadPercent">The largest acceptable share of the scope cost in the measured duration, in
+                percent.
+            </param>
+            <returns>The work per scope, in nanoseconds; the stricter the tolerance, the larger.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="maxOverheadPercent"/>
+                is not a positive number.
+            </exception>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.ShareOf(System.Double)">
+            <summary>Gives the share of a duration that the cost of one scope makes up.</summary>
+            <param name="medianMs">The typical duration of the scope, in milliseconds.</param>
+            <returns>A value from <c>0</c> to <c>1</c>; <c>1</c> when the duration is not positive.
+            </returns>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.Statistic">
+            <summary>The per-run value a comparison is built on.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.Statistic.Median">
+            <summary>The median duration of the scope in each run.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.Statistic.Mean">
+            <summary>The mean duration of the scope in each run.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ScopeChange">
+            <summary>What a comparison concluded about one scope.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Improved">
+            <summary>B is faster than A: the whole confidence interval lies below the negative threshold.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Regressed">
+            <summary>B is slower than A: the whole confidence interval lies above the threshold.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Unchanged">
+            <summary>The whole confidence interval lies within the threshold.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Inconclusive">
+            <summary>The data cannot decide;
+                <see cref="P:EmberTrace.Analysis.Compare.ScopeVerdict.Reason"/>
+                says why.
+            </summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ComparisonOptions">
+            <summary>How
+                <see cref="M:EmberTrace.Analysis.Compare.RunSetComparison.Compare(System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},EmberTrace.Analysis.Compare.ComparisonOptions)"/>
+                judges a change.
+            </summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.ComparisonOptions.#ctor">
+            <summary>Creates the default options: median, 5% threshold, 95% confidence, 10000 bootstrap iterations.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.Statistic">
+            <summary>The per-run value to compare. Default<see cref="F:EmberTrace.Analysis.Compare.Statistic.Median"/>.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.ChangeThresholdPercent">
+            <summary>The change, in percent, below which a difference does not matter. Default 5.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.ConfidenceLevel">
+            <summary>The coverage of the confidence interval. Default 0.95.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.BootstrapIterations">
+            <summary>How many resamples build the confidence interval. Default 10000.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.Seed">
+            <summary>The seed of the resampling; the same inputs and seed give the same interval. Default 12345.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.ExcludeOverflowedRuns">
+            <summary>Whether runs that overflowed or dropped events are left out and listed in<see
+                    cref="P:EmberTrace.Analysis.Compare.RunSetComparison.ExcludedRuns"/>. Default<see langword="true"/>.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.RequireCompatibleEnvironment">
+            <summary>Whether a blocking environment difference turns every verdict inconclusive. Default<see
+                    langword="false"/>: the difference is only reported.
+            </summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ExcludedRun">
+            <summary>A run the comparison left out.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.ExcludedRun.#ctor(System.String,System.String,System.String)">
+            <summary>Creates the record.</summary>
+            <param name="Label">The label of the run.</param>
+            <param name="Arm">The arm of the run.</param>
+            <param name="Reason">Why it was excluded.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ExcludedRun.Label">
+            <summary>The label of the run.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ExcludedRun.Arm">
+            <summary>The arm of the run.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ExcludedRun.Reason">
+            <summary>Why it was excluded.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.TraceRun">
+            <summary>One process run: its statistics and the conditions it was recorded under. The unit of observation
+                of a comparison, because scopes inside one process are correlated.
+            </summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.TraceRun.#ctor(System.String,System.String,System.Int32,EmberTrace.Analysis.Stats.TraceStats,EmberTrace.Sessions.TraceEnvironment,System.Boolean,System.Int64,EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Creates the run.</summary>
+            <param name="Label">A name for the run, such as its file name.</param>
+            <param name="Arm">The side of the comparison the run belongs to, such as a version.</param>
+            <param name="Round">The round the run was taken in; runs of one round share conditions.</param>
+            <param name="Stats">The statistics of the session.</param>
+            <param name="Environment">The environment at start;
+                <see langword="null"/>
+                when unknown.
+            </param>
+            <param name="WasOverflow">Whether the session overflowed its buffer.</param>
+            <param name="DroppedEvents">How many events the session dropped.</param>
+            <param name="Metadata">Names for the ids;
+                <see langword="null"/>
+                when unknown.
+            </param>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.TraceRun.FromSession(EmberTrace.Sessions.TraceSession,System.String,System.String,System.Nullable{System.Int32})">
+            <summary>Analyzes a session into a run.</summary>
+            <param name="session">The session.</param>
+            <param name="label">A name for the run.</param>
+            <param name="arm">The arm; the <c>tag.arm</c> of the session environment when<see langword="null"/>, else
+                empty.
+            </param>
+            <param name="round">The round; the <c>tag.round</c> of the session environment when<see langword="null"/>,
+                else <c>0</c>.
+            </param>
+            <returns>The run.</returns>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="session"/>
+                or
+                <paramref name="label"/>
+                is<see langword="null"/>.
+            </exception>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Label">
+            <summary>A name for the run, such as its file name.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Arm">
+            <summary>The side of the comparison the run belongs to.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Round">
+            <summary>The round the run was taken in.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Stats">
+            <summary>The statistics of the session.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Environment">
+            <summary>The environment at start;
+                <see langword="null"/>
+                when unknown.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.WasOverflow">
+            <summary>Whether the session overflowed its buffer.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.DroppedEvents">
+            <summary>How many events the session dropped.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Metadata">
+            <summary>Names for the ids;
+                <see langword="null"/>
+                when unknown.
+            </summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ScopeVerdict">
+            <summary>The conclusion about one scope id.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.ScopeVerdict.#ctor(System.Int32,System.String,EmberTrace.Analysis.Compare.ScopeChange,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.String)">
+            <summary>Creates the verdict.</summary>
+            <param name="Id">The scope id.</param>
+            <param name="Name">The scope name;
+                <see langword="null"/>
+                when unknown.
+            </param>
+            <param name="Change">The conclusion.</param>
+            <param name="ChangePercent">The change of B against A, in percent; positive means B is slower.</param>
+            <param name="CiLowPercent">The lower bound of the confidence interval of the change, in percent.</param>
+            <param name="CiHighPercent">The upper bound of the confidence interval of the change, in percent.</param>
+            <param name="MannWhitneyP">The two-sided p-value of the Mann-Whitney U test over the per-run values.</param>
+            <param name="RunsA">How many runs of A contain the scope.</param>
+            <param name="RunsB">How many runs of B contain the scope.</param>
+            <param name="Reason">Why the verdict is inconclusive;
+                <see langword="null"/>
+                otherwise.
+            </param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Id">
+            <summary>The scope id.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Name">
+            <summary>The scope name;
+                <see langword="null"/>
+                when unknown.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Change">
+            <summary>The conclusion.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.ChangePercent">
+            <summary>The change of B against A, in percent; positive means B is slower.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.CiLowPercent">
+            <summary>The lower bound of the confidence interval of the change, in percent.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.CiHighPercent">
+            <summary>The upper bound of the confidence interval of the change, in percent.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.MannWhitneyP">
+            <summary>The two-sided p-value of the Mann-Whitney U test over the per-run values, with tie and continuity
+                corrections.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.RunsA">
+            <summary>How many runs of A contain the scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.RunsB">
+            <summary>How many runs of B contain the scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Reason">
+            <summary>Why the verdict is inconclusive;
+                <see langword="null"/>
+                otherwise.
+            </summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.RunSetComparison">
+            <summary>The comparison of two sets of process runs, scope by scope.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.RunSetComparison.Compare(System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},EmberTrace.Analysis.Compare.ComparisonOptions)">
+            <summary>Compares set A, the baseline, with set B.</summary>
+            <param name="a">The baseline runs.</param>
+            <param name="b">The runs under test.</param>
+            <param name="options">How to judge; the defaults when<see langword="null"/>.
+            </param>
+            <returns>The verdicts, the environment differences and the excluded runs.</returns>
+            <remarks>Each run contributes one value per scope. The change is the ratio of the medians of those values;
+                its confidence interval comes from a two-level bootstrap that resamples rounds and then runs inside a
+                round. A scope needs at least three runs per arm. Under
+                <see cref="F:EmberTrace.Analysis.Compare.Statistic.Median"/>
+                a scope whose median is unreliable in most runs of an arm is inconclusive.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="a"/>
+                or
+                <paramref name="b"/>
+                is<see langword="null"/>.
+            </exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">The confidence level is not between 0 and 1
+                exclusive, the iteration count is not positive, or the threshold is negative.
+            </exception>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.Scopes">
+            <summary>One verdict per scope id found in either set, ordered by id.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.Mismatches">
+            <summary>The environment differences across the compared runs; a single warning when some environment is
+                unknown.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.ExcludedRuns">
+            <summary>The runs left out for overflow or dropped events.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.HasBlockingMismatch">
+            <summary>Whether any environment difference is<see cref="F:EmberTrace.Sessions.MismatchSeverity.Blocking"/>.
+            </summary>
+        </member>
         <member name="T:EmberTrace.Analysis.Model.CallTreeNode">
-            <summary>One scope id at one position of a call tree, aggregated over every time it was entered there.</summary>
+            <summary>One scope id at one position of a call tree, aggregated over every time it was entered there.
+            </summary>
         </member>
         <member name="M:EmberTrace.Analysis.Model.CallTreeNode.#ctor">
             <summary>Creates a node; every required property must be set by the initializer.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.CallTreeNode.Children">
-            <summary>The scopes opened directly inside this one, ordered by inclusive time, largest first. Empty for a leaf.</summary>
+            <summary>The scopes opened directly inside this one, ordered by inclusive time, largest first. Empty for a
+                leaf.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.CallTreeNode.Count">
             <summary>How many times the scope was opened at this position.</summary>
@@ -20,19 +348,26 @@
             <summary>Time spent in the scope itself, without its child scopes, in milliseconds.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.CallTreeNode.Id">
-            <summary>The scope id; <c>0</c> for the synthetic root of a tree.</summary>
+            <summary>The scope id; <c>0</c> for the synthetic root of a tree.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.CallTreeNode.InclusiveMs">
-            <summary>Time spent in the scope including its child scopes, in milliseconds; <c>0</c> for the synthetic root.</summary>
+            <summary>Time spent in the scope including its child scopes, in milliseconds; <c>0</c> for the synthetic
+                root.
+            </summary>
         </member>
         <member name="T:EmberTrace.Analysis.Model.FlowAnalysis">
-            <summary>One completed flow: its first <c>FlowStart</c>, its last <c>FlowEnd</c> and the steps between them.</summary>
+            <summary>One completed flow: its first <c>FlowStart</c>, its last <c>FlowEnd</c> and the steps between them.
+            </summary>
         </member>
         <member name="M:EmberTrace.Analysis.Model.FlowAnalysis.#ctor">
             <summary>Creates the analysis; every required property must be set by the initializer.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.FlowAnalysis.EndTimestamp">
-            <summary>The timestamp of the last <c>FlowEnd</c>, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of the session.</summary>
+            <summary>The timestamp of the last <c>FlowEnd</c>, in
+                <see cref="T:System.Diagnostics.Stopwatch"/>
+                ticks of the session.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.FlowAnalysis.FlowId">
             <summary>The id that ties the events of the flow together.</summary>
@@ -41,7 +376,10 @@
             <summary>The trace id of the event that started the flow.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.FlowAnalysis.StartTimestamp">
-            <summary>The timestamp of the first <c>FlowStart</c>, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of the session.</summary>
+            <summary>The timestamp of the first <c>FlowStart</c>, in
+                <see cref="T:System.Diagnostics.Stopwatch"/>
+                ticks of the session.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.FlowAnalysis.Steps">
             <summary>The events of the flow from its start up to, not including, its end, in time order.</summary>
@@ -62,10 +400,14 @@
             <summary>The trace id of the event.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.FlowStepInfo.Kind">
-            <summary>Whether the event is a <c>FlowStart</c>, a <c>FlowStep</c> or a <c>FlowEnd</c>.</summary>
+            <summary>Whether the event is a <c>FlowStart</c>, a <c>FlowStep</c> or a <c>FlowEnd</c>.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.FlowStepInfo.Timestamp">
-            <summary>The timestamp of the event, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of the session.</summary>
+            <summary>The timestamp of the event, in
+                <see cref="T:System.Diagnostics.Stopwatch"/>
+                ticks of the session.
+            </summary>
         </member>
         <member name="T:EmberTrace.Analysis.Model.HotspotRow">
             <summary>The totals of one scope id over the whole trace, wherever it was called from.</summary>
@@ -77,7 +419,8 @@
             <summary>How many scopes of this id completed.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.Durations">
-            <summary>The distribution of inclusive durations, for percentiles other than the three stored ones.</summary>
+            <summary>The distribution of inclusive durations, for percentiles other than the three stored ones.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.ExclusiveMs">
             <summary>Summed time in the scope without its child scopes, in milliseconds.</summary>
@@ -86,19 +429,33 @@
             <summary>The scope id.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.InclusiveMs">
-            <summary>Summed time in the scope including its child scopes, in milliseconds. A recursive scope counts every level.</summary>
+            <summary>Summed time in the scope including its child scopes, in milliseconds. A recursive scope counts
+                every level.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Model.HotspotRow.Shape">
+            <summary>The quartiles and modality of the inclusive durations;
+                <see langword="null"/>
+                when the id completed more often than the sample limit.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P50Ms">
             <summary>The median inclusive duration, in milliseconds, approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P95Ms">
-            <summary>The 95th percentile of the inclusive duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 95th percentile of the inclusive duration, in milliseconds, approximated by the histogram.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P99Ms">
-            <summary>The 99th percentile of the inclusive duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 99th percentile of the inclusive duration, in milliseconds, approximated by the histogram.
+            </summary>
         </member>
         <member name="T:EmberTrace.Analysis.Model.ProcessedTrace">
-            <summary>A session turned into call trees and hotspot totals by <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>.</summary>
+            <summary>A session turned into call trees and hotspot totals by
+                <see
+                        cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>
+                .
+            </summary>
         </member>
         <member name="M:EmberTrace.Analysis.Model.ProcessedTrace.#ctor">
             <summary>Creates the trace; every required property must be set by the initializer.</summary>
@@ -122,19 +479,25 @@
             <summary>The names and categories recorded with the session.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.MismatchedEndCount">
-            <summary><c>End</c> events whose id differed from the innermost open scope of their track.</summary>
+            <summary>
+                <c>End</c>
+                events whose id differed from the innermost open scope of their track.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.SampledOutEvents">
             <summary>Events the session skipped because of sampling.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.ScopeEventCount">
-            <summary>The number of <c>Begin</c> and <c>End</c> events.</summary>
+            <summary>The number of <c>Begin</c> and <c>End</c> events.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.StartedAtUtc">
             <summary>The wall-clock time of the session start, when the session recorded it.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.Threads">
-            <summary>One call tree per writer track, ordered by track id; a single merged entry when the trace was processed without grouping by thread.</summary>
+            <summary>One call tree per writer track, ordered by track id; a single merged entry when the trace was
+                processed without grouping by thread.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.ThreadsSeen">
             <summary>The number of writer tracks that recorded at least one scope event.</summary>
@@ -143,10 +506,15 @@
             <summary>The number of events of every kind.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.UnmatchedBeginCount">
-            <summary>Scopes that were opened and never closed: still open when the session ended, or abandoned below a mismatched <c>End</c>.</summary>
+            <summary>Scopes that were opened and never closed: still open when the session ended, or abandoned below a
+                mismatched <c>End</c>.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.UnmatchedEndCount">
-            <summary><c>End</c> events with no open scope to close.</summary>
+            <summary>
+                <c>End</c>
+                events with no open scope to close.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ProcessedTrace.WasOverflow">
             <summary>Whether the session hit one of its limits.</summary>
@@ -164,14 +532,70 @@
             <summary>The synthetic root whose children are the outermost scopes of the track.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ThreadTrace.ThreadId">
-            <summary>The managed thread id of the track; <c>0</c> for the merged entry. The runtime reuses these ids, so use it for display only.</summary>
+            <summary>The managed thread id of the track; <c>0</c> for the merged entry. The runtime reuses these ids, so
+                use it for display only.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.ThreadTrace.TrackId">
-            <summary>The writer track: one thread for the lifetime of one session; <c>0</c> for the merged entry.</summary>
+            <summary>The writer track: one thread for the lifetime of one session; <c>0</c> for the merged entry.
+            </summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Stats.DistributionShape">
+            <summary>The shape of one scope's duration distribution: quartiles, mean and whether a single median
+                describes it.
+            </summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Stats.DistributionShape.#ctor(System.Double,System.Double,System.Double,System.Double,System.Boolean,System.Boolean)">
+            <summary>Creates the shape.</summary>
+            <param name="P25Ms">The 25th percentile, in milliseconds.</param>
+            <param name="P75Ms">The 75th percentile, in milliseconds.</param>
+            <param name="MeanMs">The mean duration, in milliseconds.</param>
+            <param name="BimodalityCoefficient">Sarle's bimodality coefficient; <c>0</c> below eight samples or when
+                every duration is equal.
+            </param>
+            <param name="IsBimodal">
+                <see langword="true"/>
+                when the coefficient exceeds 5/9 and there are at least eight samples.
+            </param>
+            <param name="MedianReliable">
+                <see langword="false"/>
+                when the distribution is bimodal or the mean differs from the median by more than 25%.
+            </param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.BimodalityCoefficient">
+            <summary>Sarle's bimodality coefficient; <c>0</c> below eight samples or when every duration is equal.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.IsBimodal">
+            <summary>
+                <see langword="true"/>
+                when the coefficient exceeds 5/9 and there are at least eight samples.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.MeanMs">
+            <summary>The mean duration, in milliseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.MedianReliable">
+            <summary>
+                <see langword="false"/>
+                when the distribution is bimodal or the mean differs from the median by more than 25%; always
+                <see langword="true"/>
+                below eight samples.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.P25Ms">
+            <summary>The 25th percentile, in milliseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.P75Ms">
+            <summary>The 75th percentile, in milliseconds.</summary>
         </member>
         <member name="T:EmberTrace.Analysis.Stats.DurationHistogram">
-            <summary>A compact distribution of durations that answers any percentile within about 3 % of the true value.</summary>
-            <remarks>Values below 64 ticks are counted exactly; above that every power of two is split into 32 buckets. Not safe for concurrent use.</remarks>
+            <summary>A compact distribution of durations that answers any percentile within about 3 % of the true
+                value.
+            </summary>
+            <remarks>Values below 64 ticks are counted exactly; above that every power of two is split into 32 buckets.
+                Not safe for concurrent use.
+            </remarks>
         </member>
         <member name="M:EmberTrace.Analysis.Stats.DurationHistogram.#ctor">
             <summary>Creates a histogram without a tick frequency; it can report percentiles in ticks only.</summary>
@@ -179,37 +603,72 @@
         <member name="M:EmberTrace.Analysis.Stats.DurationHistogram.#ctor(System.Int64)">
             <summary>Creates a histogram that can also report percentiles in milliseconds.</summary>
             <param name="timestampFrequency">Ticks per second of the durations that will be added.</param>
-            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="timestampFrequency"/> is zero or negative.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="timestampFrequency"/>
+                is zero or negative.
+            </exception>
         </member>
         <member name="M:EmberTrace.Analysis.Stats.DurationHistogram.Add(System.Int64)">
             <summary>Records one duration.</summary>
             <param name="ticks">The duration, in ticks; not negative.</param>
-            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="ticks"/> is negative.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="ticks"/>
+                is negative.
+            </exception>
         </member>
         <member name="M:EmberTrace.Analysis.Stats.DurationHistogram.PercentileMs(System.Double)">
-            <summary>Returns the duration, in milliseconds, that the given share of recorded durations does not exceed.</summary>
+            <summary>Returns the duration, in milliseconds, that the given share of recorded durations does not
+                exceed.
+            </summary>
             <param name="percentile">The percentile, from 0 to 100.</param>
-            <returns>The upper bound of the bucket holding that rank, never above the largest recorded value; <c>0</c> when empty.</returns>
-            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="percentile"/> is outside 0 to 100 or is not a number.</exception>
-            <exception cref="T:System.InvalidOperationException">The histogram was created without a tick frequency.</exception>
+            <returns>The upper bound of the bucket holding that rank, never above the largest recorded value; <c>0</c> when
+                empty.
+            </returns>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="percentile"/>
+                is outside 0 to 100 or is not a number.
+            </exception>
+            <exception cref="T:System.InvalidOperationException">The histogram was created without a tick frequency.
+            </exception>
         </member>
         <member name="M:EmberTrace.Analysis.Stats.DurationHistogram.PercentileTicks(System.Double)">
-            <summary>Returns the duration, in ticks, that the given share of recorded durations does not exceed.</summary>
+            <summary>Returns the duration, in ticks, that the given share of recorded durations does not exceed.
+            </summary>
             <param name="percentile">The percentile, from 0 to 100.</param>
-            <returns>The upper bound of the bucket holding that rank, never above the largest recorded value; <c>0</c> when empty.</returns>
-            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="percentile"/> is outside 0 to 100 or is not a number.</exception>
+            <returns>The upper bound of the bucket holding that rank, never above the largest recorded value; <c>0</c> when
+                empty.
+            </returns>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="percentile"/>
+                is outside 0 to 100 or is not a number.
+            </exception>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.DurationHistogram.Count">
             <summary>The number of recorded durations.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.DurationHistogram.MaxTicks">
-            <summary>The largest recorded duration, exact, in ticks; <c>0</c> when empty.</summary>
+            <summary>The largest recorded duration, exact, in ticks; <c>0</c> when empty.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.DurationHistogram.MinTicks">
-            <summary>The smallest recorded duration, exact, in ticks; <c>0</c> when empty.</summary>
+            <summary>The smallest recorded duration, exact, in ticks; <c>0</c> when empty.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.DurationHistogram.TimestampFrequency">
-            <summary>Ticks per second, or <c>0</c> when the histogram was created without a frequency.</summary>
+            <summary>Ticks per second, or <c>0</c> when the histogram was created without a frequency.
+            </summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Stats.WarmupCurve">
+            <summary>The median duration of consecutive, equally sized windows of a scope's samples, in the order the
+                scopes closed.
+            </summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Stats.WarmupCurve.#ctor(System.Collections.Generic.IReadOnlyList{System.Double})">
+            <summary>Creates the curve.</summary>
+            <param name="Windows">The median of each window, in milliseconds.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.WarmupCurve.Windows">
+            <summary>The median of each window, in milliseconds; empty when the statistics hold no samples.</summary>
         </member>
         <member name="T:EmberTrace.Analysis.Stats.TraceIdStats">
             <summary>The duration statistics of one scope id. Every duration is inclusive of child scopes.</summary>
@@ -229,6 +688,14 @@
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Id">
             <summary>The scope id.</summary>
         </member>
+        <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact">
+            <summary>
+                <see langword="true"/>
+                when the percentiles were computed from<see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.Samples"/>;
+                <see langword="false"/>
+                when they come from the histogram.
+            </summary>
+        </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.MaxMs">
             <summary>The longest duration, exact, in milliseconds.</summary>
         </member>
@@ -236,37 +703,78 @@
             <summary>The shortest duration, exact, in milliseconds.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P50Ms">
-            <summary>The median duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The median duration, in milliseconds, exact when<see
+                    cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P90Ms">
-            <summary>The 90th percentile of the duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 90th percentile of the duration, in milliseconds, exact when<see
+                    cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P95Ms">
-            <summary>The 95th percentile of the duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 95th percentile of the duration, in milliseconds, exact when<see
+                    cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P99Ms">
-            <summary>The 99th percentile of the duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 99th percentile of the duration, in milliseconds, exact when<see
+                    cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Samples">
+            <summary>The duration of every completed scope of this id, in ticks, in the order the scopes closed; empty
+                when the id exceeded the sample limit.
+            </summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Shape">
+            <summary>The quartiles and modality of the durations;
+                <see langword="null"/>
+                unless<see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>.
+            </summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Stats.TraceIdStats.Warmup(System.Int32)">
+            <summary>Splits the samples into equal windows in closing order and takes the median of each, to show
+                whether the scope speeds up or slows down over the run.
+            </summary>
+            <param name="windows">The number of windows; fewer samples than windows give one window per sample.</param>
+            <returns>The medians, in milliseconds; empty when there are no samples.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="windows"/>
+                is not positive.
+            </exception>
+            <exception cref="T:System.InvalidOperationException">The statistics carry no timestamp frequency.
+            </exception>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.TotalMs">
             <summary>The summed duration of every completed scope of this id, in milliseconds.</summary>
         </member>
         <member name="T:EmberTrace.Analysis.Stats.TraceStats">
-            <summary>Per-id duration statistics of a session, produced by <see cref="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean)"/>.</summary>
+            <summary>Per-id duration statistics of a session, produced by
+                <see
+                        cref="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean,System.Int32)"/>
+                .
+            </summary>
         </member>
         <member name="M:EmberTrace.Analysis.Stats.TraceStats.#ctor">
             <summary>Creates the statistics; every required property must be set by the initializer.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.ByTotalTimeDesc">
-            <summary>One entry per scope id that completed at least once, ordered by total time, largest first.</summary>
+            <summary>One entry per scope id that completed at least once, ordered by total time, largest first.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.DurationMs">
             <summary>The length of the session, in milliseconds.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.MismatchedEndCount">
-            <summary><c>End</c> events whose id differed from the innermost open scope of their track.</summary>
+            <summary>
+                <c>End</c>
+                events whose id differed from the innermost open scope of their track.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.ScopeEventCount">
-            <summary>The number of <c>Begin</c> and <c>End</c> events.</summary>
+            <summary>The number of <c>Begin</c> and <c>End</c> events.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.ThreadsSeen">
             <summary>The number of writer tracks that recorded at least one scope event.</summary>
@@ -275,37 +783,79 @@
             <summary>The number of events of every kind.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.UnmatchedBeginCount">
-            <summary>Scopes that were opened and never closed: still open when the session ended, or abandoned below a mismatched <c>End</c>.</summary>
+            <summary>Scopes that were opened and never closed: still open when the session ended, or abandoned below a
+                mismatched <c>End</c>.
+            </summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceStats.UnmatchedEndCount">
-            <summary><c>End</c> events with no open scope to close.</summary>
+            <summary>
+                <c>End</c>
+                events with no open scope to close.
+            </summary>
         </member>
         <member name="T:EmberTrace.TraceSessionExtensions">
             <summary>Analysis of a recorded session: statistics, call trees and flows.</summary>
         </member>
-        <member name="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean)">
+        <member name="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean,System.Int32)">
             <summary>Computes count, total, mean, extremes and percentiles of the duration of every scope id.</summary>
             <param name="session">The session to analyze.</param>
-            <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope. <see langword="false"/>, the default, closes the scopes above the nearest matching one and counts them as unmatched; <see langword="true"/> ignores that <c>End</c>.</param>
+            <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope.<see
+                    langword="false"/>, the default, closes the scopes above the nearest matching one and counts them as
+                unmatched;
+                <see langword="true"/>
+                ignores that <c>End</c>.
+            </param>
+            <param name="maxSamplesPerId">How many durations per scope id are kept for exact percentiles. An id with
+                more completions falls back to the histogram; <c>0</c> keeps no samples.
+            </param>
             <returns>The statistics, ordered by total time.</returns>
-            <remarks>Cheaper than <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/> when the call tree is not needed. Either way a mismatch is counted and reported to <see cref="P:EmberTrace.Sessions.SessionOptions.OnMismatchedEnd"/>.</remarks>
-            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+            <remarks>Cheaper than
+                <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>
+                when the call tree is not needed. Either way a mismatch is counted and reported to<see
+                        cref="P:EmberTrace.Sessions.SessionOptions.OnMismatchedEnd"/>.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="session"/>
+                is<see langword="null"/>.
+            </exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">
+                <paramref name="maxSamplesPerId"/>
+                is negative.
+            </exception>
         </member>
         <member name="M:EmberTrace.TraceSessionExtensions.AnalyzeFlows(EmberTrace.Sessions.TraceSession,System.Int32)">
-            <summary>Finds the flows that both started and ended in the session and measures the time between their events.</summary>
+            <summary>Finds the flows that both started and ended in the session and measures the time between their
+                events.
+            </summary>
             <param name="session">The session to analyze.</param>
             <param name="top">How many of the longest flows to return; zero or negative returns all.</param>
             <returns>The flows, longest first.</returns>
-            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="session"/>
+                is<see langword="null"/>.
+            </exception>
         </member>
         <member name="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)">
             <summary>Builds the call tree of every thread, the merged tree and the hotspot table.</summary>
             <param name="session">The session to process.</param>
-            <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope. <see langword="false"/>, the default, closes the scopes above the nearest matching one and counts them as unmatched; <see langword="true"/> ignores that <c>End</c>.</param>
-            <param name="groupByThread"><see langword="true"/>, the default, keeps one tree per writer track; <see langword="false"/> returns the merged tree as the only entry.</param>
+            <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope.<see
+                    langword="false"/>, the default, closes the scopes above the nearest matching one and counts them as
+                unmatched;
+                <see langword="true"/>
+                ignores that <c>End</c>.
+            </param>
+            <param name="groupByThread"><see langword="true"/>, the default, keeps one tree per writer track;
+                <see langword="false"/>
+                returns the merged tree as the only entry.
+            </param>
             <returns>The processed trace.</returns>
-            <remarks>In a snapshot, scopes still open at the cut are measured up to the cut and appear in the trees; in a stopped session they are left out of the timings.</remarks>
-            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+            <remarks>In a snapshot, scopes still open at the cut are measured up to the cut and appear in the trees; in
+                a stopped session they are left out of the timings.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="session"/>
+                is<see langword="null"/>.
+            </exception>
         </member>
     </members>
 </doc>

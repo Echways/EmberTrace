@@ -56,7 +56,9 @@ public sealed class SlowRequestCaptureTests
         var request = Tracer.Id("slow-request");
         var started = Stopwatch.GetTimestamp();
         using (Tracer.Scope(request))
+        {
             Thread.Sleep(200);
+        }
 
         await Create().TryCapture(Slow(window: TimeSpan.FromMilliseconds(50)), "GET /a", started,
             Stopwatch.GetElapsedTime(started))!;

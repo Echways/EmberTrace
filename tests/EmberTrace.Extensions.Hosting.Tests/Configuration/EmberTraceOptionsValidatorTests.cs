@@ -26,7 +26,10 @@ public sealed class EmberTraceOptionsValidatorTests
     public static IEnumerable<object[]> InvalidOptions =>
     [
         [new EmberTraceOptions { ChunkCapacity = 0 }, "EmberTrace:ChunkCapacity"],
-        [new EmberTraceOptions { MaxRetentionWindow = TimeSpan.FromSeconds(-1) }, "MaxRetentionWindow cannot be negative"],
+        [
+            new EmberTraceOptions { MaxRetentionWindow = TimeSpan.FromSeconds(-1) },
+            "MaxRetentionWindow cannot be negative"
+        ],
         [new EmberTraceOptions { OverflowPolicy = OverflowPolicy.DropNew }, "but it is DropNew"],
         [new EmberTraceOptions { RuntimeCounterInterval = TimeSpan.Zero }, "EmberTrace:RuntimeCounterInterval"],
         [new EmberTraceOptions { Requests = { MaxTrackedRoutes = 0 } }, "EmberTrace:Requests:MaxTrackedRoutes"],
@@ -40,8 +43,11 @@ public sealed class EmberTraceOptionsValidatorTests
         [SlowRequests(slow => slow.Threshold = TimeSpan.Zero), "SlowRequests:Threshold"],
         [SlowRequests(slow => slow.Cooldown = TimeSpan.Zero), "Cooldown must be at least one millisecond"],
         [SlowRequests(slow => slow.Window = TimeSpan.FromSeconds(-1)), "SlowRequests:Window cannot be negative"],
-        [new EmberTraceOptions { SlowRequests = { Enabled = true, Directory = "/tmp" }, Requests = { Enabled = false } },
-            "requires EmberTrace:Requests:Enabled"]
+        [
+            new EmberTraceOptions
+                { SlowRequests = { Enabled = true, Directory = "/tmp" }, Requests = { Enabled = false } },
+            "requires EmberTrace:Requests:Enabled"
+        ]
     ];
 
     [TestMethod]

@@ -7,6 +7,7 @@ namespace EmberTrace;
 public static class TraceFormat
 {
     public const string FileExtension = ".ember";
+    public const string CompressedFileExtension = ".ember.gz";
 
     public static void Write(TraceSession session, Stream destination)
     {
@@ -29,6 +30,8 @@ public static class TraceFormat
         TraceFormatWriter.WriteHeader(destination, header);
         TraceFormatWriter.WriteThreadNames(destination, session.ThreadNames);
         TraceFormatWriter.WriteMetadata(destination, CollectMetadata(session));
+        if (session.Environment is not null || session.EnvironmentAtStop is not null)
+            TraceFormatWriter.WriteEnvironment(destination, session.Environment, session.EnvironmentAtStop);
         TraceFormatWriter.WriteEvents(destination, EnumerateSorted(session), header.EventCount);
         destination.WriteByte(FormatConstants.Section.EndOfFile);
         destination.Flush();
@@ -43,14 +46,33 @@ public static class TraceFormat
             Directory.CreateDirectory(directory);
 
         using var stream = File.Create(path);
-        Write(session, stream);
+        if (path.EndsWith(CompressedFileExtension, StringComparison.OrdinalIgnoreCase))
+            GzipSupport.Write(buffered => Write(session, buffered), stream);
+        else
+            Write(session, stream);
     }
 
     public static TraceSession Read(Stream source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        return TraceFormatReader.ReadSession(source);
+        var owned = new List<IDisposable>();
+        try
+        {
+            var stream = GzipSupport.Unwrap(source, owned, out var compressed);
+            try
+            {
+                return TraceFormatReader.ReadSession(stream);
+            }
+            catch (EndOfStreamException e) when (compressed)
+            {
+                throw new InvalidDataException(GzipSupport.TruncatedMessage, e);
+            }
+        }
+        finally
+        {
+            GzipSupport.Dispose(owned);
+        }
     }
 
     public static TraceSession Read(string path)
@@ -59,6 +81,47 @@ public static class TraceFormat
 
         using var stream = File.OpenRead(path);
         return Read(stream);
+    }
+
+    public static TraceStream OpenRead(Stream source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        return Open(source, null);
+    }
+
+    public static TraceStream OpenRead(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16,
+            FileOptions.SequentialScan);
+        return Open(file, file);
+    }
+
+    private static TraceStream Open(Stream source, IDisposable? ownedSource)
+    {
+        var owned = new List<IDisposable>();
+        if (ownedSource is not null)
+            owned.Add(ownedSource);
+
+        try
+        {
+            var stream = GzipSupport.Unwrap(source, owned, out var compressed);
+            try
+            {
+                return new TraceStream(TraceFormatReader.ReadPreamble(stream), stream, owned, compressed);
+            }
+            catch (EndOfStreamException e) when (compressed)
+            {
+                throw new InvalidDataException(GzipSupport.TruncatedMessage, e);
+            }
+        }
+        catch
+        {
+            GzipSupport.Dispose(owned);
+            throw;
+        }
     }
 
     private static IEnumerable<TraceEventRecord> EnumerateSorted(TraceSession session)

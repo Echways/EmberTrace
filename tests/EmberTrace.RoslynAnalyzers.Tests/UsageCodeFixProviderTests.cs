@@ -9,7 +9,8 @@ public class UsageCodeFixProviderTests
     [TestMethod]
     [DataRow("void M() { var scope = Tracer.Scope(1); }", "using var scope = Tracer.Scope(1);")]
     [DataRow("async Task M() { var scope = Tracer.ScopeAsync(1); }", "await using var scope = Tracer.ScopeAsync(1);")]
-    [DataRow("async Task M() { using var scope = Tracer.ScopeAsync(1); }", "await using var scope = Tracer.ScopeAsync(1);")]
+    [DataRow("async Task M() { using var scope = Tracer.ScopeAsync(1); }",
+        "await using var scope = Tracer.ScopeAsync(1);")]
     public async Task LocalDeclaration_GainsTheMissingKeywords(string method, string expected)
     {
         var fixedCode = await Fix(method);
@@ -21,7 +22,8 @@ public class UsageCodeFixProviderTests
     [TestMethod]
     [DataRow("void M() { Console.WriteLine(0); Tracer.Scope(1); Console.WriteLine(1); Console.WriteLine(2); }",
         "using (Tracer.Scope(1))")]
-    [DataRow("async Task M() { Console.WriteLine(0); Tracer.ScopeAsync(1); Console.WriteLine(1); Console.WriteLine(2); }",
+    [DataRow(
+        "async Task M() { Console.WriteLine(0); Tracer.ScopeAsync(1); Console.WriteLine(1); Console.WriteLine(2); }",
         "await using (Tracer.ScopeAsync(1))")]
     public async Task BareInvocation_WrapsTheRestOfTheBlock(string method, string expectedUsing)
     {

@@ -56,6 +56,7 @@ internal static class CallTreeBuilder
             agg.InclusiveTicks += inclusive;
             agg.ExclusiveTicks += exclusive;
             agg.Histogram.Add(inclusive);
+            agg.Samples.Add(inclusive);
         }
 
         foreach (var track in reader.Tracks)
@@ -118,7 +119,8 @@ internal static class CallTreeBuilder
                 Durations = a.Histogram,
                 P50Ms = a.Histogram.PercentileMs(50),
                 P95Ms = a.Histogram.PercentileMs(95),
-                P99Ms = a.Histogram.PercentileMs(99)
+                P99Ms = a.Histogram.PercentileMs(99),
+                Shape = ShapeOf(a.Samples, conv)
             });
         }
 
@@ -154,6 +156,15 @@ internal static class CallTreeBuilder
         }
 
         return root;
+    }
+
+    private static DistributionShape? ShapeOf(SampleBuffer samples, TickConverter conv)
+    {
+        if (!samples.IsExact)
+            return null;
+
+        using var sorted = SortedSamples.From(samples.Span);
+        return DistributionShape.FromSortedTicks(sorted.Values, conv);
     }
 
     private static CallTreeNode Freeze(MutableNode n, TickConverter conv)
@@ -237,6 +248,7 @@ internal static class CallTreeBuilder
     private sealed class HotAgg(long timestampFrequency)
     {
         public readonly DurationHistogram Histogram = new(timestampFrequency);
+        public readonly SampleBuffer Samples = new(SampleBuffer.DefaultLimit);
         public long Count;
         public long ExclusiveTicks;
         public long InclusiveTicks;
