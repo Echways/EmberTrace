@@ -60,6 +60,11 @@ public static class Tracer
         return Default.Scope(id);
     }
 
+    public static Scope Scope(TraceName name)
+    {
+        return Default.Scope(name.Id);
+    }
+
     public static AsyncScope ScopeAsync(int id)
     {
         return new AsyncScope(id, Default);
@@ -138,9 +143,14 @@ public static class Tracer
 
     public static int Id(string name)
     {
+        return RegisterId(name, null);
+    }
+
+    internal static int RegisterId(string name, string? category)
+    {
         var id = TraceIds.Stable(name);
 
-        if (!Names.TryRegister(id, name, DefaultCategory, out var owner))
+        if (!Names.TryRegister(id, name, category ?? DefaultCategory, out var owner))
             HandleIdCollision(id, owner, name);
 
         return id;

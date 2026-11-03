@@ -68,6 +68,15 @@ var id = Tracer.Id("MySubsystem.Request");
 using var _ = Tracer.Scope(id);
 ```
 
+Не вызывай `Tracer.Id` на каждый скоуп: он хэширует строку и ищет имя в реестре при каждом вызове. Создай `TraceName`
+один раз, в `static readonly` поле, и передавай его в `Tracer.Scope`:
+
+```csharp
+private static readonly TraceName Request = new("MySubsystem.Request");
+
+using var _ = Tracer.Scope(Request);
+```
+
 Категорию можно хешировать так же:
 
 ```csharp

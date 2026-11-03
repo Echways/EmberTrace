@@ -1,4 +1,5 @@
 using BenchmarkDotNet.Attributes;
+using EmberTrace.Metadata;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Benchmarks;
@@ -9,6 +10,8 @@ public class ScopeBenchmarks
     private const int Operations = 10_000;
 
     private readonly int _id = Tracer.Id("Bench.Scope");
+
+    private readonly TraceName _name = new("Bench.NameStruct");
 
     private readonly int _manualId = Tracer.Id("TracedService.Work");
 
@@ -42,6 +45,24 @@ public class ScopeBenchmarks
     {
         for (var i = 0; i < Operations; i++)
             using (Tracer.Scope(_id))
+            {
+            }
+    }
+
+    [Benchmark]
+    public void Scope_IdPerCall_SingleThread()
+    {
+        for (var i = 0; i < Operations; i++)
+            using (Tracer.Scope(Tracer.Id("Bench.IdPerCall")))
+            {
+            }
+    }
+
+    [Benchmark]
+    public void Scope_NameStruct_SingleThread()
+    {
+        for (var i = 0; i < Operations; i++)
+            using (Tracer.Scope(_name))
             {
             }
     }

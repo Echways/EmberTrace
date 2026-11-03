@@ -68,6 +68,15 @@ var id = Tracer.Id("MySubsystem.Request");
 using var _ = Tracer.Scope(id);
 ```
 
+Do not call `Tracer.Id` on every scope: it hashes the string and looks the name up each time. Create a `TraceName`
+once, in a `static readonly` field, and pass it to `Tracer.Scope`:
+
+```csharp
+private static readonly TraceName Request = new("MySubsystem.Request");
+
+using var _ = Tracer.Scope(Request);
+```
+
 You can hash categories the same way:
 
 ```csharp

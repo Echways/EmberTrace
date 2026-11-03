@@ -71,6 +71,26 @@ using (Tracer.Scope(Tracer.Id("load")))
 }
 ```
 
+### `Scope Tracer.Scope(TraceName name)`
+Same as `Tracer.Scope(name.Id)`.
+
+`TraceName` hashes and registers the string once, in its constructor. `Tracer.Scope(Tracer.Id("load"))` repeats the
+hash and a registry lookup on every call, which a short benchmark measured at about 93 ns on top of about 158 ns for
+the scope itself (`Scope_IdPerCall_SingleThread` against `Scope_BeginEnd_SingleThread` in `ScopeBenchmarks`); a
+`TraceName` removes that cost. Keep it in a static field:
+
+```csharp
+private static readonly TraceName Load = new("load", "IO");
+
+using (Tracer.Scope(Load))
+{
+    Load();
+}
+```
+
+The constructor reports a hash collision exactly as `Tracer.Id` does (see `Tracer.IdCollisionMode`). There is no
+implicit conversion to `int`.
+
 ### `AsyncScope Tracer.ScopeAsync(int id)`
 Async-friendly scope implementing `IAsyncDisposable`.
 

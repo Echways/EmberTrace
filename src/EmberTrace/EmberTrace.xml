@@ -82,6 +82,23 @@
             <param name="metadata">The entry, when found.</param>
             <returns><see langword="true"/> when the id is known.</returns>
         </member>
+        <member name="T:EmberTrace.Metadata.TraceName">
+            <summary>A scope name hashed and registered once, so opening a scope costs no more than with a precomputed id.</summary>
+            <remarks>Create it in a <see langword="static"/> <see langword="readonly"/> field or at startup, not per call: the constructor hashes the string and registers the name with the same collision handling as <see cref="M:EmberTrace.Tracer.Id(System.String)"/>. A <see langword="default"/> value has id <c>0</c> and an empty name.</remarks>
+        </member>
+        <member name="M:EmberTrace.Metadata.TraceName.#ctor(System.String,System.String)">
+            <summary>Hashes and registers a name.</summary>
+            <param name="name">The scope name.</param>
+            <param name="category">The category stored with the name; <c>Default</c> when <see langword="null"/>. The first registration of a name wins.</param>
+            <exception cref="T:System.ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">Another name has the same id and <see cref="P:EmberTrace.Tracer.IdCollisionMode"/> is <see cref="F:EmberTrace.TracerIdCollisionMode.Throw"/>.</exception>
+        </member>
+        <member name="P:EmberTrace.Metadata.TraceName.Id">
+            <summary>The 31-bit FNV-1a id of the name, equal to <see cref="M:EmberTrace.Tracer.Id(System.String)"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Metadata.TraceName.Name">
+            <summary>The name; empty for a <see langword="default"/> value.</summary>
+        </member>
         <member name="T:EmberTrace.Metadata.TraceMeta">
             <summary>The name and category of one trace id.</summary>
         </member>
@@ -790,6 +807,12 @@
             <param name="id">The scope id.</param>
             <returns>The scope. It is a <c>ref struct</c>: it must be closed on the thread that opened it and cannot live across an <c>await</c>; use <see cref="M:EmberTrace.Tracer.ScopeAsync(System.Int32)"/> there.</returns>
             <remarks>When no session is running the call only reads a flag and records nothing. Safe to call from any thread.</remarks>
+        </member>
+        <member name="M:EmberTrace.Tracer.Scope(EmberTrace.Metadata.TraceName)">
+            <summary>Opens a scope on the current thread for a name registered once; identical to <see cref="M:EmberTrace.Tracer.Scope(System.Int32)"/> with <see cref="P:EmberTrace.Metadata.TraceName.Id"/>.</summary>
+            <param name="name">The name, created once and kept in a <see langword="static"/> <see langword="readonly"/> field.</param>
+            <returns>The scope. It is a <c>ref struct</c>: it must be closed on the thread that opened it and cannot live across an <c>await</c>.</returns>
+            <remarks>Unlike <c>Scope(Tracer.Id(name))</c> it does not hash the string or touch the name registry on each call.</remarks>
         </member>
         <member name="M:EmberTrace.Tracer.ScopeAsync(System.Int32)">
             <summary>Opens a scope that may be closed on another thread, for code that awaits.</summary>
