@@ -117,6 +117,13 @@ The images and reports in `docs/assets` are regenerated with
 - [Auto-instrumentation with [Trace]](docs/guides/auto-instrumentation/README.md)
 - [Troubleshooting](docs/troubleshooting/README.md)
 
+## Measuring short operations
+
+A scope costs about 157 ns here (`ScopeBenchmarks`, `Scope_BeginEnd_SingleThread`; two `Stopwatch.GetTimestamp()` calls
+cost about 61 ns), so a scope around a microsecond-sized operation measures mostly itself. Wrap a batch in one scope
+instead, and check the cost on your machine with `OverheadCalibration.Measure()`. See
+[Usage and API](docs/guides/usage/README.md#measuring-short-operations).
+
 ## Build and Tests
 
 Requires the SDK specified in `global.json`.

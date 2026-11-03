@@ -130,6 +130,40 @@ If `EmberTrace.Generator` is connected, metadata from `[assembly: TraceId(...)]`
 For dev scenarios, you can enable runtime metadata: `EnableRuntimeMetadata = true`.
 In this mode, `Tracer.Id("Name")` automatically registers a name with category `Default`.
 
+## Measuring short operations
+
+A scope has a fixed cost. On the machine used for these figures (`ScopeBenchmarks`, short job on Linux) opening and
+closing one takes about 157 ns, against about 61 ns for two `Stopwatch.GetTimestamp()` calls, and `Tracer.Id(...)` on
+every call adds about 93 ns more (use a `TraceName`, see above). Run `ScopeBenchmarks` for your own numbers.
+
+For an operation that takes microseconds, one scope per call mostly measures the scope. Wrap a batch instead and divide
+by its size:
+
+```csharp
+private static readonly TraceName ParseBatch = new("Parse.Batch");
+
+using (Tracer.Scope(ParseBatch))
+{
+    for (var i = 0; i < items.Length; i++)
+        Parse(items[i]);
+}
+```
+
+The per-item time is `AverageMs / items.Length` of that scope. As a rule, a scope shorter than 20 times its own
+overhead should be measured as a batch. `OverheadCalibration.Measure()` runs a private session and returns the cost on
+the current machine:
+
+```csharp
+var overhead = OverheadCalibration.Measure();
+
+Console.WriteLine($"scope: {overhead.ScopeNs:F0} ns; wrap at least {overhead.MinBatchWorkNs(5):F0} ns of work per scope");
+Console.WriteLine(TraceText.Write(session.Process(), includePercentiles: true, overhead: overhead));
+```
+
+`MinBatchWorkNs(5)` is the work one scope must wrap for the overhead to stay under 5%; `CorrectMs` subtracts one scope
+from a measured duration; the report marks scopes whose median is below 20 times the overhead as
+`overhead-dominated`. Run the calibration on the same machine and settings as the measured code, with the tracer stopped.
+
 ## Practical recommendations
 
 - Instrument **large** parts of the hot path and external waits (IO/lock/await), not every line.

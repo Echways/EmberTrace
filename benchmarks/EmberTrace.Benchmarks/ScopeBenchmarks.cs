@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using BenchmarkDotNet.Attributes;
 using EmberTrace.Metadata;
 using EmberTrace.Sessions;
@@ -47,6 +48,19 @@ public class ScopeBenchmarks
             using (Tracer.Scope(_id))
             {
             }
+    }
+
+    [Benchmark]
+    public long Stopwatch_TwoTimestamps_SingleThread()
+    {
+        long total = 0;
+        for (var i = 0; i < Operations; i++)
+        {
+            var start = Stopwatch.GetTimestamp();
+            total += Stopwatch.GetTimestamp() - start;
+        }
+
+        return total;
     }
 
     [Benchmark]
