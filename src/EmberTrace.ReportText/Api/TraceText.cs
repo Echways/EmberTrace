@@ -1,4 +1,5 @@
 using EmberTrace.Analysis.Calibration;
+using EmberTrace.Analysis.Compare;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
 using EmberTrace.ReportText;
@@ -28,5 +29,16 @@ public static class TraceText
         ArgumentNullException.ThrowIfNull(output);
 
         CollapsedStackWriter.Write(trace, output, meta ?? trace.Metadata);
+    }
+
+    public static void WriteScopeTable(
+        IEnumerable<TraceRun> runs,
+        TextWriter writer,
+        ITraceMetadataProvider? meta = null)
+    {
+        ArgumentNullException.ThrowIfNull(runs);
+        ArgumentNullException.ThrowIfNull(writer);
+
+        ScopeTableWriter.Write(runs, writer, meta);
     }
 }
