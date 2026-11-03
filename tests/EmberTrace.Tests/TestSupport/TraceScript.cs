@@ -53,12 +53,14 @@ internal sealed class TraceScript(long frequency = 1_000_000)
         long? end = null,
         ITraceMetadataProvider? metadata = null,
         IReadOnlyDictionary<int, string>? threadNames = null,
-        bool isSnapshot = false)
+        bool isSnapshot = false,
+        TraceEnvironment? environment = null,
+        TraceEnvironment? environmentAtStop = null)
     {
         var ordered = _events.OrderBy(e => e.Timestamp).ThenBy(e => e.ThreadId).ThenBy(e => e.Sequence).ToList();
         var last = ordered.Count == 0 ? start : ordered[^1].Timestamp;
         return TraceSession.FromEvents(ordered, start, end ?? last, frequency, threadNames, metadata,
-            isSnapshot: isSnapshot);
+            isSnapshot: isSnapshot, environment: environment, environmentAtStop: environmentAtStop);
     }
 
     private TraceScript Add(int id, int thread, long timestamp, TraceEventKind kind, long flowId, long value)

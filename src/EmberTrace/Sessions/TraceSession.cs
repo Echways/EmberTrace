@@ -22,7 +22,9 @@ public sealed class TraceSession
         ITraceMetadataProvider? metadata = null,
         long timestampFrequency = 0,
         bool isSnapshot = false,
-        DateTimeOffset? startedAtUtc = null)
+        DateTimeOffset? startedAtUtc = null,
+        TraceEnvironment? environment = null,
+        TraceEnvironment? environmentAtStop = null)
     {
         _chunks = chunks;
         _metadata = metadata;
@@ -36,6 +38,8 @@ public sealed class TraceSession
         WasOverflow = wasOverflow;
         IsSnapshot = isSnapshot;
         StartedAtUtc = startedAtUtc;
+        Environment = environment;
+        EnvironmentAtStop = environmentAtStop;
         TimestampFrequency = timestampFrequency > 0 ? timestampFrequency : Timestamp.Frequency;
     }
 
@@ -52,7 +56,9 @@ public sealed class TraceSession
         bool wasOverflow = false,
         SessionOptions? options = null,
         bool isSnapshot = false,
-        DateTimeOffset? startedAtUtc = null)
+        DateTimeOffset? startedAtUtc = null,
+        TraceEnvironment? environment = null,
+        TraceEnvironment? environmentAtStop = null)
     {
         ArgumentNullException.ThrowIfNull(events);
 
@@ -96,7 +102,9 @@ public sealed class TraceSession
             metadata,
             timestampFrequency,
             isSnapshot,
-            startedAtUtc);
+            startedAtUtc,
+            environment,
+            environmentAtStop);
     }
 
     public long StartTimestamp { get; }
@@ -109,6 +117,8 @@ public sealed class TraceSession
     public long SampledOutEvents { get; }
     public bool WasOverflow { get; }
     public bool IsSnapshot { get; }
+    public TraceEnvironment? Environment { get; }
+    public TraceEnvironment? EnvironmentAtStop { get; }
 
     public ITraceMetadataProvider Metadata => _metadata ?? TraceMetadata.CreateDefault();
 

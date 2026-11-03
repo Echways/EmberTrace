@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using EmberTrace.Internal;
 
 namespace EmberTrace.Sessions;
@@ -22,4 +23,6 @@ public sealed class SessionOptions
     public TimeSpan RuntimeCounterInterval { get; init; } = TimeSpan.FromMilliseconds(50);
     public Action<OverflowInfo>? OnOverflow { get; init; }
     public Action<MismatchedEndInfo>? OnMismatchedEnd { get; init; }
+    public bool CaptureEnvironment { get; init; } = true;
+    public IReadOnlyDictionary<string, string> Tags { get; init; } = FrozenDictionary<string, string>.Empty;
 }

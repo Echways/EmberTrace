@@ -67,6 +67,31 @@ internal static class TraceFormatWriter
         }
     }
 
+    public static void WriteEnvironment(Stream stream, TraceEnvironment? atStart, TraceEnvironment? atStop)
+    {
+        stream.WriteByte(FormatConstants.Section.Environment);
+        WriteEnvironmentSeries(stream, atStart);
+        WriteEnvironmentSeries(stream, atStop);
+    }
+
+    private static void WriteEnvironmentSeries(Stream stream, TraceEnvironment? environment)
+    {
+        if (environment is null)
+        {
+            stream.WriteByte(0);
+            return;
+        }
+
+        stream.WriteByte(1);
+        VarInt.WriteUInt64(stream, (ulong)environment.Values.Count);
+
+        foreach (var pair in environment.Values)
+        {
+            VarInt.WriteString(stream, pair.Key);
+            VarInt.WriteString(stream, pair.Value ?? string.Empty);
+        }
+    }
+
     public static void WriteEvents(Stream stream, IEnumerable<TraceEventRecord> events, long eventCount)
     {
         stream.WriteByte(FormatConstants.Section.Events);

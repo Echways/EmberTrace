@@ -29,6 +29,8 @@ public static class TraceFormat
         TraceFormatWriter.WriteHeader(destination, header);
         TraceFormatWriter.WriteThreadNames(destination, session.ThreadNames);
         TraceFormatWriter.WriteMetadata(destination, CollectMetadata(session));
+        if (session.Environment is not null || session.EnvironmentAtStop is not null)
+            TraceFormatWriter.WriteEnvironment(destination, session.Environment, session.EnvironmentAtStop);
         TraceFormatWriter.WriteEvents(destination, EnumerateSorted(session), header.EventCount);
         destination.WriteByte(FormatConstants.Section.EndOfFile);
         destination.Flush();

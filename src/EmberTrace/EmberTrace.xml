@@ -402,6 +402,56 @@
         <member name="F:EmberTrace.Sessions.ScopeStepKind.Open">
             <summary>The scope is opened.</summary>
         </member>
+        <member name="T:EmberTrace.Sessions.EnvironmentCompatibility">
+            <summary>Tells whether two recordings were made under comparable conditions.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.EnvironmentCompatibility.Compare(EmberTrace.Sessions.TraceEnvironment,EmberTrace.Sessions.TraceEnvironment)">
+            <summary>Lists every setting that differs between two environments, ignoring tags.</summary>
+            <param name="a">The first environment; <see langword="null"/> when unknown.</param>
+            <param name="b">The second environment; <see langword="null"/> when unknown.</param>
+            <returns>The differences, ordered by key. A single warning when either side is unknown. A CPU governor, turbo, runtime, tiered compilation, GC, affinity or cgroup difference is <see cref="F:EmberTrace.Sessions.MismatchSeverity.Blocking"/>; any other is a warning.</returns>
+        </member>
+        <member name="T:EmberTrace.Sessions.EnvironmentMismatch">
+            <summary>One setting that differs between two environments.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.EnvironmentMismatch.#ctor(System.String,System.String,System.String,EmberTrace.Sessions.MismatchSeverity)">
+            <summary>Creates the mismatch.</summary>
+            <param name="Key">The setting name.</param>
+            <param name="A">The value in the first environment; <see langword="null"/> when absent.</param>
+            <param name="B">The value in the second environment; <see langword="null"/> when absent.</param>
+            <param name="Severity">How much the difference matters for comparing timings.</param>
+        </member>
+        <member name="P:EmberTrace.Sessions.EnvironmentMismatch.A">
+            <summary>The value in the first environment; <see langword="null"/> when absent.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.EnvironmentMismatch.B">
+            <summary>The value in the second environment; <see langword="null"/> when absent.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.EnvironmentMismatch.Key">
+            <summary>The setting name.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.EnvironmentMismatch.Severity">
+            <summary>How much the difference matters for comparing timings.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.MismatchSeverity">
+            <summary>How much a difference between two environments matters.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.MismatchSeverity.Blocking">
+            <summary>The difference can change timings enough that the runs should not be compared.</summary>
+        </member>
+        <member name="F:EmberTrace.Sessions.MismatchSeverity.Warning">
+            <summary>The difference is worth knowing about but does not invalidate a comparison.</summary>
+        </member>
+        <member name="T:EmberTrace.Sessions.TraceEnvironment">
+            <summary>The machine and runtime settings a session was recorded under, as string keys and values: <c>os</c>, <c>runtime</c>, <c>arch</c>, <c>processors</c>, <c>gc.*</c>, <c>tiered.*</c>, <c>env.DOTNET_*</c>, <c>cpu.governor</c>, <c>cpu.turbo</c>, <c>cpu.affinity</c>, <c>cgroup.*</c>, <c>memory.available</c> and <c>tag.*</c>. A setting the machine does not expose is absent.</summary>
+        </member>
+        <member name="M:EmberTrace.Sessions.TraceEnvironment.#ctor(System.Collections.Generic.IReadOnlyDictionary{System.String,System.String})">
+            <summary>Creates the environment.</summary>
+            <param name="Values">The settings by key.</param>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceEnvironment.Values">
+            <summary>The settings by key.</summary>
+        </member>
         <member name="T:EmberTrace.Sessions.SessionOptions">
             <summary>How a session buffers events and what it does when it runs out of room. Immutable once created.</summary>
         </member>
@@ -434,6 +484,12 @@
         </member>
         <member name="P:EmberTrace.Sessions.SessionOptions.MaxTotalEvents">
             <summary>The most events the session may hold. <c>0</c>, the default, means no limit.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.CaptureEnvironment">
+            <summary>Whether to record the machine and runtime settings at start and at stop. Default <see langword="true"/>; the cost is a few small file reads, outside the hot path.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.SessionOptions.Tags">
+            <summary>Labels stored with the environment under the <c>tag.</c> prefix, for example the round and the arm of an A/B run. Tags are never compared.</summary>
         </member>
         <member name="P:EmberTrace.Sessions.SessionOptions.OnMismatchedEnd">
             <summary>Called during analysis for every <c>End</c> whose id is not the innermost open scope, which points at a scope closed out of order. Not called while recording.</summary>
@@ -539,7 +595,7 @@
             <returns>A struct enumerable for <c>foreach</c>.</returns>
             <remarks>A merge over the chunks: it allocates one priority queue and costs a logarithm of the chunk count per event.</remarks>
         </member>
-        <member name="M:EmberTrace.Sessions.TraceSession.FromEvents(System.Collections.Generic.IEnumerable{EmberTrace.Sessions.TraceEventRecord},System.Int64,System.Int64,System.Int64,System.Collections.Generic.IReadOnlyDictionary{System.Int32,System.String},EmberTrace.Metadata.ITraceMetadataProvider,System.Int64,System.Int64,System.Int64,System.Boolean,EmberTrace.Sessions.SessionOptions,System.Boolean,System.Nullable{System.DateTimeOffset})">
+        <member name="M:EmberTrace.Sessions.TraceSession.FromEvents(System.Collections.Generic.IEnumerable{EmberTrace.Sessions.TraceEventRecord},System.Int64,System.Int64,System.Int64,System.Collections.Generic.IReadOnlyDictionary{System.Int32,System.String},EmberTrace.Metadata.ITraceMetadataProvider,System.Int64,System.Int64,System.Int64,System.Boolean,EmberTrace.Sessions.SessionOptions,System.Boolean,System.Nullable{System.DateTimeOffset},EmberTrace.Sessions.TraceEnvironment,EmberTrace.Sessions.TraceEnvironment)">
             <summary>Builds a session from event records, in whatever order they come. Used by the <c>.ember</c> reader and by tests.</summary>
             <param name="events">The events.</param>
             <param name="startTimestamp">The start of the session, in ticks.</param>
@@ -554,6 +610,8 @@
             <param name="options">The value of <see cref="P:EmberTrace.Sessions.TraceSession.Options"/>; the defaults when <see langword="null"/>.</param>
             <param name="isSnapshot">The value of <see cref="P:EmberTrace.Sessions.TraceSession.IsSnapshot"/>.</param>
             <param name="startedAtUtc">The value of <see cref="P:EmberTrace.Sessions.TraceSession.StartedAtUtc"/>.</param>
+            <param name="environment">The value of <see cref="P:EmberTrace.Sessions.TraceSession.Environment"/>.</param>
+            <param name="environmentAtStop">The value of <see cref="P:EmberTrace.Sessions.TraceSession.EnvironmentAtStop"/>.</param>
             <returns>The session.</returns>
             <exception cref="T:System.ArgumentNullException"><paramref name="events"/> is <see langword="null"/>.</exception>
         </member>
@@ -568,6 +626,12 @@
         </member>
         <member name="P:EmberTrace.Sessions.TraceSession.EndTimestamp">
             <summary>When recording stopped, or when the snapshot was cut, in <see cref="T:System.Diagnostics.Stopwatch"/> ticks of <see cref="P:EmberTrace.Sessions.TraceSession.TimestampFrequency"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.Environment">
+            <summary>The machine and runtime settings when the session started; <see langword="null"/> when not captured or read from a file written before format version 2.</summary>
+        </member>
+        <member name="P:EmberTrace.Sessions.TraceSession.EnvironmentAtStop">
+            <summary>The same settings when the session stopped, to reveal a change during the run such as a CPU governor switch; <see langword="null"/> for a snapshot or when not captured.</summary>
         </member>
         <member name="P:EmberTrace.Sessions.TraceSession.EventCount">
             <summary>The number of events the session holds.</summary>

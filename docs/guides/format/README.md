@@ -38,6 +38,10 @@ event, is several times smaller, and reloads into the same analysis pipeline you
   the drop/sampling counters.
 - Thread names.
 - Metadata (name and category) for every id that actually appears in the trace.
+- Environment (format version 2): the machine and runtime settings at start and at stop (OS, runtime, GC, tiered
+  compilation, `DOTNET_*` variables, CPU governor and turbo on Linux, affinity, cgroup limits) and the
+  `SessionOptions.Tags` you set, under the `tag.` prefix. `EnvironmentCompatibility.Compare` reports which differences
+  between two recordings make a timing comparison unreliable.
 - All events, in globally sorted order.
 
 ## What is not stored
@@ -60,3 +64,8 @@ The header carries a format version. A reader refuses a file written by a newer 
 The header records its own size. Readers skip header bytes they do not understand, so files written by a newer build
 of the same format version stay readable; a file written before the UTC start was recorded loads with
 `StartedAtUtc == null`.
+
+Format version 2 adds the environment section. The reader accepts versions 1 and 2; a version 1 file loads with
+`Environment == null`, and comparing it with another recording yields a warning, not an error. The writer always
+writes version 2, so a file it writes is refused by older builds. An unknown section id in any version is an
+`InvalidDataException`.

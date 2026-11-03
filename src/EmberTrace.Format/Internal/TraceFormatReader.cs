@@ -9,6 +9,7 @@ internal static class TraceFormatReader
     private const int MinimumThreadNameBytes = 2;
     private const int MinimumMetadataBytes = 3;
     private const int MinimumEventBytes = 3;
+    private const int MinimumEnvironmentBytes = 2;
     private const int MaxPreallocatedEntries = 1 << 12;
     private const int MaxPreallocatedEvents = 1 << 16;
 
@@ -95,6 +96,40 @@ internal static class TraceFormatReader
         return result;
     }
 
+    public static (TraceEnvironment? AtStart, TraceEnvironment? AtStop) ReadEnvironment(Stream stream)
+    {
+        var atStart = ReadEnvironmentSeries(stream);
+        var atStop = ReadEnvironmentSeries(stream);
+        return (atStart, atStop);
+    }
+
+    private static TraceEnvironment? ReadEnvironmentSeries(Stream stream)
+    {
+        var presence = stream.ReadByte();
+        switch (presence)
+        {
+            case < 0:
+                throw new EndOfStreamException("Unexpected end of stream while reading the environment.");
+            case 0:
+                return null;
+            case 1:
+                break;
+            default:
+                throw new InvalidDataException($"Invalid environment presence marker {presence}.");
+        }
+
+        var count = ReadCount(stream, MinimumEnvironmentBytes);
+        var values = new Dictionary<string, string>(Math.Min(count, MaxPreallocatedEntries), StringComparer.Ordinal);
+
+        for (var i = 0; i < count; i++)
+        {
+            var key = VarInt.ReadString(stream);
+            values[key] = VarInt.ReadString(stream);
+        }
+
+        return new TraceEnvironment(values);
+    }
+
     public static TraceSession ReadSession(Stream stream)
     {
         var header = ReadHeader(stream);
@@ -102,6 +137,8 @@ internal static class TraceFormatReader
         Dictionary<int, string>? threadNames = null;
         List<TraceMeta>? metadata = null;
         List<TraceEventRecord>? events = null;
+        TraceEnvironment? environment = null;
+        TraceEnvironment? environmentAtStop = null;
 
         while (true)
         {
@@ -119,6 +156,9 @@ internal static class TraceFormatReader
                     break;
                 case FormatConstants.Section.Metadata:
                     metadata = ReadMetadata(stream);
+                    break;
+                case FormatConstants.Section.Environment when header.Version >= 2:
+                    (environment, environmentAtStop) = ReadEnvironment(stream);
                     break;
                 case FormatConstants.Section.Events:
                     events = ReadEvents(stream);
@@ -142,7 +182,9 @@ internal static class TraceFormatReader
             header.WasOverflow,
             null,
             header.IsSnapshot,
-            AnchorOf(header.StartedAtUtcTicks));
+            AnchorOf(header.StartedAtUtcTicks),
+            environment,
+            environmentAtStop);
     }
 
     private static DateTimeOffset? AnchorOf(long utcTicks)

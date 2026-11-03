@@ -20,7 +20,8 @@ internal sealed class ProfilingState
         CategoryFilter? categoryFilter,
         SamplingPolicy sampling,
         long startTs,
-        DateTimeOffset startedAtUtc)
+        DateTimeOffset startedAtUtc,
+        TraceEnvironment? environment = null)
     {
         Options = options;
         Collector = collector;
@@ -29,11 +30,13 @@ internal sealed class ProfilingState
         Sampling = sampling;
         StartTs = startTs;
         StartedAtUtc = startedAtUtc;
+        Environment = environment;
         collector.WriterRetired = Forget;
     }
 
     public long Id { get; } = Interlocked.Increment(ref _nextId);
     public SessionOptions Options { get; }
+    public TraceEnvironment? Environment { get; }
     public SessionCollector Collector { get; }
     public ITraceMetadataProvider Metadata { get; }
     public CategoryFilter? CategoryFilter { get; }
