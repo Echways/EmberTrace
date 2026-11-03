@@ -289,12 +289,31 @@ public class RunSetComparisonTests
             ],
             0, 1_000, 1_000_000, droppedEvents: 7, wasOverflow: true);
 
-        var run = TraceRun.FromSession(session, "x");
+        var run = TraceRun.FromSession(session, "x", "A", 1);
 
         Assert.IsTrue(run.WasOverflow);
         Assert.AreEqual(7, run.DroppedEvents);
-        Assert.AreEqual(string.Empty, run.Arm);
-        Assert.AreEqual(0, run.Round);
+    }
+
+    [TestMethod]
+    public void FromSession_NoArmTagAndNoArgument_Throws()
+    {
+        var session = new TraceScript().Span(Scope, 0, 1_000).ToSession();
+
+        var error = Assert.ThrowsExactly<ArgumentException>(() => TraceRun.FromSession(session, "x", round: 1));
+
+        Assert.AreEqual("arm", error.ParamName);
+    }
+
+    [TestMethod]
+    public void FromSession_NoRoundTagAndNoArgument_Throws()
+    {
+        var session = new TraceScript().Span(Scope, 0, 1_000)
+            .ToSession(environment: new TraceEnvironment(new Dictionary<string, string> { ["tag.arm"] = "A", ["tag.round"] = "soon" }));
+
+        var error = Assert.ThrowsExactly<ArgumentException>(() => TraceRun.FromSession(session, "x"));
+
+        Assert.AreEqual("round", error.ParamName);
     }
 
     private static RunSetComparison Compare(

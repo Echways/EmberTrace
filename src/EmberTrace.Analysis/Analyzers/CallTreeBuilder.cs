@@ -120,7 +120,7 @@ internal static class CallTreeBuilder
                 P50Ms = a.Histogram.PercentileMs(50),
                 P95Ms = a.Histogram.PercentileMs(95),
                 P99Ms = a.Histogram.PercentileMs(99),
-                Shape = a.Samples.IsExact ? DistributionShape.FromSortedTicks(a.Samples.ToArray().Order().ToArray(), conv) : null
+                Shape = ShapeOf(a.Samples, conv)
             });
         }
 
@@ -156,6 +156,15 @@ internal static class CallTreeBuilder
         }
 
         return root;
+    }
+
+    private static DistributionShape? ShapeOf(SampleBuffer samples, TickConverter conv)
+    {
+        if (!samples.IsExact)
+            return null;
+
+        using var sorted = SortedSamples.From(samples.Span);
+        return DistributionShape.FromSortedTicks(sorted.Values, conv);
     }
 
     private static CallTreeNode Freeze(MutableNode n, TickConverter conv)

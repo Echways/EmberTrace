@@ -55,7 +55,7 @@ event, is several times smaller, and reloads into the same analysis pipeline you
 - Thread names.
 - Metadata (name and category) for every id that actually appears in the trace.
 - Environment (format version 2): the machine and runtime settings at start and at stop (OS, runtime, GC, tiered
-  compilation, `DOTNET_*` variables, CPU governor and turbo on Linux, affinity, cgroup limits) and the
+  compilation, `DOTNET_*` variables, CPU governor and turbo on Linux (the active power scheme on Windows), affinity, cgroup limits) and the
   `SessionOptions.Tags` you set, under the `tag.` prefix. `EnvironmentCompatibility.Compare` reports which differences
   between two recordings make a timing comparison unreliable.
 - All events, in globally sorted order.

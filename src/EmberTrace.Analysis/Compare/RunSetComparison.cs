@@ -38,13 +38,13 @@ public sealed class RunSetComparison
         var keptA = Filter(a, settings, excluded);
         var keptB = Filter(b, settings, excluded);
 
-        var mismatches = FindMismatches(keptA.Concat(keptB).ToList());
+        var mismatches = FindMismatches(keptA.Concat(keptB).Select(r => r.Run).ToList());
         var environmentReason = settings.RequireCompatibleEnvironment
             ? BlockingReason(mismatches)
             : null;
 
         var ids = keptA.Concat(keptB)
-            .SelectMany(r => r.Stats.ByTotalTimeDesc.Select(s => s.Id))
+            .SelectMany(r => r.ById.Keys)
             .Distinct()
             .Order();
 
@@ -68,14 +68,14 @@ public sealed class RunSetComparison
                 "ChangeThresholdPercent must not be negative.");
     }
 
-    private static List<TraceRun> Filter(IReadOnlyList<TraceRun> runs, ComparisonOptions options, List<ExcludedRun> excluded)
+    private static List<IndexedRun> Filter(IReadOnlyList<TraceRun> runs, ComparisonOptions options, List<ExcludedRun> excluded)
     {
-        var kept = new List<TraceRun>(runs.Count);
+        var kept = new List<IndexedRun>(runs.Count);
         foreach (var run in runs)
         {
             var reason = options.ExcludeOverflowedRuns ? ExclusionReason(run) : null;
             if (reason is null)
-                kept.Add(run);
+                kept.Add(new IndexedRun(run));
             else
                 excluded.Add(new ExcludedRun(run.Label, run.Arm, reason));
         }
@@ -113,14 +113,14 @@ public sealed class RunSetComparison
 
     private static ScopeVerdict Judge(
         int id,
-        IReadOnlyList<TraceRun> a,
-        IReadOnlyList<TraceRun> b,
+        IReadOnlyList<IndexedRun> a,
+        IReadOnlyList<IndexedRun> b,
         ComparisonOptions options,
         string? environmentReason)
     {
         var rowsA = Rows(a, id);
         var rowsB = Rows(b, id);
-        var name = NameOf(id, a.Concat(b));
+        var name = NameOf(id, a.Concat(b).Select(r => r.Run));
 
         ScopeVerdict Inconclusive(string reason, double change = 0, double low = 0, double high = 0, double p = 1)
         {
@@ -172,14 +172,13 @@ public sealed class RunSetComparison
 
         return new ScopeVerdict(id, name, verdict, change, low, high, p, rowsA.Count, rowsB.Count, reason);
 
-        List<(int Round, double Value, TraceIdStats Row)> Rows(IReadOnlyList<TraceRun> runs, int scope)
+        List<(int Round, double Value, TraceIdStats Row)> Rows(IReadOnlyList<IndexedRun> runs, int scope)
         {
             var rows = new List<(int, double, TraceIdStats)>();
             foreach (var run in runs)
             {
-                var row = run.Stats.ByTotalTimeDesc.FirstOrDefault(s => s.Id == scope);
-                if (row is not null)
-                    rows.Add((run.Round, options.Statistic == Statistic.Median ? row.P50Ms : row.AverageMs, row));
+                if (run.ById.TryGetValue(scope, out var row))
+                    rows.Add((run.Run.Round, options.Statistic == Statistic.Median ? row.P50Ms : row.AverageMs, row));
             }
 
             return rows;
@@ -209,5 +208,21 @@ public sealed class RunSetComparison
                 return meta.Name;
 
         return null;
+    }
+
+    private sealed class IndexedRun(TraceRun run)
+    {
+        public TraceRun Run { get; } = run;
+
+        public IReadOnlyDictionary<int, TraceIdStats> ById { get; } = Index(run.Stats.ByTotalTimeDesc);
+
+        private static Dictionary<int, TraceIdStats> Index(IReadOnlyList<TraceIdStats> rows)
+        {
+            var byId = new Dictionary<int, TraceIdStats>(rows.Count);
+            foreach (var row in rows)
+                byId.TryAdd(row.Id, row);
+
+            return byId;
+        }
     }
 }

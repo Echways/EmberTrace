@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime;
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using EmberTrace.Sessions;
 
 namespace EmberTrace.Internal;
@@ -9,10 +11,15 @@ internal interface IEnvironmentReader
 {
     string? ReadFile(string path);
     IReadOnlyDictionary<string, string> GetEnvironmentVariables();
+    string? ReadPowerScheme();
+    string? ReadAffinityMask();
 }
 
 internal sealed class SystemEnvironmentReader : IEnvironmentReader
 {
+    private const string PowerSchemeKey = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes";
+    private const string PowerSchemeValue = "ActivePowerScheme";
+
     public static SystemEnvironmentReader Instance { get; } = new();
 
     public string? ReadFile(string path)
@@ -35,6 +42,37 @@ internal sealed class SystemEnvironmentReader : IEnvironmentReader
                 result[key] = value;
 
         return result;
+    }
+
+    public string? ReadPowerScheme()
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        try
+        {
+            return Registry.GetValue(PowerSchemeKey, PowerSchemeValue, null) as string;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return null;
+        }
+    }
+
+    public string? ReadAffinityMask()
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        try
+        {
+            using var process = Process.GetCurrentProcess();
+            return process.ProcessorAffinity.ToString("x", CultureInfo.InvariantCulture);
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            return null;
+        }
     }
 }
 
@@ -69,7 +107,7 @@ internal static class EnvironmentProbe
             if (KnobPrefixes.Any(prefix => name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
                 values["env." + name] = value;
 
-        Put(values, "cpu.governor", Read(reader, GovernorPath));
+        Put(values, "cpu.governor", Read(reader, GovernorPath) ?? Normalize(reader.ReadPowerScheme()));
         Put(values, "cpu.turbo", Turbo(reader));
         Put(values, "cpu.affinity", Affinity(reader));
         Put(values, "cgroup.cpu.max", Read(reader, CgroupCpuMaxPath));
@@ -111,13 +149,19 @@ internal static class EnvironmentProbe
 
         var status = reader.ReadFile(ProcessStatusPath);
         if (status is null)
-            return null;
+            return Normalize(reader.ReadAffinityMask());
 
         foreach (var line in status.Split('\n'))
             if (line.StartsWith(key, StringComparison.Ordinal))
                 return line[key.Length..].Trim();
 
         return null;
+    }
+
+    private static string? Normalize(string? value)
+    {
+        var text = value?.Trim();
+        return string.IsNullOrEmpty(text) ? null : text;
     }
 
     private static string? Read(IEnvironmentReader reader, string path)

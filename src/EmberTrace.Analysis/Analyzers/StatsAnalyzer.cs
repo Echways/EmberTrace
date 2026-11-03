@@ -30,33 +30,11 @@ internal static class StatsAnalyzer
         var list = new List<TraceIdStats>(perId.Count);
         foreach (var (id, agg) in perId)
         {
-            var histogram = agg.Histogram;
             var totalMs = conv.ToMs(agg.TotalTicks);
-            var samples = agg.Samples.ToArray();
             var isExact = agg.Samples.IsExact;
-            var sorted = isExact ? samples.Order().ToArray() : null;
+            var samples = agg.Samples.Detach();
 
-            double PercentileMs(double percentile) => sorted is null
-                ? histogram.PercentileMs(percentile)
-                : conv.ToMs(SampleStatistics.PercentileTicks(sorted, percentile));
-
-            list.Add(new TraceIdStats
-            {
-                Id = id,
-                Count = histogram.Count,
-                TotalMs = totalMs,
-                AverageMs = totalMs / histogram.Count,
-                MinMs = conv.ToMs(histogram.MinTicks),
-                MaxMs = conv.ToMs(histogram.MaxTicks),
-                Durations = histogram,
-                P50Ms = PercentileMs(50),
-                P90Ms = PercentileMs(90),
-                P95Ms = PercentileMs(95),
-                P99Ms = PercentileMs(99),
-                Samples = samples,
-                IsExact = isExact,
-                Shape = sorted is null ? null : DistributionShape.FromSortedTicks(sorted, conv)
-            });
+            list.Add(isExact ? Exact(id, agg, samples, totalMs, conv) : Approximate(id, agg, totalMs, conv));
         }
 
         list.Sort((x, y) => y.TotalMs.CompareTo(x.TotalMs));
@@ -73,6 +51,58 @@ internal static class StatsAnalyzer
             ByTotalTimeDesc = list
         };
     }
+
+    private static TraceIdStats Exact(int id, Agg agg, ReadOnlyMemory<long> samples, double totalMs, TickConverter conv)
+    {
+        using var sorted = SortedSamples.From(samples.Span);
+        var percentiles = new Percentiles(
+            PercentileMs(sorted, 50, conv), PercentileMs(sorted, 90, conv), PercentileMs(sorted, 95, conv), PercentileMs(sorted, 99, conv));
+        return Build(id, agg, totalMs, conv, percentiles, samples, DistributionShape.FromSortedTicks(sorted.Values, conv));
+    }
+
+    private static double PercentileMs(SortedSamples sorted, double percentile, TickConverter conv)
+    {
+        return conv.ToMs(SampleStatistics.PercentileTicks(sorted.Values, percentile));
+    }
+
+    private static TraceIdStats Approximate(int id, Agg agg, double totalMs, TickConverter conv)
+    {
+        var histogram = agg.Histogram;
+        var percentiles = new Percentiles(
+            histogram.PercentileMs(50), histogram.PercentileMs(90), histogram.PercentileMs(95), histogram.PercentileMs(99));
+        return Build(id, agg, totalMs, conv, percentiles, default, null);
+    }
+
+    private static TraceIdStats Build(
+        int id,
+        Agg agg,
+        double totalMs,
+        TickConverter conv,
+        Percentiles percentiles,
+        ReadOnlyMemory<long> samples,
+        DistributionShape? shape)
+    {
+        var histogram = agg.Histogram;
+        return new TraceIdStats
+        {
+            Id = id,
+            Count = histogram.Count,
+            TotalMs = totalMs,
+            AverageMs = totalMs / histogram.Count,
+            MinMs = conv.ToMs(histogram.MinTicks),
+            MaxMs = conv.ToMs(histogram.MaxTicks),
+            Durations = histogram,
+            P50Ms = percentiles.P50,
+            P90Ms = percentiles.P90,
+            P95Ms = percentiles.P95,
+            P99Ms = percentiles.P99,
+            Samples = samples,
+            IsExact = shape is not null,
+            Shape = shape
+        };
+    }
+
+    private readonly record struct Percentiles(double P50, double P90, double P95, double P99);
 
     private sealed class Agg(long timestampFrequency, int maxSamples)
     {

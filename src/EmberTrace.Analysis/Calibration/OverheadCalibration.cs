@@ -23,20 +23,12 @@ public static class OverheadCalibration
             throw new InvalidOperationException("Overhead calibration needs the tracer to be stopped.");
 
         var id = Tracer.Id("EmberTrace.Overhead.Calibration");
-        Tracer.Start();
-        try
-        {
-            var scopeNs = NsPerItem(1, iterations, id);
-            var byBatch = new Dictionary<int, double>(sizes.Count);
-            foreach (var size in sizes)
-                byBatch[size] = size == 1 ? scopeNs : NsPerItem(size, iterations, id);
+        var scopeNs = NsPerItem(1, iterations, id);
+        var byBatch = new Dictionary<int, double>(sizes.Count);
+        foreach (var size in sizes)
+            byBatch[size] = size == 1 ? scopeNs : NsPerItem(size, iterations, id);
 
-            return new OverheadReport(scopeNs, TimerQuantumNs(), byBatch);
-        }
-        finally
-        {
-            Tracer.Stop();
-        }
+        return new OverheadReport(scopeNs, TimerQuantumNs(), byBatch);
     }
 
     private static double NsPerItem(int batch, int iterations, int id)
@@ -44,19 +36,32 @@ public static class OverheadCalibration
         var outer = Math.Max(1, iterations / batch);
         var items = (double)outer * batch;
 
-        RunScoped(outer, batch, id);
+        TimeScoped(outer, batch, id);
         RunBare(outer, batch);
 
         var costs = new double[Repetitions];
         for (var i = 0; i < Repetitions; i++)
         {
-            var scoped = Time(() => RunScoped(outer, batch, id));
+            var scoped = TimeScoped(outer, batch, id);
             var bare = Time(() => RunBare(outer, batch));
             costs[i] = Math.Max(0, (scoped - bare) / items);
         }
 
         Array.Sort(costs);
         return costs[Repetitions / 2];
+    }
+
+    private static double TimeScoped(int outer, int batch, int id)
+    {
+        Tracer.Start();
+        try
+        {
+            return Time(() => RunScoped(outer, batch, id));
+        }
+        finally
+        {
+            Tracer.Stop();
+        }
     }
 
     private static double Time(Action action)

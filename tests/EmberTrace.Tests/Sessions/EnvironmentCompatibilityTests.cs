@@ -109,6 +109,17 @@ public class EnvironmentCompatibilityTests
     }
 
     [TestMethod]
+    public void Probe_NoSysfs_FallsBackToPowerSchemeAndAffinityMask()
+    {
+        var reader = new FakeEnvironmentReader { PowerScheme = "381b4222-f694-41f0-9685-ff5bb260df2e\n", AffinityMask = "ff" };
+
+        var values = EnvironmentProbe.Capture(reader, null).Values;
+
+        Assert.AreEqual("381b4222-f694-41f0-9685-ff5bb260df2e", values["cpu.governor"]);
+        Assert.AreEqual("ff", values["cpu.affinity"]);
+    }
+
+    [TestMethod]
     public void Probe_CollectsFixedKeysTagsAndDotnetVariables()
     {
         var reader = new FakeEnvironmentReader();
@@ -220,12 +231,34 @@ public class EnvironmentCompatibilityTests
         {
             throw new InvalidOperationException("probe failed");
         }
+
+        public string? ReadPowerScheme()
+        {
+            throw new InvalidOperationException("probe failed");
+        }
+
+        public string? ReadAffinityMask()
+        {
+            throw new InvalidOperationException("probe failed");
+        }
     }
 
     private sealed class FakeEnvironmentReader : IEnvironmentReader
     {
         public Dictionary<string, string> Files { get; } = [];
         public Dictionary<string, string> Variables { get; } = [];
+        public string? PowerScheme { get; set; }
+        public string? AffinityMask { get; set; }
+
+        public string? ReadPowerScheme()
+        {
+            return PowerScheme;
+        }
+
+        public string? ReadAffinityMask()
+        {
+            return AffinityMask;
+        }
 
         public string? ReadFile(string path)
         {

@@ -24,21 +24,34 @@ public sealed record TraceRun(
         ArgumentNullException.ThrowIfNull(label);
 
         var tags = session.Environment?.Values;
-        var tagArm = tags is not null && tags.TryGetValue(ArmTag, out var armValue) ? armValue : string.Empty;
-        var tagRound = tags is not null
-                       && tags.TryGetValue(RoundTag, out var roundValue)
-                       && int.TryParse(roundValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : 0;
+        var resolvedArm = arm ?? Tag(tags, ArmTag) ?? throw MissingTag(nameof(arm), ArmTag);
+        var resolvedRound = round ?? ParseRound(Tag(tags, RoundTag)) ?? throw MissingTag(nameof(round), RoundTag);
 
         return new TraceRun(
             label,
-            arm ?? tagArm,
-            round ?? tagRound,
+            resolvedArm,
+            resolvedRound,
             session.Analyze(),
             session.Environment,
             session.WasOverflow,
             session.DroppedEvents,
             session.Metadata);
+    }
+
+    private static string? Tag(IReadOnlyDictionary<string, string>? tags, string key)
+    {
+        return tags is not null && tags.TryGetValue(key, out var value) ? value : null;
+    }
+
+    private static int? ParseRound(string? value)
+    {
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var round) ? round : null;
+    }
+
+    private static ArgumentException MissingTag(string parameter, string tag)
+    {
+        return new ArgumentException(
+            $"The session carries no valid '{tag}' tag; pass '{parameter}' explicitly or tag the session when recording.",
+            parameter);
     }
 }

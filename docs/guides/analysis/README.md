@@ -98,7 +98,7 @@ Mann-Whitney U p-value is reported next to it. A scope needs at least 3 runs per
 `Improved` only when the whole interval lies beyond `ChangeThresholdPercent`, `Unchanged` when it lies within, and
 `Inconclusive` otherwise, with the reason in `Reason`.
 
-Tag runs with `SessionOptions.Tags` (`arm`, `round`) and `TraceRun.FromSession` reads them. Runs that overflowed or
+Tag runs with `SessionOptions.Tags` (`arm`, `round`) and `TraceRun.FromSession` reads them; a session without the `arm` or `round` tag needs them passed explicitly, otherwise it throws. Runs that overflowed or
 dropped events are excluded and listed in `ExcludedRuns`. `Mismatches` lists environment differences (CPU governor,
 turbo, runtime, GC, affinity, cgroup limits are `Blocking`); a run from a file written before format version 2 has no
 environment and yields a warning. A scope whose median is unreliable in most runs of an arm is `Inconclusive` under
