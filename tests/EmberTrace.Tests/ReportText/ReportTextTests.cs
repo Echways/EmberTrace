@@ -159,6 +159,35 @@ public class ReportTextTests
         Assert.DoesNotContain("Thread 2", filtered);
     }
 
+    [TestMethod]
+    public void Report_BimodalScope_PrintsWarningFootnote()
+    {
+        var script = new TraceScript();
+        long ts = 0;
+        for (var i = 0; i < 40; i++)
+        {
+            var duration = i % 2 == 0 ? 1_000L : 2_000L;
+            script.Span(Disk, ts, ts + duration);
+            ts += duration + 10;
+        }
+
+        var report = TraceText.Write(script.ToSession().Process(), Metadata(), includePercentiles: true);
+
+        StringAssert.Contains(report, "median unreliable");
+        StringAssert.Contains(report, "DiskRead*");
+        StringAssert.Contains(report, "p25 ms");
+        StringAssert.Contains(report, "p75 ms");
+    }
+
+    [TestMethod]
+    public void Report_OrdinaryScope_HasNoWarningFootnote()
+    {
+        var report = TraceText.Write(Trace(), Metadata(), includePercentiles: true);
+
+        Assert.DoesNotContain("median unreliable", report);
+        Assert.DoesNotContain("*", report);
+    }
+
     private static ProcessedTrace Trace()
     {
         return new TraceScript()

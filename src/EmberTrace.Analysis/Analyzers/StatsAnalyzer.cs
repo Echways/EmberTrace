@@ -32,8 +32,9 @@ internal static class StatsAnalyzer
         {
             var histogram = agg.Histogram;
             var totalMs = conv.ToMs(agg.TotalTicks);
-            var samples = agg.Samples;
-            var sorted = samples is null ? null : samples.Order().ToArray();
+            var samples = agg.Samples.ToArray();
+            var isExact = agg.Samples.IsExact;
+            var sorted = isExact ? samples.Order().ToArray() : null;
 
             double PercentileMs(double percentile) => sorted is null
                 ? histogram.PercentileMs(percentile)
@@ -52,8 +53,9 @@ internal static class StatsAnalyzer
                 P90Ms = PercentileMs(90),
                 P95Ms = PercentileMs(95),
                 P99Ms = PercentileMs(99),
-                Samples = samples is null ? ReadOnlyMemory<long>.Empty : samples.ToArray(),
-                IsExact = samples is not null
+                Samples = samples,
+                IsExact = isExact,
+                Shape = sorted is null ? null : DistributionShape.FromSortedTicks(sorted, conv)
             });
         }
 
@@ -74,24 +76,15 @@ internal static class StatsAnalyzer
 
     private sealed class Agg(long timestampFrequency, int maxSamples)
     {
-        private List<long>? _samples = maxSamples > 0 ? new List<long>() : null;
-
         public DurationHistogram Histogram { get; } = new(timestampFrequency);
+        public SampleBuffer Samples { get; } = new(maxSamples);
         public long TotalTicks { get; private set; }
-        public IReadOnlyList<long>? Samples => _samples;
 
         public void Add(long ticks)
         {
             Histogram.Add(ticks);
+            Samples.Add(ticks);
             TotalTicks += ticks;
-
-            if (_samples is null)
-                return;
-
-            if (_samples.Count >= maxSamples)
-                _samples = null;
-            else
-                _samples.Add(ticks);
         }
     }
 }

@@ -88,14 +88,17 @@
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.InclusiveMs">
             <summary>Summed time in the scope including its child scopes, in milliseconds. A recursive scope counts every level.</summary>
         </member>
+        <member name="P:EmberTrace.Analysis.Model.HotspotRow.Shape">
+            <summary>The quartiles and modality of the inclusive durations; <see langword="null"/> when the id completed more often than the sample limit.</summary>
+        </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P50Ms">
-            <summary>The median inclusive duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
+            <summary>The median inclusive duration, in milliseconds, approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P95Ms">
-            <summary>The 95th percentile of the inclusive duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
+            <summary>The 95th percentile of the inclusive duration, in milliseconds, approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P99Ms">
-            <summary>The 99th percentile of the inclusive duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
+            <summary>The 99th percentile of the inclusive duration, in milliseconds, approximated by the histogram.</summary>
         </member>
         <member name="T:EmberTrace.Analysis.Model.ProcessedTrace">
             <summary>A session turned into call trees and hotspot totals by <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>.</summary>
@@ -169,6 +172,36 @@
         <member name="P:EmberTrace.Analysis.Model.ThreadTrace.TrackId">
             <summary>The writer track: one thread for the lifetime of one session; <c>0</c> for the merged entry.</summary>
         </member>
+        <member name="T:EmberTrace.Analysis.Stats.DistributionShape">
+            <summary>The shape of one scope's duration distribution: quartiles, mean and whether a single median describes it.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Stats.DistributionShape.#ctor(System.Double,System.Double,System.Double,System.Double,System.Boolean,System.Boolean)">
+            <summary>Creates the shape.</summary>
+            <param name="P25Ms">The 25th percentile, in milliseconds.</param>
+            <param name="P75Ms">The 75th percentile, in milliseconds.</param>
+            <param name="MeanMs">The mean duration, in milliseconds.</param>
+            <param name="BimodalityCoefficient">Sarle's bimodality coefficient; <c>0</c> below eight samples or when every duration is equal.</param>
+            <param name="IsBimodal"><see langword="true"/> when the coefficient exceeds 5/9 and there are at least eight samples.</param>
+            <param name="MedianReliable"><see langword="false"/> when the distribution is bimodal or the mean differs from the median by more than 25%.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.BimodalityCoefficient">
+            <summary>Sarle's bimodality coefficient; <c>0</c> below eight samples or when every duration is equal.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.IsBimodal">
+            <summary><see langword="true"/> when the coefficient exceeds 5/9 and there are at least eight samples.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.MeanMs">
+            <summary>The mean duration, in milliseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.MedianReliable">
+            <summary><see langword="false"/> when the distribution is bimodal or the mean differs from the median by more than 25%; always <see langword="true"/> below eight samples.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.P25Ms">
+            <summary>The 25th percentile, in milliseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.DistributionShape.P75Ms">
+            <summary>The 75th percentile, in milliseconds.</summary>
+        </member>
         <member name="T:EmberTrace.Analysis.Stats.DurationHistogram">
             <summary>A compact distribution of durations that answers any percentile within about 3 % of the true value.</summary>
             <remarks>Values below 64 ticks are counted exactly; above that every power of two is split into 32 buckets. Not safe for concurrent use.</remarks>
@@ -211,6 +244,16 @@
         <member name="P:EmberTrace.Analysis.Stats.DurationHistogram.TimestampFrequency">
             <summary>Ticks per second, or <c>0</c> when the histogram was created without a frequency.</summary>
         </member>
+        <member name="T:EmberTrace.Analysis.Stats.WarmupCurve">
+            <summary>The median duration of consecutive, equally sized windows of a scope's samples, in the order the scopes closed.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Stats.WarmupCurve.#ctor(System.Collections.Generic.IReadOnlyList{System.Double})">
+            <summary>Creates the curve.</summary>
+            <param name="Windows">The median of each window, in milliseconds.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.WarmupCurve.Windows">
+            <summary>The median of each window, in milliseconds; empty when the statistics hold no samples.</summary>
+        </member>
         <member name="T:EmberTrace.Analysis.Stats.TraceIdStats">
             <summary>The duration statistics of one scope id. Every duration is inclusive of child scopes.</summary>
         </member>
@@ -252,6 +295,16 @@
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Samples">
             <summary>The duration of every completed scope of this id, in ticks, in the order the scopes closed; empty when the id exceeded the sample limit.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Shape">
+            <summary>The quartiles and modality of the durations; <see langword="null"/> unless <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Stats.TraceIdStats.Warmup(System.Int32)">
+            <summary>Splits the samples into equal windows in closing order and takes the median of each, to show whether the scope speeds up or slows down over the run.</summary>
+            <param name="windows">The number of windows; fewer samples than windows give one window per sample.</param>
+            <returns>The medians, in milliseconds; empty when there are no samples.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="windows"/> is not positive.</exception>
+            <exception cref="T:System.InvalidOperationException">The statistics carry no timestamp frequency.</exception>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.TotalMs">
             <summary>The summed duration of every completed scope of this id, in milliseconds.</summary>

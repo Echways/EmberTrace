@@ -54,12 +54,13 @@ internal static class TextReportWriter
         sb.AppendLine("Hotspots (by inclusive)");
 
         var t = includePercentiles
-            ? new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%", "p50 ms", "p95 ms", "p99 ms")
+            ? new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%", "p25 ms", "p50 ms", "p75 ms", "p95 ms", "p99 ms")
             : new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%");
 
         t.AddSeparator();
 
         var shown = 0;
+        var anyUnreliable = false;
         foreach (var r in trace.HotspotsByInclusiveDesc)
         {
             if (shown >= top)
@@ -69,10 +70,13 @@ internal static class TextReportWriter
             if (!MatchesCategory(categoryFilter, cat) || Percent(r.InclusiveMs, trace.DurationMs) < minPercent)
                 continue;
 
-            var cells = new List<string>(10)
+            var unreliable = r.Shape is { MedianReliable: false };
+            anyUnreliable |= unreliable;
+
+            var cells = new List<string>(12)
             {
                 r.Id.ToString(),
-                name,
+                unreliable ? name + "*" : name,
                 cat,
                 r.Count.ToString(),
                 r.InclusiveMs.ToString("F3"),
@@ -81,13 +85,21 @@ internal static class TextReportWriter
             };
 
             if (includePercentiles)
-                cells.AddRange([r.P50Ms.ToString("F3"), r.P95Ms.ToString("F3"), r.P99Ms.ToString("F3")]);
+                cells.AddRange([
+                    r.Shape is { } shape ? shape.P25Ms.ToString("F3") : string.Empty,
+                    r.P50Ms.ToString("F3"),
+                    r.Shape is { } upper ? upper.P75Ms.ToString("F3") : string.Empty,
+                    r.P95Ms.ToString("F3"),
+                    r.P99Ms.ToString("F3")]);
 
             t.AddRow(cells.ToArray());
             shown++;
         }
 
         t.WriteTo(sb);
+
+        if (anyUnreliable)
+            sb.AppendLine("* median unreliable: bimodal, or the mean differs from the median by more than 25%");
     }
 
     private static double Percent(double part, double total)
