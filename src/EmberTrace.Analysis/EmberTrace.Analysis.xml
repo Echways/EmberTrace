@@ -55,6 +55,192 @@
             <param name="medianMs">The typical duration of the scope, in milliseconds.</param>
             <returns>A value from <c>0</c> to <c>1</c>; <c>1</c> when the duration is not positive.</returns>
         </member>
+        <member name="T:EmberTrace.Analysis.Compare.Statistic">
+            <summary>The per-run value a comparison is built on.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.Statistic.Median">
+            <summary>The median duration of the scope in each run.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.Statistic.Mean">
+            <summary>The mean duration of the scope in each run.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ScopeChange">
+            <summary>What a comparison concluded about one scope.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Improved">
+            <summary>B is faster than A: the whole confidence interval lies below the negative threshold.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Regressed">
+            <summary>B is slower than A: the whole confidence interval lies above the threshold.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Unchanged">
+            <summary>The whole confidence interval lies within the threshold.</summary>
+        </member>
+        <member name="F:EmberTrace.Analysis.Compare.ScopeChange.Inconclusive">
+            <summary>The data cannot decide; <see cref="P:EmberTrace.Analysis.Compare.ScopeVerdict.Reason"/> says why.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ComparisonOptions">
+            <summary>How <see cref="M:EmberTrace.Analysis.Compare.RunSetComparison.Compare(System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},EmberTrace.Analysis.Compare.ComparisonOptions)"/> judges a change.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.ComparisonOptions.#ctor">
+            <summary>Creates the default options: median, 5% threshold, 95% confidence, 10000 bootstrap iterations.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.Statistic">
+            <summary>The per-run value to compare. Default <see cref="F:EmberTrace.Analysis.Compare.Statistic.Median"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.ChangeThresholdPercent">
+            <summary>The change, in percent, below which a difference does not matter. Default 5.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.ConfidenceLevel">
+            <summary>The coverage of the confidence interval. Default 0.95.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.BootstrapIterations">
+            <summary>How many resamples build the confidence interval. Default 10000.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.Seed">
+            <summary>The seed of the resampling; the same inputs and seed give the same interval. Default 12345.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.ExcludeOverflowedRuns">
+            <summary>Whether runs that overflowed or dropped events are left out and listed in <see cref="P:EmberTrace.Analysis.Compare.RunSetComparison.ExcludedRuns"/>. Default <see langword="true"/>.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ComparisonOptions.RequireCompatibleEnvironment">
+            <summary>Whether a blocking environment difference turns every verdict inconclusive. Default <see langword="false"/>: the difference is only reported.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ExcludedRun">
+            <summary>A run the comparison left out.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.ExcludedRun.#ctor(System.String,System.String,System.String)">
+            <summary>Creates the record.</summary>
+            <param name="Label">The label of the run.</param>
+            <param name="Arm">The arm of the run.</param>
+            <param name="Reason">Why it was excluded.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ExcludedRun.Label">
+            <summary>The label of the run.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ExcludedRun.Arm">
+            <summary>The arm of the run.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ExcludedRun.Reason">
+            <summary>Why it was excluded.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.TraceRun">
+            <summary>One process run: its statistics and the conditions it was recorded under. The unit of observation of a comparison, because scopes inside one process are correlated.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.TraceRun.#ctor(System.String,System.String,System.Int32,EmberTrace.Analysis.Stats.TraceStats,EmberTrace.Sessions.TraceEnvironment,System.Boolean,System.Int64,EmberTrace.Metadata.ITraceMetadataProvider)">
+            <summary>Creates the run.</summary>
+            <param name="Label">A name for the run, such as its file name.</param>
+            <param name="Arm">The side of the comparison the run belongs to, such as a version.</param>
+            <param name="Round">The round the run was taken in; runs of one round share conditions.</param>
+            <param name="Stats">The statistics of the session.</param>
+            <param name="Environment">The environment at start; <see langword="null"/> when unknown.</param>
+            <param name="WasOverflow">Whether the session overflowed its buffer.</param>
+            <param name="DroppedEvents">How many events the session dropped.</param>
+            <param name="Metadata">Names for the ids; <see langword="null"/> when unknown.</param>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.TraceRun.FromSession(EmberTrace.Sessions.TraceSession,System.String,System.String,System.Nullable{System.Int32})">
+            <summary>Analyzes a session into a run.</summary>
+            <param name="session">The session.</param>
+            <param name="label">A name for the run.</param>
+            <param name="arm">The arm; the <c>tag.arm</c> of the session environment when <see langword="null"/>, else empty.</param>
+            <param name="round">The round; the <c>tag.round</c> of the session environment when <see langword="null"/>, else <c>0</c>.</param>
+            <returns>The run.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="session"/> or <paramref name="label"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Label">
+            <summary>A name for the run, such as its file name.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Arm">
+            <summary>The side of the comparison the run belongs to.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Round">
+            <summary>The round the run was taken in.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Stats">
+            <summary>The statistics of the session.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Environment">
+            <summary>The environment at start; <see langword="null"/> when unknown.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.WasOverflow">
+            <summary>Whether the session overflowed its buffer.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.DroppedEvents">
+            <summary>How many events the session dropped.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.TraceRun.Metadata">
+            <summary>Names for the ids; <see langword="null"/> when unknown.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.ScopeVerdict">
+            <summary>The conclusion about one scope id.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.ScopeVerdict.#ctor(System.Int32,System.String,EmberTrace.Analysis.Compare.ScopeChange,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.String)">
+            <summary>Creates the verdict.</summary>
+            <param name="Id">The scope id.</param>
+            <param name="Name">The scope name; <see langword="null"/> when unknown.</param>
+            <param name="Change">The conclusion.</param>
+            <param name="ChangePercent">The change of B against A, in percent; positive means B is slower.</param>
+            <param name="CiLowPercent">The lower bound of the confidence interval of the change, in percent.</param>
+            <param name="CiHighPercent">The upper bound of the confidence interval of the change, in percent.</param>
+            <param name="MannWhitneyP">The two-sided p-value of the Mann-Whitney U test over the per-run values.</param>
+            <param name="RunsA">How many runs of A contain the scope.</param>
+            <param name="RunsB">How many runs of B contain the scope.</param>
+            <param name="Reason">Why the verdict is inconclusive; <see langword="null"/> otherwise.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Id">
+            <summary>The scope id.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Name">
+            <summary>The scope name; <see langword="null"/> when unknown.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Change">
+            <summary>The conclusion.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.ChangePercent">
+            <summary>The change of B against A, in percent; positive means B is slower.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.CiLowPercent">
+            <summary>The lower bound of the confidence interval of the change, in percent.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.CiHighPercent">
+            <summary>The upper bound of the confidence interval of the change, in percent.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.MannWhitneyP">
+            <summary>The two-sided p-value of the Mann-Whitney U test over the per-run values, with tie and continuity corrections.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.RunsA">
+            <summary>How many runs of A contain the scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.RunsB">
+            <summary>How many runs of B contain the scope.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.ScopeVerdict.Reason">
+            <summary>Why the verdict is inconclusive; <see langword="null"/> otherwise.</summary>
+        </member>
+        <member name="T:EmberTrace.Analysis.Compare.RunSetComparison">
+            <summary>The comparison of two sets of process runs, scope by scope.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Compare.RunSetComparison.Compare(System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},System.Collections.Generic.IReadOnlyList{EmberTrace.Analysis.Compare.TraceRun},EmberTrace.Analysis.Compare.ComparisonOptions)">
+            <summary>Compares set A, the baseline, with set B.</summary>
+            <param name="a">The baseline runs.</param>
+            <param name="b">The runs under test.</param>
+            <param name="options">How to judge; the defaults when <see langword="null"/>.</param>
+            <returns>The verdicts, the environment differences and the excluded runs.</returns>
+            <remarks>Each run contributes one value per scope. The change is the ratio of the medians of those values; its confidence interval comes from a two-level bootstrap that resamples rounds and then runs inside a round. A scope needs at least three runs per arm. Under <see cref="F:EmberTrace.Analysis.Compare.Statistic.Median"/> a scope whose median is unreliable in most runs of an arm is inconclusive.</remarks>
+            <exception cref="T:System.ArgumentNullException"><paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.Scopes">
+            <summary>One verdict per scope id found in either set, ordered by id.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.Mismatches">
+            <summary>The environment differences across the compared runs; a single warning when some environment is unknown.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.ExcludedRuns">
+            <summary>The runs left out for overflow or dropped events.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.HasBlockingMismatch">
+            <summary>Whether any environment difference is <see cref="F:EmberTrace.Sessions.MismatchSeverity.Blocking"/>.</summary>
+        </member>
         <member name="T:EmberTrace.Analysis.Model.CallTreeNode">
             <summary>One scope id at one position of a call tree, aggregated over every time it was entered there.</summary>
         </member>
