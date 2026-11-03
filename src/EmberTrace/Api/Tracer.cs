@@ -175,7 +175,7 @@ public static class Tracer
             throw new InvalidOperationException(collision.ToString());
 
         if (mode == TracerIdCollisionMode.Warn && handler is null)
-            Trace.TraceWarning(collision.ToString());
+            Trace.TraceWarning(collision.ToString().ReplaceLineEndings(" "));
     }
 }
 
