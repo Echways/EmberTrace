@@ -71,7 +71,8 @@ internal static class ChromeJsonWriter
         long freq,
         int pid)
     {
-        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, baseTs, freq, pid, "b");
+        WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.StartTrackId, span.StartTs, meta, baseTs, freq, pid,
+            "b");
         WriteAsyncPhase(json, span.Id, span.AsyncScopeId, span.EndTrackId, span.EndTs, meta, baseTs, freq, pid, "e");
     }
 

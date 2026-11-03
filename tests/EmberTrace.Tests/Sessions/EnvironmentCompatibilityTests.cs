@@ -111,7 +111,8 @@ public class EnvironmentCompatibilityTests
     [TestMethod]
     public void Probe_NoSysfs_FallsBackToPowerSchemeAndAffinityMask()
     {
-        var reader = new FakeEnvironmentReader { PowerScheme = "381b4222-f694-41f0-9685-ff5bb260df2e\n", AffinityMask = "ff" };
+        var reader = new FakeEnvironmentReader
+            { PowerScheme = "381b4222-f694-41f0-9685-ff5bb260df2e\n", AffinityMask = "ff" };
 
         var values = EnvironmentProbe.Capture(reader, null).Values;
 
@@ -131,7 +132,11 @@ public class EnvironmentCompatibilityTests
 
         var values = EnvironmentProbe.Capture(reader, tags).Values;
 
-        foreach (var key in new[] { "os", "runtime", "arch", "processors", "gc.server", "gc.latency", "tiered.pgo", "tiered.compilation", "memory.available" })
+        foreach (var key in new[]
+                 {
+                     "os", "runtime", "arch", "processors", "gc.server", "gc.latency", "tiered.pgo",
+                     "tiered.compilation", "memory.available"
+                 })
             Assert.IsTrue(values.ContainsKey(key), key);
         Assert.AreEqual("false", values["tiered.pgo"]);
         Assert.AreEqual("1", values["env.COMPlus_gcServer"]);

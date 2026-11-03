@@ -9,29 +9,52 @@
         </member>
         <member name="M:EmberTrace.TraceText.Write(EmberTrace.Analysis.Model.ProcessedTrace,EmberTrace.Metadata.ITraceMetadataProvider,System.Int32,System.Int32,System.String,System.Double,System.Boolean,EmberTrace.Analysis.Calibration.OverheadReport)">
             <summary>Builds a report with a session summary, the hottest scopes and a call tree per thread.</summary>
-            <param name="trace">The trace produced by <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>.</param>
-            <param name="meta">Names and categories for ids; the metadata of the trace when <see langword="null"/>.</param>
+            <param name="trace">The trace produced by
+                <see
+                        cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>
+                .
+            </param>
+            <param name="meta">Names and categories for ids; the metadata of the trace when<see langword="null"/>.
+            </param>
             <param name="topHotspots">How many scopes to list, ordered by inclusive time.</param>
             <param name="maxDepth">How many levels of the call tree to print.</param>
             <param name="categoryFilter">When set, only scopes of this category are listed.</param>
             <param name="minPercent">Hides scopes that take less than this share of the session, in percent.</param>
-            <param name="includePercentiles">Adds p25, p50, p75, p95 and p99 columns to the hotspot table. A scope with more completions than the sample limit has its percentiles prefixed with <c>~</c> and no p25 or p75.</param>
-            <param name="overhead">The measured cost of a scope. When set, a note column marks scopes whose median is short enough for that cost to exceed 5% of it.</param>
+            <param name="includePercentiles">Adds p25, p50, p75, p95 and p99 columns to the hotspot table. A scope with
+                more completions than the sample limit has its percentiles prefixed with <c>~</c> and no p25 or p75.
+            </param>
+            <param name="overhead">The measured cost of a scope. When set, a note column marks scopes whose median is
+                short enough for that cost to exceed 5% of it.
+            </param>
             <returns>The report.</returns>
         </member>
         <member name="M:EmberTrace.TraceText.WriteScopeTable(System.Collections.Generic.IEnumerable{EmberTrace.Analysis.Compare.TraceRun},System.IO.TextWriter,EmberTrace.Metadata.ITraceMetadataProvider)">
             <summary>Writes one CSV row per run and scope, the input for plotting and external statistics.</summary>
             <param name="runs">The runs to write, in order.</param>
             <param name="writer">The writer that receives the CSV.</param>
-            <param name="meta">Names for ids; the metadata of each run when <see langword="null"/>, else the id.</param>
-            <remarks>Columns: <c>run,arm,round,id,name,count,total_ms,mean_ms,min_ms,p25_ms,p50_ms,p75_ms,p95_ms,p99_ms,max_ms,exact,bimodal,overflow,dropped</c>. Numbers use the invariant culture, fields are quoted as in RFC 4180 and lines end with CRLF. The <c>p25_ms</c>, <c>p75_ms</c> and <c>bimodal</c> cells are empty for a scope that exceeded the sample limit.</remarks>
-            <exception cref="T:System.ArgumentNullException"><paramref name="runs"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+            <param name="meta">Names for ids; the metadata of each run when<see langword="null"/>, else the id.
+            </param>
+            <remarks>Columns: <c>
+                run,arm,round,id,name,count,total_ms,mean_ms,min_ms,p25_ms,p50_ms,p75_ms,p95_ms,p99_ms,max_ms,exact,bimodal,overflow,dropped</c>.
+                Numbers use the invariant culture, fields are quoted as in RFC 4180 and lines end with CRLF. The <c>
+                    p25_ms</c>, <c>p75_ms</c> and <c>bimodal</c> cells are empty for a scope that exceeded the sample
+                limit.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="runs"/>
+                or
+                <paramref name="writer"/>
+                is<see langword="null"/>.
+            </exception>
         </member>
         <member name="M:EmberTrace.TraceText.WriteCollapsedStacks(EmberTrace.Analysis.Model.ProcessedTrace,System.IO.TextWriter,EmberTrace.Metadata.ITraceMetadataProvider)">
-            <summary>Writes the call tree as collapsed stacks, one <c>frame;frame;frame microseconds</c> line per path, the input of flame graph tools.</summary>
+            <summary>Writes the call tree as collapsed stacks, one <c>frame;frame;frame microseconds</c> line per path,
+                the input of flame graph tools.
+            </summary>
             <param name="trace">The trace to render.</param>
             <param name="output">The writer that receives the lines.</param>
-            <param name="meta">Names for ids; the metadata of the trace when <see langword="null"/>.</param>
+            <param name="meta">Names for ids; the metadata of the trace when<see langword="null"/>.
+            </param>
         </member>
     </members>
 </doc>

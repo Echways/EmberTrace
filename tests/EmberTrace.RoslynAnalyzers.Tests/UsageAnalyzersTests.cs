@@ -58,7 +58,8 @@ public class UsageAnalyzersTests
 
     [TestMethod]
     [DataRow("class C { }")]
-    [DataRow("class Tracer { public static System.IDisposable Scope(int id) => null!; void M() { var s = Scope(1); } }")]
+    [DataRow(
+        "class Tracer { public static System.IDisposable Scope(int id) => null!; void M() { var s = Scope(1); } }")]
     public async Task UnrelatedCode_ProducesNoDiagnostics(string code)
     {
         Assert.IsEmpty(await AnalyzerTestHost.DiagnosticsAsync(new UsageAnalyzers(), "namespace Other; " + code));

@@ -23,7 +23,8 @@ public static class TraceText
             overhead);
     }
 
-    public static void WriteCollapsedStacks(ProcessedTrace trace, TextWriter output, ITraceMetadataProvider? meta = null)
+    public static void WriteCollapsedStacks(ProcessedTrace trace, TextWriter output,
+        ITraceMetadataProvider? meta = null)
     {
         ArgumentNullException.ThrowIfNull(trace);
         ArgumentNullException.ThrowIfNull(output);

@@ -56,8 +56,10 @@ internal static class StatsAnalyzer
     {
         using var sorted = SortedSamples.From(samples.Span);
         var percentiles = new Percentiles(
-            PercentileMs(sorted, 50, conv), PercentileMs(sorted, 90, conv), PercentileMs(sorted, 95, conv), PercentileMs(sorted, 99, conv));
-        return Build(id, agg, totalMs, conv, percentiles, samples, DistributionShape.FromSortedTicks(sorted.Values, conv));
+            PercentileMs(sorted, 50, conv), PercentileMs(sorted, 90, conv), PercentileMs(sorted, 95, conv),
+            PercentileMs(sorted, 99, conv));
+        return Build(id, agg, totalMs, conv, percentiles, samples,
+            DistributionShape.FromSortedTicks(sorted.Values, conv));
     }
 
     private static double PercentileMs(SortedSamples sorted, double percentile, TickConverter conv)
@@ -69,7 +71,8 @@ internal static class StatsAnalyzer
     {
         var histogram = agg.Histogram;
         var percentiles = new Percentiles(
-            histogram.PercentileMs(50), histogram.PercentileMs(90), histogram.PercentileMs(95), histogram.PercentileMs(99));
+            histogram.PercentileMs(50), histogram.PercentileMs(90), histogram.PercentileMs(95),
+            histogram.PercentileMs(99));
         return Build(id, agg, totalMs, conv, percentiles, default, null);
     }
 

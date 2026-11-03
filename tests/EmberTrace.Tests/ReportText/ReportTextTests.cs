@@ -95,7 +95,7 @@ public class ReportTextTests
         var meta = Meta.Of(Enumerable.Range(1, 11)
             .Select(id => (id, "scope-" + id, (string?)(id == 11 ? "IO" : "CPU"))).ToArray());
 
-        var report = TraceText.Write(script.ToSession().Process(), meta, topHotspots: 10, categoryFilter: "IO");
+        var report = TraceText.Write(script.ToSession().Process(), meta, 10, categoryFilter: "IO");
 
         Assert.Contains("scope-11", Section(report, "Hotspots (by inclusive)", "Categories"));
     }
@@ -103,7 +103,7 @@ public class ReportTextTests
     [TestMethod]
     public void Write_TopHotspots_LimitsTheHotspotRows()
     {
-        var report = TraceText.Write(Trace(), Metadata(), topHotspots: 1);
+        var report = TraceText.Write(Trace(), Metadata(), 1);
         var hotspots = Section(report, "Hotspots (by inclusive)", "Categories");
 
         Assert.Contains("DiskRead", hotspots);

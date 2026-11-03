@@ -60,7 +60,8 @@ public class TraceFormatCompressionTests
     {
         var bytes = Compressed();
 
-        var ex = Assert.ThrowsExactly<InvalidDataException>(() => TraceFormat.Read(new MemoryStream(bytes[..(bytes.Length / 2)])));
+        var ex = Assert.ThrowsExactly<InvalidDataException>(() =>
+            TraceFormat.Read(new MemoryStream(bytes[..(bytes.Length / 2)])));
         StringAssert.Contains(ex.Message, "gzip");
 
         Assert.ThrowsExactly<InvalidDataException>(() =>
@@ -85,7 +86,9 @@ public class TraceFormatCompressionTests
     {
         using var ms = new MemoryStream();
         using (var gzip = new GZipStream(ms, CompressionLevel.Fastest, true))
+        {
             gzip.Write(new byte[200]);
+        }
 
         Assert.ThrowsExactly<InvalidDataException>(() => TraceFormat.Read(new MemoryStream(ms.ToArray())));
     }

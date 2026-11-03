@@ -5,30 +5,42 @@
     </assembly>
     <members>
         <member name="T:EmberTrace.TraceFormat">
-            <summary>Reads and writes sessions in the binary <c>.ember</c> format.</summary>
+            <summary>Reads and writes sessions in the binary <c>.ember</c> format.
+            </summary>
         </member>
         <member name="F:EmberTrace.TraceFormat.FileExtension">
             <summary>The conventional file extension of a persisted session, including the dot.</summary>
         </member>
         <member name="F:EmberTrace.TraceFormat.CompressedFileExtension">
-            <summary>The file extension, including the dot, for which <see cref="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.String)"/> gzip-compresses the file.</summary>
+            <summary>The file extension, including the dot, for which
+                <see cref="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.String)"/>
+                gzip-compresses the file.
+            </summary>
         </member>
         <member name="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.IO.Stream)">
-            <summary>Writes a session, with its thread names and the metadata of every id it uses, to a stream.</summary>
+            <summary>Writes a session, with its thread names and the metadata of every id it uses, to a stream.
+            </summary>
             <param name="session">The session to persist.</param>
             <param name="destination">The stream to write to. It is flushed and left open.</param>
         </member>
         <member name="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.String)">
             <summary>Writes a session to a file, creating its directory and replacing an existing file.</summary>
             <param name="session">The session to persist.</param>
-            <param name="path">The file to create. A path ending in <see cref="F:EmberTrace.TraceFormat.CompressedFileExtension"/> is gzip-compressed at <see cref="F:System.IO.Compression.CompressionLevel.Fastest"/>.</param>
+            <param name="path">The file to create. A path ending in
+                <see cref="F:EmberTrace.TraceFormat.CompressedFileExtension"/>
+                is gzip-compressed at<see cref="F:System.IO.Compression.CompressionLevel.Fastest"/>.
+            </param>
         </member>
         <member name="M:EmberTrace.TraceFormat.Read(System.IO.Stream)">
-            <summary>Reads a session written by <see cref="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.IO.Stream)"/>.</summary>
+            <summary>Reads a session written by<see
+                    cref="M:EmberTrace.TraceFormat.Write(EmberTrace.Sessions.TraceSession,System.IO.Stream)"/>.
+            </summary>
             <param name="source">The stream positioned at the start of the session.</param>
             <returns>The session, carrying the metadata that was stored with it.</returns>
             <remarks>A gzip stream is recognised by its signature, whatever the file is called.</remarks>
-            <exception cref="T:System.IO.InvalidDataException">The stream is not an EmberTrace session, was written by a newer version, or is a truncated or corrupt gzip stream.</exception>
+            <exception cref="T:System.IO.InvalidDataException">The stream is not an EmberTrace session, was written by a
+                newer version, or is a truncated or corrupt gzip stream.
+            </exception>
         </member>
         <member name="M:EmberTrace.TraceFormat.Read(System.String)">
             <summary>Reads a session from a file.</summary>
@@ -36,44 +48,81 @@
             <returns>The session, carrying the metadata that was stored with it.</returns>
         </member>
         <member name="M:EmberTrace.TraceFormat.OpenRead(System.IO.Stream)">
-            <summary>Opens a session for streaming: the header, thread names, metadata and environment are read at once, the events lazily.</summary>
-            <param name="source">The stream positioned at the start of the session. It is left open when the result is disposed.</param>
+            <summary>Opens a session for streaming: the header, thread names, metadata and environment are read at once,
+                the events lazily.
+            </summary>
+            <param name="source">The stream positioned at the start of the session. It is left open when the result is
+                disposed.
+            </param>
             <returns>The stream of the session.</returns>
-            <remarks>A gzip stream is recognised by its signature. The file must keep its sections in the order the writer produces: thread names and metadata before events.</remarks>
-            <exception cref="T:System.ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
-            <exception cref="T:System.IO.InvalidDataException">The stream is not a streamable EmberTrace session, or is a truncated or corrupt gzip stream.</exception>
+            <remarks>A gzip stream is recognised by its signature. The file must keep its sections in the order the
+                writer produces: thread names and metadata before events.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="source"/>
+                is<see langword="null"/>.
+            </exception>
+            <exception cref="T:System.IO.InvalidDataException">The stream is not a streamable EmberTrace session, or is
+                a truncated or corrupt gzip stream.
+            </exception>
         </member>
         <member name="M:EmberTrace.TraceFormat.OpenRead(System.String)">
             <summary>Opens a session file for streaming.</summary>
             <param name="path">The file to read. It is closed when the result is disposed.</param>
             <returns>The stream of the session.</returns>
-            <exception cref="T:System.ArgumentNullException"><paramref name="path"/> is <see langword="null"/>.</exception>
-            <exception cref="T:System.IO.InvalidDataException">The file is not a streamable EmberTrace session, or is a truncated or corrupt gzip file.</exception>
+            <exception cref="T:System.ArgumentNullException">
+                <paramref name="path"/>
+                is<see langword="null"/>.
+            </exception>
+            <exception cref="T:System.IO.InvalidDataException">The file is not a streamable EmberTrace session, or is a
+                truncated or corrupt gzip file.
+            </exception>
         </member>
         <member name="T:EmberTrace.TraceStream">
-            <summary>A session being read from a file without being loaded into memory: its description up front and its events one at a time.</summary>
+            <summary>A session being read from a file without being loaded into memory: its description up front and its
+                events one at a time.
+            </summary>
         </member>
         <member name="M:EmberTrace.TraceStream.Dispose">
             <summary>Releases the file or the decompression state. The stream the caller passed in stays open.</summary>
         </member>
         <member name="P:EmberTrace.TraceStream.DroppedEvents">
-            <summary>The value of <see cref="P:EmberTrace.Sessions.TraceSession.DroppedEvents"/> recorded with the session.</summary>
+            <summary>The value of
+                <see cref="P:EmberTrace.Sessions.TraceSession.DroppedEvents"/>
+                recorded with the session.
+            </summary>
         </member>
         <member name="P:EmberTrace.TraceStream.EndTimestamp">
-            <summary>When recording stopped, in ticks of <see cref="P:EmberTrace.TraceStream.TimestampFrequency"/>.</summary>
+            <summary>When recording stopped, in ticks of<see cref="P:EmberTrace.TraceStream.TimestampFrequency"/>.
+            </summary>
         </member>
         <member name="P:EmberTrace.TraceStream.Environment">
-            <summary>The environment at start; <see langword="null"/> for a version 1 file or when not captured.</summary>
+            <summary>The environment at start;
+                <see langword="null"/>
+                for a version 1 file or when not captured.
+            </summary>
         </member>
         <member name="P:EmberTrace.TraceStream.EnvironmentAtStop">
-            <summary>The environment at stop; <see langword="null"/> for a version 1 file or when not captured.</summary>
+            <summary>The environment at stop;
+                <see langword="null"/>
+                for a version 1 file or when not captured.
+            </summary>
         </member>
         <member name="P:EmberTrace.TraceStream.EventCount">
             <summary>How many events the file declares.</summary>
         </member>
         <member name="P:EmberTrace.TraceStream.Events">
-            <summary>The events in the order of the file, which is sorted by timestamp, decoded as they are enumerated.</summary>
-            <remarks>Single-pass: the getter can be used once. A truncated file throws <see cref="T:System.IO.EndOfStreamException"/> during enumeration, a truncated gzip file <see cref="T:System.IO.InvalidDataException"/>. Pass it to <c>ScopeReader</c> with <see cref="P:EmberTrace.TraceStream.EndTimestamp"/> to analyze without building a session.</remarks>
+            <summary>The events in the order of the file, which is sorted by timestamp, decoded as they are
+                enumerated.
+            </summary>
+            <remarks>Single-pass: the getter can be used once. A truncated file throws
+                <see cref="T:System.IO.EndOfStreamException"/>
+                during enumeration, a truncated gzip file<see cref="T:System.IO.InvalidDataException"/>. Pass it to <c>
+                    ScopeReader
+                </c> with
+                <see cref="P:EmberTrace.TraceStream.EndTimestamp"/>
+                to analyze without building a session.
+            </remarks>
             <exception cref="T:System.ObjectDisposedException">The stream is disposed.</exception>
             <exception cref="T:System.InvalidOperationException">The events were already requested.</exception>
         </member>
@@ -81,7 +130,8 @@
             <summary>The names and categories stored with the session.</summary>
         </member>
         <member name="P:EmberTrace.TraceStream.StartTimestamp">
-            <summary>When recording started, in ticks of <see cref="P:EmberTrace.TraceStream.TimestampFrequency"/>.</summary>
+            <summary>When recording started, in ticks of<see cref="P:EmberTrace.TraceStream.TimestampFrequency"/>.
+            </summary>
         </member>
         <member name="P:EmberTrace.TraceStream.ThreadNames">
             <summary>Thread names by managed thread id.</summary>
@@ -90,7 +140,10 @@
             <summary>Ticks per second of the recording machine.</summary>
         </member>
         <member name="P:EmberTrace.TraceStream.WasOverflow">
-            <summary>The value of <see cref="P:EmberTrace.Sessions.TraceSession.WasOverflow"/> recorded with the session.</summary>
+            <summary>The value of
+                <see cref="P:EmberTrace.Sessions.TraceSession.WasOverflow"/>
+                recorded with the session.
+            </summary>
         </member>
     </members>
 </doc>

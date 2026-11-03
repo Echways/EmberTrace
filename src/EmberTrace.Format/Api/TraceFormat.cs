@@ -94,7 +94,8 @@ public static class TraceFormat
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
+        var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16,
+            FileOptions.SequentialScan);
         return Open(file, file);
     }
 

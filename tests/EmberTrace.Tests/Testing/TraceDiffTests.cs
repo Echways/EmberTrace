@@ -129,8 +129,8 @@ public class TraceDiffTests
             new TraceMeta(2, "Render", "CPU")
         });
 
-        var ex = Assert.ThrowsExactly<TraceAssertionException>(
-            () => TraceBudget.AssertNoRegressions(baseline, current, 10, meta));
+        var ex = Assert.ThrowsExactly<TraceAssertionException>(() =>
+            TraceBudget.AssertNoRegressions(baseline, current, 10, meta));
 
         Assert.Contains("Parse", ex.Message);
         Assert.Contains("Render", ex.Message);

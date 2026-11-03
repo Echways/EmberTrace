@@ -63,7 +63,8 @@ var tracePath = Path.Combine("out", "session" + TraceFormat.FileExtension);
 TraceFormat.Write(session, tracePath);
 
 var reloaded = TraceFormat.Read(tracePath);
-Console.WriteLine($"Binary session: {tracePath}, {new FileInfo(tracePath).Length} bytes, reloaded {reloaded.EventCount} events.");
+Console.WriteLine(
+    $"Binary session: {tracePath}, {new FileInfo(tracePath).Length} bytes, reloaded {reloaded.EventCount} events.");
 
 internal static class Ids
 {

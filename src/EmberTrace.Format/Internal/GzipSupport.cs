@@ -14,7 +14,7 @@ internal static class GzipSupport
     {
         Span<byte> signature = stackalloc byte[2];
         var start = source.CanSeek ? source.Position : 0;
-        var read = source.ReadAtLeast(signature, signature.Length, throwOnEndOfStream: false);
+        var read = source.ReadAtLeast(signature, signature.Length, false);
 
         Stream prefixed;
         if (source.CanSeek)
@@ -32,7 +32,7 @@ internal static class GzipSupport
         if (!compressed)
             return prefixed;
 
-        var buffered = new BufferedStream(new GZipStream(prefixed, CompressionMode.Decompress, leaveOpen: true), BufferSize);
+        var buffered = new BufferedStream(new GZipStream(prefixed, CompressionMode.Decompress, true), BufferSize);
         owned.Add(buffered);
         return buffered;
     }
@@ -45,7 +45,7 @@ internal static class GzipSupport
 
     public static void Write(Action<Stream> write, Stream destination)
     {
-        using var gzip = new GZipStream(destination, CompressionLevel.Fastest, leaveOpen: true);
+        using var gzip = new GZipStream(destination, CompressionLevel.Fastest, true);
         using var buffered = new BufferedStream(gzip, BufferSize);
         write(buffered);
         buffered.Flush();
@@ -84,9 +84,23 @@ internal static class GzipSupport
             return inner.Read(buffer);
         }
 
-        public override void Flush() { }
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

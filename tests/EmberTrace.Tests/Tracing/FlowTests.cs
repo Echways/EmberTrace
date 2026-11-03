@@ -18,7 +18,7 @@ public class FlowTests
             flow.Step();
         });
 
-        AssertFlow(events, flowId, steps: 1);
+        AssertFlow(events, flowId, 1);
     }
 
     [TestMethod]
@@ -35,7 +35,7 @@ public class FlowTests
             flow.Step();
         }
 
-        AssertFlow(tracing.Stop().SortedEvents(), flowId, steps: 1);
+        AssertFlow(tracing.Stop().SortedEvents(), flowId, 1);
     }
 
     [TestMethod]
@@ -56,7 +56,7 @@ public class FlowTests
             Assert.IsFalse(handle.TryEnd());
         });
 
-        AssertFlow(events, flowId, steps: 1);
+        AssertFlow(events, flowId, 1);
     }
 
     [TestMethod]

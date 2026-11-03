@@ -113,7 +113,7 @@ public class DeadWriterReclaimTests
     public void DropOldest_AtTheEventLimit_EvictsChunksOfFinishedThreads()
     {
         long now = 1_000;
-        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: 4, capacity: 4, clock: () => now);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, 4, capacity: 4, clock: () => now);
 
         RunToCompletion(() =>
         {

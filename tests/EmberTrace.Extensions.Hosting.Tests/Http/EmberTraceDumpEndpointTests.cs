@@ -114,7 +114,9 @@ public sealed class EmberTraceDumpEndpointTests
         using var provider = Build(_ => { });
         provider.GetRequiredService<EmberTraceRecorder>().TryStart();
         using (Tracer.Scope(Tracer.Id("dump-scope")))
+        {
             Thread.Sleep(2);
+        }
 
         var context = Request(provider, "?format=collapsed");
 

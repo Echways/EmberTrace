@@ -28,7 +28,7 @@ public class OverheadCalibrationTests
     [TestMethod]
     public void Measure_BiggerBatches_AmortiseTheScopeCost()
     {
-        var report = OverheadCalibration.Measure([1, 1000], iterations: 100_000);
+        var report = OverheadCalibration.Measure([1, 1000], 100_000);
 
         Assert.IsLessThan(report.NsPerItemByBatch[1], report.NsPerItemByBatch[1000]);
     }
@@ -106,7 +106,7 @@ public class OverheadCalibrationTests
             .Span(2, 2_000, 12_000);
         var trace = script.ToSession().Process();
 
-        var report = TraceText.Write(trace, includePercentiles: true, overhead: Report(scopeNs: 100_000));
+        var report = TraceText.Write(trace, includePercentiles: true, overhead: Report(100_000));
 
         var lines = report[..report.IndexOf("Call trees", StringComparison.Ordinal)].Split(Environment.NewLine);
         Assert.Contains("overhead-dominated", lines.Single(l => l.TrimStart().StartsWith("1 ")));

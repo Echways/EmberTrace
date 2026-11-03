@@ -22,7 +22,6 @@ var workers = Enumerable.Range(0, 4)
         var random = new Random(index);
 
         while (!stop.IsCancellationRequested)
-        {
             await using (Tracer.ScopeAsync(handle))
             {
                 await Task.Delay(random.Next(1, 5), CancellationToken.None);
@@ -33,7 +32,6 @@ var workers = Enumerable.Range(0, 4)
                         await Task.Delay(30, CancellationToken.None);
                     }
             }
-        }
     }))
     .ToArray();
 

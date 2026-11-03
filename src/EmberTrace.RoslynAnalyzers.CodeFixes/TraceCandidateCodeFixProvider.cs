@@ -70,7 +70,8 @@ public sealed class TraceCandidateCodeFixProvider : CodeFixProvider
     {
         var kinds = method.Modifiers
             .Select(static modifier => modifier.Kind())
-            .Where(static kind => kind is SyntaxKind.StaticKeyword or SyntaxKind.AsyncKeyword or SyntaxKind.ReadOnlyKeyword)
+            .Where(static kind =>
+                kind is SyntaxKind.StaticKeyword or SyntaxKind.AsyncKeyword or SyntaxKind.ReadOnlyKeyword)
             .Prepend(SyntaxKind.PrivateKeyword);
 
         return method

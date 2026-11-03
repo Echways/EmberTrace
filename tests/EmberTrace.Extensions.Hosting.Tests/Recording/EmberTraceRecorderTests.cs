@@ -124,7 +124,7 @@ public sealed class EmberTraceRecorderTests
         Create(new EmberTraceOptions());
         var id = HttpTraceIds.Resolve("GET /from-recorder", "HTTP GET", "Http", 1024);
 
-        Assert.IsTrue(EmberTrace.Metadata.TraceMetadata.CreateDefault().TryGet(id, out var meta));
+        Assert.IsTrue(Metadata.TraceMetadata.CreateDefault().TryGet(id, out var meta));
         Assert.AreEqual("Http", meta.Category);
     }
 }

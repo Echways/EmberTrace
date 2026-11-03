@@ -13,7 +13,7 @@ public class OverflowPolicyTests
     public void MaxTotalEvents_AcceptsUpToTheLimitThenAppliesThePolicy(
         OverflowPolicy policy, bool closes, long expectedDropped)
     {
-        var collector = Collectors.Create(policy, maxEvents: 3);
+        var collector = Collectors.Create(policy, 3);
 
         for (var i = 0; i < 3; i++)
             Assert.IsTrue(collector.TryAcceptEvent());
@@ -38,7 +38,7 @@ public class OverflowPolicyTests
         var received = new ConcurrentQueue<(OverflowInfo Info, int Thread)>();
         using var fired = new ManualResetEventSlim();
 
-        var collector = Collectors.Create(policy, maxEvents: 3, onOverflow: info =>
+        var collector = Collectors.Create(policy, 3, onOverflow: info =>
         {
             received.Enqueue((info, Environment.CurrentManagedThreadId));
             fired.Set();
@@ -102,7 +102,7 @@ public class OverflowPolicyTests
     public void DropOldest_MaxTotalEvents_EvictsTheOldestInactiveChunk()
     {
         const int capacity = 4;
-        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: capacity, capacity: capacity);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, capacity, capacity: capacity);
 
         Assert.IsTrue(collector.TryRentChunk(out var chunk));
         for (var i = 0; i < capacity; i++)
@@ -125,7 +125,7 @@ public class OverflowPolicyTests
     public void DropOldest_MaxTotalEvents_WithoutAnInactiveChunk_RejectsTheEvent()
     {
         const int capacity = 4;
-        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: capacity, capacity: capacity);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, capacity, capacity: capacity);
 
         for (var i = 0; i < capacity; i++)
             Assert.IsTrue(collector.TryAcceptEvent());
@@ -160,7 +160,7 @@ public class OverflowPolicyTests
     [TestMethod]
     public void DropOldest_EventLimitWithoutAChunkLimit_DerivesTheChunkLimit()
     {
-        var collector = Collectors.Create(OverflowPolicy.DropOldest, maxEvents: 5, capacity: 4);
+        var collector = Collectors.Create(OverflowPolicy.DropOldest, 5, capacity: 4);
 
         Assert.IsTrue(collector.TryRentChunk(out var first));
         Assert.IsTrue(collector.TryRentChunk(out _));

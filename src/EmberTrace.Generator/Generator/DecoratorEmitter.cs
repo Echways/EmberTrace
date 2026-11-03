@@ -94,7 +94,8 @@ internal static class DecoratorEmitter
         sb.AppendLine();
         WrapperEmitter.Indent(sb, indent).AppendLine("public global::System.Threading.Tasks.ValueTask DisposeAsync()");
         WrapperEmitter.Indent(sb, indent + 1)
-            .AppendLine("=> _inner is global::System.IAsyncDisposable disposable ? disposable.DisposeAsync() : default;");
+            .AppendLine(
+                "=> _inner is global::System.IAsyncDisposable disposable ? disposable.DisposeAsync() : default;");
     }
 
     private static void RenderRegistration(StringBuilder sb, int indent, DecoratorItem item)

@@ -160,5 +160,9 @@ internal static class EmberTraceDumpEndpoint
             Encoding.UTF8.GetBytes(options.ApiKey));
     }
 
-    private sealed record DumpFormat(string Name, string ContentType, string Extension, Action<TraceSession, Stream> Write);
+    private sealed record DumpFormat(
+        string Name,
+        string ContentType,
+        string Extension,
+        Action<TraceSession, Stream> Write);
 }

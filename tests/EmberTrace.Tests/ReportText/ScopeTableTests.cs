@@ -32,7 +32,7 @@ public class ScopeTableTests
     [TestMethod]
     public void WriteScopeTable_RowCarriesTheStatistics()
     {
-        var fields = Fields(Write([Run("r1", "A", 1)]), row: 1);
+        var fields = Fields(Write([Run("r1", "A", 1)]), 1);
 
         Assert.AreEqual("1", fields[3]);
         Assert.AreEqual("4", fields[5]);
@@ -71,7 +71,7 @@ public class ScopeTableTests
         CultureInfo.CurrentCulture = new CultureInfo("ru-RU");
         try
         {
-            var fields = Fields(Write([Run("r1", "A", 1)]), row: 1);
+            var fields = Fields(Write([Run("r1", "A", 1)]), 1);
 
             Assert.AreEqual("1.5", fields[7]);
         }
@@ -87,7 +87,7 @@ public class ScopeTableTests
         var session = new TraceScript().Span(1, 0, 1_000).Span(1, 2_000, 4_000).ToSession();
         var run = TraceRun.FromSession(session, "r1", "A", 1) with { Stats = session.Analyze(maxSamplesPerId: 0) };
 
-        var fields = Fields(Write([run]), row: 1);
+        var fields = Fields(Write([run]), 1);
 
         Assert.AreEqual(string.Empty, fields[9]);
         Assert.AreEqual(string.Empty, fields[11]);
@@ -101,7 +101,7 @@ public class ScopeTableTests
     {
         var run = Run("r1", "A", 1) with { WasOverflow = true, DroppedEvents = 12 };
 
-        var fields = Fields(Write([run]), row: 1);
+        var fields = Fields(Write([run]), 1);
 
         Assert.AreEqual("true", fields[17]);
         Assert.AreEqual("12", fields[18]);

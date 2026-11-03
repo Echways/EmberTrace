@@ -17,7 +17,9 @@ internal interface IEnvironmentReader
 
 internal sealed class SystemEnvironmentReader : IEnvironmentReader
 {
-    private const string PowerSchemeKey = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes";
+    private const string PowerSchemeKey =
+        @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes";
+
     private const string PowerSchemeValue = "ActivePowerScheme";
 
     public static SystemEnvironmentReader Instance { get; } = new();
@@ -69,7 +71,8 @@ internal sealed class SystemEnvironmentReader : IEnvironmentReader
             using var process = Process.GetCurrentProcess();
             return process.ProcessorAffinity.ToString("x", CultureInfo.InvariantCulture);
         }
-        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception
+                                      or NotSupportedException)
         {
             return null;
         }
@@ -123,9 +126,9 @@ internal static class EnvironmentProbe
     private static string Knob(IReadOnlyDictionary<string, string> variables, string name, string appContextSwitch)
     {
         foreach (var prefix in KnobPrefixes)
-            foreach (var (key, value) in variables)
-                if (string.Equals(key, prefix + name, StringComparison.OrdinalIgnoreCase))
-                    return value.Trim() == "0" ? "false" : "true";
+        foreach (var (key, value) in variables)
+            if (string.Equals(key, prefix + name, StringComparison.OrdinalIgnoreCase))
+                return value.Trim() == "0" ? "false" : "true";
 
         if (AppContext.TryGetSwitch(appContextSwitch, out var enabled))
             return enabled ? "true" : "false";

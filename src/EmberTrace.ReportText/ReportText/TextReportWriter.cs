@@ -102,7 +102,8 @@ internal static class TextReportWriter
                     mark + r.P50Ms.ToString("F3"),
                     r.Shape is { } upper ? upper.P75Ms.ToString("F3") : string.Empty,
                     mark + r.P95Ms.ToString("F3"),
-                    mark + r.P99Ms.ToString("F3")]);
+                    mark + r.P99Ms.ToString("F3")
+                ]);
             }
 
             if (overhead is not null)
@@ -115,7 +116,8 @@ internal static class TextReportWriter
         t.WriteTo(sb);
 
         if (anyApproximate)
-            sb.AppendLine("~ approximate: more completions than the sample limit, percentiles come from the histogram (error up to 0.39%)");
+            sb.AppendLine(
+                "~ approximate: more completions than the sample limit, percentiles come from the histogram (error up to 0.39%)");
 
         if (anyUnreliable)
             sb.AppendLine("* median unreliable: bimodal, or the mean differs from the median by more than 25%");
@@ -251,5 +253,4 @@ internal static class TextReportWriter
 
         return string.Equals(filter, category, StringComparison.OrdinalIgnoreCase);
     }
-
 }

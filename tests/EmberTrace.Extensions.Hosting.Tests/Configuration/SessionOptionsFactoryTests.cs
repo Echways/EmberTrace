@@ -62,7 +62,8 @@ public sealed class SessionOptionsFactoryTests
             DisabledCategories = ["", "Noise"]
         });
 
-        CollectionAssert.AreEqual(new[] { Tracer.CategoryId("Http"), Tracer.CategoryId("Db") }, options.EnabledCategoryIds);
+        CollectionAssert.AreEqual(new[] { Tracer.CategoryId("Http"), Tracer.CategoryId("Db") },
+            options.EnabledCategoryIds);
         CollectionAssert.AreEqual(new[] { Tracer.CategoryId("Noise") }, options.DisabledCategoryIds);
     }
 

@@ -9,7 +9,7 @@ public class TraceStreamTests
     [TestMethod]
     public void OpenRead_EventsMatchRead_ForRoundTrippedSession()
     {
-        var bytes = Serialize(Session(threads: 3, spansPerThread: 50));
+        var bytes = Serialize(Session(3, 50));
 
         var expected = TraceFormat.Read(new MemoryStream(bytes));
         using var stream = TraceFormat.OpenRead(new MemoryStream(bytes));
@@ -42,7 +42,7 @@ public class TraceStreamTests
     [TestMethod]
     public void OpenRead_FeedsScopeReaderWithoutBuildingASession()
     {
-        var session = Session(threads: 2, spansPerThread: 40);
+        var session = Session(2, 40);
         using var stream = TraceFormat.OpenRead(new MemoryStream(Serialize(session)));
 
         var reader = new ScopeReader(stream.Events, stream.EndTimestamp);
@@ -55,7 +55,7 @@ public class TraceStreamTests
     [TestMethod]
     public void OpenRead_ReadsHugeFile_WithBoundedAllocations()
     {
-        var bytes = Serialize(Session(threads: 1, spansPerThread: 500_000));
+        var bytes = Serialize(Session(1, 500_000));
 
         var beforeRead = GC.GetAllocatedBytesForCurrentThread();
         var whole = TraceFormat.Read(new MemoryStream(bytes));
@@ -104,7 +104,9 @@ public class TraceStreamTests
         var source = new MemoryStream(Serialize(Session(1, 3)));
 
         using (var stream = TraceFormat.OpenRead(source))
+        {
             _ = stream.Events.ToList();
+        }
 
         Assert.IsTrue(source.CanRead);
     }
@@ -117,7 +119,9 @@ public class TraceStreamTests
         TraceFormat.Write(Session(1, 3), path);
 
         using (var stream = TraceFormat.OpenRead(path))
+        {
             _ = stream.Events.ToList();
+        }
 
         File.Delete(path);
         Assert.IsFalse(File.Exists(path));
@@ -195,8 +199,8 @@ public class TraceStreamTests
     {
         var script = new TraceScript();
         for (var thread = 1; thread <= threads; thread++)
-            for (var i = 0; i < spansPerThread; i++)
-                script.Span(1, i * 100L + thread, i * 100L + 50 + thread, thread);
+        for (var i = 0; i < spansPerThread; i++)
+            script.Span(1, i * 100L + thread, i * 100L + 50 + thread, thread);
 
         return script.ToSession(
             metadata: Meta.Of((1, "Work", "Cat")),
@@ -206,7 +210,8 @@ public class TraceStreamTests
 
 internal static class TraceSessionTestExtensions
 {
-    public static TraceSession WithEnvironment(this TraceSession session, TraceEnvironment start, TraceEnvironment? stop)
+    public static TraceSession WithEnvironment(this TraceSession session, TraceEnvironment start,
+        TraceEnvironment? stop)
     {
         return TraceSession.FromEvents(
             session.SortedEvents(),

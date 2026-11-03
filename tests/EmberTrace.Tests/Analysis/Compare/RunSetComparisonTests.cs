@@ -79,7 +79,7 @@ public class RunSetComparisonTests
     [TestMethod]
     public void Compare_TwoProcessesPerArm_IsInconclusiveWithReason()
     {
-        var verdict = Compare(Arm("A", 1_000, rounds: 1), Arm("B", 1_500, rounds: 1)).Scopes.Single();
+        var verdict = Compare(Arm("A", 1_000, 1), Arm("B", 1_500, 1)).Scopes.Single();
 
         Assert.AreEqual(ScopeChange.Inconclusive, verdict.Change);
         StringAssert.Contains(verdict.Reason, "3");
@@ -153,7 +153,8 @@ public class RunSetComparisonTests
         a[4] = a[4] with { Environment = Env("powersave") };
         var withGovernor = a.Select((r, i) => i is 3 or 4 ? r : r with { Environment = Env("performance") }).ToList();
 
-        var comparison = Compare(withGovernor, Arm("B", 1_000).Select(r => r with { Environment = Env("performance") }).ToList());
+        var comparison = Compare(withGovernor,
+            Arm("B", 1_000).Select(r => r with { Environment = Env("performance") }).ToList());
 
         var mismatch = comparison.Mismatches.Single(m => m.Severity == MismatchSeverity.Blocking);
         Assert.AreEqual("cpu.governor", mismatch.Key);
@@ -271,7 +272,8 @@ public class RunSetComparisonTests
     public void FromSession_ExplicitArgumentsWinOverTags()
     {
         var session = new TraceScript().Span(Scope, 0, 1_000)
-            .ToSession(environment: new TraceEnvironment(new Dictionary<string, string> { ["tag.arm"] = "B", ["tag.round"] = "4" }));
+            .ToSession(environment: new TraceEnvironment(new Dictionary<string, string>
+                { ["tag.arm"] = "B", ["tag.round"] = "4" }));
 
         var run = TraceRun.FromSession(session, "x", "A", 9);
 
@@ -309,7 +311,8 @@ public class RunSetComparisonTests
     public void FromSession_NoRoundTagAndNoArgument_Throws()
     {
         var session = new TraceScript().Span(Scope, 0, 1_000)
-            .ToSession(environment: new TraceEnvironment(new Dictionary<string, string> { ["tag.arm"] = "A", ["tag.round"] = "soon" }));
+            .ToSession(environment: new TraceEnvironment(new Dictionary<string, string>
+                { ["tag.arm"] = "A", ["tag.round"] = "soon" }));
 
         var error = Assert.ThrowsExactly<ArgumentException>(() => TraceRun.FromSession(session, "x"));
 
@@ -333,25 +336,23 @@ public class RunSetComparisonTests
     {
         var runs = new List<TraceRun>();
         for (var round = 1; round <= rounds; round++)
+        for (var process = 0; process < processesPerRound; process++)
         {
-            for (var process = 0; process < processesPerRound; process++)
+            var random = new Random(arm.Aggregate(17, (hash, c) => hash * 31 + c) * 1000 + round * 10 + process);
+            var processFactor = 1 + Gaussian(random) * 0.005;
+            var script = new TraceScript();
+            long ts = 0;
+            for (var i = 0; i < 60; i++)
             {
-                var random = new Random(arm.Aggregate(17, (hash, c) => hash * 31 + c) * 1000 + round * 10 + process);
-                var processFactor = 1 + Gaussian(random) * 0.005;
-                var script = new TraceScript();
-                long ts = 0;
-                for (var i = 0; i < 60; i++)
-                {
-                    var ticks = sampler is null
-                        ? meanTicks * processFactor * (1 + Gaussian(random) * 0.01)
-                        : sampler(i + process);
-                    var duration = (long)Math.Max(0, Math.Round(ticks));
-                    script.Span(id, ts, ts + duration);
-                    ts += duration + 10;
-                }
-
-                runs.Add(TraceRun.FromSession(script.ToSession(), $"{arm}-{round}-{process}", arm, round));
+                var ticks = sampler is null
+                    ? meanTicks * processFactor * (1 + Gaussian(random) * 0.01)
+                    : sampler(i + process);
+                var duration = (long)Math.Max(0, Math.Round(ticks));
+                script.Span(id, ts, ts + duration);
+                ts += duration + 10;
             }
+
+            runs.Add(TraceRun.FromSession(script.ToSession(), $"{arm}-{round}-{process}", arm, round));
         }
 
         return runs;

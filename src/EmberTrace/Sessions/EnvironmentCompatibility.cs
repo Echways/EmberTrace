@@ -12,11 +12,14 @@ public static class EnvironmentCompatibility
     public static IReadOnlyList<EnvironmentMismatch> Compare(TraceEnvironment? a, TraceEnvironment? b)
     {
         if (a is null || b is null)
-            return [new EnvironmentMismatch(
-                UnknownKey,
-                a is null ? UnknownValue : null,
-                b is null ? UnknownValue : null,
-                MismatchSeverity.Warning)];
+            return
+            [
+                new EnvironmentMismatch(
+                    UnknownKey,
+                    a is null ? UnknownValue : null,
+                    b is null ? UnknownValue : null,
+                    MismatchSeverity.Warning)
+            ];
 
         var keys = new SortedSet<string>(a.Values.Keys.Concat(b.Values.Keys), StringComparer.Ordinal);
         var mismatches = new List<EnvironmentMismatch>();

@@ -54,7 +54,8 @@ internal sealed class SessionCollector
         }
 
         _reclaimsDeadWriters = _policy == OverflowPolicy.DropOldest && (_retentionTicks > 0 || _maxTotalChunks > 0);
-        _sweepIntervalTicks = _retentionTicks > 0 ? Math.Min(_retentionTicks, Timestamp.Frequency) : Timestamp.Frequency;
+        _sweepIntervalTicks =
+            _retentionTicks > 0 ? Math.Min(_retentionTicks, Timestamp.Frequency) : Timestamp.Frequency;
     }
 
     public Action<ThreadWriter>? WriterRetired { get; set; }

@@ -207,8 +207,8 @@ public class TraceMetadataGeneratorTests
     [TestMethod]
     public void RunAndCompile_FailsWhenTheCompilationDoesNot()
     {
-        Assert.ThrowsExactly<AssertFailedException>(
-            () => GeneratorTestHost.RunAndCompile("class C { int X => \"not an int\"; }"));
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            GeneratorTestHost.RunAndCompile("class C { int X => \"not an int\"; }"));
     }
 
     private static IReadOnlyList<IncrementalStepRunReason> OutputStepReasons(GeneratorDriver driver)

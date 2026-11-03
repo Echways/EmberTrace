@@ -95,7 +95,8 @@ public class MarkedCompleteTests
         Tracer.Start();
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
-            TraceExport.MarkedComplete("revision", static () => { }, new MarkedCompleteOptions { OutputPath = OutputPath }));
+            TraceExport.MarkedComplete("revision", static () => { },
+                new MarkedCompleteOptions { OutputPath = OutputPath }));
 
         Assert.IsTrue(Tracer.IsRunning);
         Assert.IsFalse(File.Exists(OutputPath));
@@ -134,7 +135,8 @@ public class MarkedCompleteTests
 
         Assert.ThrowsExactly<UnauthorizedAccessException>(() =>
             TraceExport.MarkedComplete("revision", static () => { },
-                new MarkedCompleteOptions { OutputPath = OutputPath, Running = MarkedRunningSessionMode.SliceAndResume }));
+                new MarkedCompleteOptions
+                    { OutputPath = OutputPath, Running = MarkedRunningSessionMode.SliceAndResume }));
 
         Assert.IsTrue(Tracer.IsRunning);
         Assert.IsTrue(Tracer.Stop().Events().Any(e => e.Id == before));
@@ -168,7 +170,8 @@ public class MarkedCompleteTests
     public void MarkedComplete_BodyThrows_RethrowsWithTheOriginalStackTraceAndStillWritesTheSlice()
     {
         var ex = Assert.ThrowsExactly<InvalidOperationException>(() =>
-            TraceExport.MarkedComplete("revision", ThrowFromBody, new MarkedCompleteOptions { OutputPath = OutputPath }));
+            TraceExport.MarkedComplete("revision", ThrowFromBody,
+                new MarkedCompleteOptions { OutputPath = OutputPath }));
 
         StringAssert.Contains(ex.StackTrace, nameof(ThrowFromBody));
         Assert.IsFalse(Tracer.IsRunning);

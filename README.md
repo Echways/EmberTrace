@@ -4,7 +4,8 @@
 
 **EmberTrace** is a fast in-process tracer/profiler for .NET with minimal overhead on the hot path:
 
-- **Allocation-free `Scope`, `Instant`, `Counter` and `FlowStart`/`FlowStep`/`FlowEnd`** with a lock-free hot path (thread-local
+- **Allocation-free `Scope`, `Instant`, `Counter` and `FlowStart`/`FlowStep`/`FlowEnd`** with a lock-free hot path (
+  thread-local
   buffers; shared session state is touched only on chunk rotation and when a limit is configured).
   `ScopeAsync` allocates about 224 bytes per scope to flow its parent through `await`; a generated `[Trace]`
   async method pays about half of that
@@ -33,7 +34,8 @@ If you install packages selectively:
 - `EmberTrace.Export` - Chrome Trace export (`TraceExport.*`)
 - `EmberTrace.Format` - binary session persistence (`TraceFormat.Write/Read`)
 - `EmberTrace.OpenTelemetry` - export to OpenTelemetry (`Activity` spans)
-- `EmberTrace.Extensions.Hosting` - ASP.NET Core integration (`AddEmberTrace()`, request middleware, `appsettings.json`, `/embertrace/dump`)
+- `EmberTrace.Extensions.Hosting` - ASP.NET Core integration (`AddEmberTrace()`, request middleware, `appsettings.json`,
+  `/embertrace/dump`)
 - `EmberTrace.Testing` - performance assertions and baseline diffing for tests (`stats.Scope(...)`, `TraceBudget`)
 - `EmberTrace.RoslynAnalyzers` - analyzers and code fixes for correct usage (fixes run in IDE and are included in the
   package)
@@ -83,15 +85,15 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 
 ## Repository Examples
 
-| Sample | Shows |
-|--------|-------|
-| [`BasicTracing`](samples/EmberTrace.BasicTracing) | scopes, text report with percentiles, Chrome Trace, collapsed stacks, `.ember` round trip |
-| [`ParallelWorkers`](samples/EmberTrace.ParallelWorkers) | worker threads, flows with `AnalyzeFlows`, runtime counters |
-| [`AutoInstrumentation`](samples/EmberTrace.AutoInstrumentation) | `[Trace]` on `partial` methods |
-| [`FlightRecorder`](samples/EmberTrace.FlightRecorder) | `Tracer.Snapshot()` over a bounded `DropOldest` buffer |
-| [`WebApi`](samples/EmberTrace.WebApi) | ASP.NET Core hosting, `/embertrace/dump`, slow request capture |
-| [`NativeAot`](samples/EmberTrace.NativeAot) | NativeAOT publish |
-| [`DocScreenshots`](samples/EmberTrace.DocScreenshots) | every scenario behind the images in `docs/assets` |
+| Sample                                                          | Shows                                                                                     |
+|-----------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| [`BasicTracing`](samples/EmberTrace.BasicTracing)               | scopes, text report with percentiles, Chrome Trace, collapsed stacks, `.ember` round trip |
+| [`ParallelWorkers`](samples/EmberTrace.ParallelWorkers)         | worker threads, flows with `AnalyzeFlows`, runtime counters                               |
+| [`AutoInstrumentation`](samples/EmberTrace.AutoInstrumentation) | `[Trace]` on `partial` methods                                                            |
+| [`FlightRecorder`](samples/EmberTrace.FlightRecorder)           | `Tracer.Snapshot()` over a bounded `DropOldest` buffer                                    |
+| [`WebApi`](samples/EmberTrace.WebApi)                           | ASP.NET Core hosting, `/embertrace/dump`, slow request capture                            |
+| [`NativeAot`](samples/EmberTrace.NativeAot)                     | NativeAOT publish                                                                         |
+| [`DocScreenshots`](samples/EmberTrace.DocScreenshots)           | every scenario behind the images in `docs/assets`                                         |
 
 ```bash
 dotnet run --project samples/EmberTrace.BasicTracing -c Release -p:UseLocalEmberTrace=true

@@ -71,7 +71,6 @@ public readonly struct MarkedCompleteResult
         using var fs = File.Create(outputPath);
         TraceExport.WriteChromeComplete(CapturedSession, fs, meta, sortByStartTimestamp, pid, processName);
     }
-
 }
 
 public readonly struct MarkedCompleteOptions

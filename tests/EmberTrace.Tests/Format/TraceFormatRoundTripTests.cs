@@ -130,7 +130,7 @@ public class TraceFormatRoundTripTests
             events, 100, 900, 1_000_000,
             new Dictionary<int, string> { [7] = "main", [9] = "worker" },
             Meta.Of((1000, "App", "App"), (2100, "CpuWork", "CPU"), (9999, "Unused", null)),
-            droppedEvents: 2, droppedChunks: 1, sampledOutEvents: 3, wasOverflow: true);
+            2, 1, 3, true);
 
         var loaded = RoundTrip(original);
 
@@ -195,7 +195,7 @@ public class TraceFormatRoundTripTests
 
         try
         {
-            var original = new TraceScript().Instant(1, 10).ToSession(start: 10);
+            var original = new TraceScript().Instant(1, 10).ToSession(10);
 
             TraceFormat.Write(original, path);
 

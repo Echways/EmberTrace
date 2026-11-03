@@ -68,7 +68,8 @@ public sealed class RunSetComparison
                 "ChangeThresholdPercent must not be negative.");
     }
 
-    private static List<IndexedRun> Filter(IReadOnlyList<TraceRun> runs, ComparisonOptions options, List<ExcludedRun> excluded)
+    private static List<IndexedRun> Filter(IReadOnlyList<TraceRun> runs, ComparisonOptions options,
+        List<ExcludedRun> excluded)
     {
         var kept = new List<IndexedRun>(runs.Count);
         foreach (var run in runs)
@@ -98,16 +99,17 @@ public sealed class RunSetComparison
         var seen = new HashSet<EnvironmentMismatch>();
 
         foreach (var run in runs)
-            foreach (var mismatch in EnvironmentCompatibility.Compare(reference, run.Environment))
-                if (seen.Add(mismatch))
-                    found.Add(mismatch);
+        foreach (var mismatch in EnvironmentCompatibility.Compare(reference, run.Environment))
+            if (seen.Add(mismatch))
+                found.Add(mismatch);
 
         return found;
     }
 
     private static string? BlockingReason(IReadOnlyList<EnvironmentMismatch> mismatches)
     {
-        var blocking = mismatches.Where(m => m.Severity == MismatchSeverity.Blocking).Select(m => m.Key).Distinct().ToList();
+        var blocking = mismatches.Where(m => m.Severity == MismatchSeverity.Blocking).Select(m => m.Key).Distinct()
+            .ToList();
         return blocking.Count == 0 ? null : "incompatible environment: " + string.Join(", ", blocking) + " differ";
     }
 
@@ -124,7 +126,8 @@ public sealed class RunSetComparison
 
         ScopeVerdict Inconclusive(string reason, double change = 0, double low = 0, double high = 0, double p = 1)
         {
-            return new ScopeVerdict(id, name, ScopeChange.Inconclusive, change, low, high, p, rowsA.Count, rowsB.Count, reason);
+            return new ScopeVerdict(id, name, ScopeChange.Inconclusive, change, low, high, p, rowsA.Count, rowsB.Count,
+                reason);
         }
 
         if (rowsA.Count == 0)
@@ -176,10 +179,8 @@ public sealed class RunSetComparison
         {
             var rows = new List<(int, double, TraceIdStats)>();
             foreach (var run in runs)
-            {
                 if (run.ById.TryGetValue(scope, out var row))
                     rows.Add((run.Run.Round, options.Statistic == Statistic.Median ? row.P50Ms : row.AverageMs, row));
-            }
 
             return rows;
         }
@@ -193,7 +194,8 @@ public sealed class RunSetComparison
             : null;
     }
 
-    private static IReadOnlyList<IReadOnlyList<double>> Group(IReadOnlyList<(int Round, double Value, TraceIdStats Row)> rows)
+    private static IReadOnlyList<IReadOnlyList<double>> Group(
+        IReadOnlyList<(int Round, double Value, TraceIdStats Row)> rows)
     {
         return rows
             .GroupBy(r => r.Round)

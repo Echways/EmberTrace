@@ -64,8 +64,8 @@ internal static class MannWhitney
             return density / fraction;
         }
 
-        double term = z;
-        double sum = z;
+        var term = z;
+        var sum = z;
         for (var n = 1; n < 200 && term > 1e-18; n++)
         {
             term *= z * z / (2 * n + 1);
