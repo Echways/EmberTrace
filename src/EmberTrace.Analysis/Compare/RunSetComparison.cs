@@ -99,9 +99,9 @@ public sealed class RunSetComparison
         var seen = new HashSet<EnvironmentMismatch>();
 
         foreach (var run in runs)
-        foreach (var mismatch in EnvironmentCompatibility.Compare(reference, run.Environment))
-            if (seen.Add(mismatch))
-                found.Add(mismatch);
+            foreach (var mismatch in EnvironmentCompatibility.Compare(reference, run.Environment))
+                if (seen.Add(mismatch))
+                    found.Add(mismatch);
 
         return found;
     }

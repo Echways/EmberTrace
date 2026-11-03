@@ -112,7 +112,7 @@ public class EnvironmentCompatibilityTests
     public void Probe_NoSysfs_FallsBackToPowerSchemeAndAffinityMask()
     {
         var reader = new FakeEnvironmentReader
-            { PowerScheme = "381b4222-f694-41f0-9685-ff5bb260df2e\n", AffinityMask = "ff" };
+        { PowerScheme = "381b4222-f694-41f0-9685-ff5bb260df2e\n", AffinityMask = "ff" };
 
         var values = EnvironmentProbe.Capture(reader, null).Values;
 

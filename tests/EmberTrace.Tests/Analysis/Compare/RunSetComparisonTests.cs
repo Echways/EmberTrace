@@ -273,7 +273,7 @@ public class RunSetComparisonTests
     {
         var session = new TraceScript().Span(Scope, 0, 1_000)
             .ToSession(environment: new TraceEnvironment(new Dictionary<string, string>
-                { ["tag.arm"] = "B", ["tag.round"] = "4" }));
+            { ["tag.arm"] = "B", ["tag.round"] = "4" }));
 
         var run = TraceRun.FromSession(session, "x", "A", 9);
 
@@ -312,7 +312,7 @@ public class RunSetComparisonTests
     {
         var session = new TraceScript().Span(Scope, 0, 1_000)
             .ToSession(environment: new TraceEnvironment(new Dictionary<string, string>
-                { ["tag.arm"] = "A", ["tag.round"] = "soon" }));
+            { ["tag.arm"] = "A", ["tag.round"] = "soon" }));
 
         var error = Assert.ThrowsExactly<ArgumentException>(() => TraceRun.FromSession(session, "x"));
 
@@ -336,24 +336,24 @@ public class RunSetComparisonTests
     {
         var runs = new List<TraceRun>();
         for (var round = 1; round <= rounds; round++)
-        for (var process = 0; process < processesPerRound; process++)
-        {
-            var random = new Random(arm.Aggregate(17, (hash, c) => hash * 31 + c) * 1000 + round * 10 + process);
-            var processFactor = 1 + Gaussian(random) * 0.005;
-            var script = new TraceScript();
-            long ts = 0;
-            for (var i = 0; i < 60; i++)
+            for (var process = 0; process < processesPerRound; process++)
             {
-                var ticks = sampler is null
-                    ? meanTicks * processFactor * (1 + Gaussian(random) * 0.01)
-                    : sampler(i + process);
-                var duration = (long)Math.Max(0, Math.Round(ticks));
-                script.Span(id, ts, ts + duration);
-                ts += duration + 10;
-            }
+                var random = new Random(arm.Aggregate(17, (hash, c) => hash * 31 + c) * 1000 + round * 10 + process);
+                var processFactor = 1 + Gaussian(random) * 0.005;
+                var script = new TraceScript();
+                long ts = 0;
+                for (var i = 0; i < 60; i++)
+                {
+                    var ticks = sampler is null
+                        ? meanTicks * processFactor * (1 + Gaussian(random) * 0.01)
+                        : sampler(i + process);
+                    var duration = (long)Math.Max(0, Math.Round(ticks));
+                    script.Span(id, ts, ts + duration);
+                    ts += duration + 10;
+                }
 
-            runs.Add(TraceRun.FromSession(script.ToSession(), $"{arm}-{round}-{process}", arm, round));
-        }
+                runs.Add(TraceRun.FromSession(script.ToSession(), $"{arm}-{round}-{process}", arm, round));
+            }
 
         return runs;
     }

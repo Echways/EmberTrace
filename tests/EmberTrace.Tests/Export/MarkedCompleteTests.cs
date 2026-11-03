@@ -136,7 +136,7 @@ public class MarkedCompleteTests
         Assert.ThrowsExactly<UnauthorizedAccessException>(() =>
             TraceExport.MarkedComplete("revision", static () => { },
                 new MarkedCompleteOptions
-                    { OutputPath = OutputPath, Running = MarkedRunningSessionMode.SliceAndResume }));
+                { OutputPath = OutputPath, Running = MarkedRunningSessionMode.SliceAndResume }));
 
         Assert.IsTrue(Tracer.IsRunning);
         Assert.IsTrue(Tracer.Stop().Events().Any(e => e.Id == before));

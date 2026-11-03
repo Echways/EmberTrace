@@ -90,8 +90,8 @@ public static class OverheadCalibration
     {
         var sink = _sink;
         for (var o = 0; o < outer; o++)
-        for (var b = 0; b < batch; b++)
-            sink = Work(sink);
+            for (var b = 0; b < batch; b++)
+                sink = Work(sink);
 
         _sink = sink;
     }

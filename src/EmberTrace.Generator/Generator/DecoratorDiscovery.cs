@@ -100,9 +100,9 @@ internal static class DecoratorDiscovery
         ImmutableArray<INamedTypeSymbol> candidates)
     {
         foreach (var attribute in context.Attributes)
-        foreach (var argument in attribute.NamedArguments)
-            if (argument.Key == "Interface" && argument.Value.Value is INamedTypeSymbol chosen)
-                return chosen;
+            foreach (var argument in attribute.NamedArguments)
+                if (argument.Key == "Interface" && argument.Value.Value is INamedTypeSymbol chosen)
+                    return chosen;
 
         return candidates.Length == 1 ? candidates[0] : null;
     }

@@ -126,9 +126,9 @@ internal static class EnvironmentProbe
     private static string Knob(IReadOnlyDictionary<string, string> variables, string name, string appContextSwitch)
     {
         foreach (var prefix in KnobPrefixes)
-        foreach (var (key, value) in variables)
-            if (string.Equals(key, prefix + name, StringComparison.OrdinalIgnoreCase))
-                return value.Trim() == "0" ? "false" : "true";
+            foreach (var (key, value) in variables)
+                if (string.Equals(key, prefix + name, StringComparison.OrdinalIgnoreCase))
+                    return value.Trim() == "0" ? "false" : "true";
 
         if (AppContext.TryGetSwitch(appContextSwitch, out var enabled))
             return enabled ? "true" : "false";

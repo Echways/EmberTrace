@@ -17,8 +17,8 @@ internal static class ScopeTableWriter
         writer.Write(Header + LineEnd);
 
         foreach (var run in runs)
-        foreach (var row in run.Stats.ByTotalTimeDesc)
-            WriteRow(run, row, meta ?? run.Metadata, writer);
+            foreach (var row in run.Stats.ByTotalTimeDesc)
+                WriteRow(run, row, meta ?? run.Metadata, writer);
     }
 
     private static void WriteRow(TraceRun run, TraceIdStats row, ITraceMetadataProvider? meta, TextWriter writer)

@@ -199,8 +199,8 @@ public class TraceStreamTests
     {
         var script = new TraceScript();
         for (var thread = 1; thread <= threads; thread++)
-        for (var i = 0; i < spansPerThread; i++)
-            script.Span(1, i * 100L + thread, i * 100L + 50 + thread, thread);
+            for (var i = 0; i < spansPerThread; i++)
+                script.Span(1, i * 100L + thread, i * 100L + 50 + thread, thread);
 
         return script.ToSession(
             metadata: Meta.Of((1, "Work", "Cat")),
