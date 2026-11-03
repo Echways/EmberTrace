@@ -228,6 +228,7 @@
             <returns>The verdicts, the environment differences and the excluded runs.</returns>
             <remarks>Each run contributes one value per scope. The change is the ratio of the medians of those values; its confidence interval comes from a two-level bootstrap that resamples rounds and then runs inside a round. A scope needs at least three runs per arm. Under <see cref="F:EmberTrace.Analysis.Compare.Statistic.Median"/> a scope whose median is unreliable in most runs of an arm is inconclusive.</remarks>
             <exception cref="T:System.ArgumentNullException"><paramref name="a"/> or <paramref name="b"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">The confidence level is not between 0 and 1 exclusive, the iteration count is not positive, or the threshold is negative.</exception>
         </member>
         <member name="P:EmberTrace.Analysis.Compare.RunSetComparison.Scopes">
             <summary>One verdict per scope id found in either set, ordered by id.</summary>

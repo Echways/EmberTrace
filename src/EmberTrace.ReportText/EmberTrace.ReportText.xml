@@ -15,7 +15,7 @@
             <param name="maxDepth">How many levels of the call tree to print.</param>
             <param name="categoryFilter">When set, only scopes of this category are listed.</param>
             <param name="minPercent">Hides scopes that take less than this share of the session, in percent.</param>
-            <param name="includePercentiles">Adds p25, p50, p75, p95 and p99 columns to the hotspot table.</param>
+            <param name="includePercentiles">Adds p25, p50, p75, p95 and p99 columns to the hotspot table. A scope with more completions than the sample limit has its percentiles prefixed with <c>~</c> and no p25 or p75.</param>
             <param name="overhead">The measured cost of a scope. When set, a note column marks scopes whose median is short enough for that cost to exceed 5% of it.</param>
             <returns>The report.</returns>
         </member>

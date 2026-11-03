@@ -71,7 +71,7 @@ A median describes a scope only if the durations form one cluster. For an exact 
 `MeanMs` and Sarle's bimodality coefficient. `IsBimodal` is set when the coefficient exceeds 5/9 with at least 8
 samples; `MedianReliable` is `false` when the distribution is bimodal or the mean differs from the median by more than
 25%. Reports from `TraceText.Write` then mark the scope with `*` and print a
-`median unreliable` footnote; `includePercentiles: true` adds the `p25` and `p75` columns.
+`median unreliable` footnote; `includePercentiles: true` adds the `p25` and `p75` columns; percentiles of a scope that is not exact are prefixed with `~` and the report explains it in a footnote.
 
 `row.Warmup(windows: 10)` returns the median of consecutive windows of the samples, which shows whether a scope speeds
 up (JIT, caches) or slows down over the run.

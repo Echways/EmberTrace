@@ -180,6 +180,32 @@ public class ReportTextTests
     }
 
     [TestMethod]
+    public void Report_ScopeOverTheSampleLimit_MarksApproximatePercentiles()
+    {
+        var script = new TraceScript();
+        for (var i = 0; i < 100_001; i++)
+            script.Span(Cpu, i * 100L, i * 100L + 50);
+        script.Span(Disk, 20_000_000, 20_000_100);
+
+        var report = TraceText.Write(script.ToSession().Process(), Metadata(), includePercentiles: true);
+
+        var hotspots = Section(report, "Hotspots", "Categories");
+        var compute = hotspots.Split(Nl).Single(l => l.Contains("Compute"));
+        var disk = hotspots.Split(Nl).Single(l => l.Contains("DiskRead"));
+        StringAssert.Contains(compute, "~");
+        Assert.DoesNotContain("~", disk);
+        StringAssert.Contains(hotspots, "~ approximate");
+    }
+
+    [TestMethod]
+    public void Report_ExactScopes_PrintNoApproximationFootnote()
+    {
+        var report = TraceText.Write(Trace(), Metadata(), includePercentiles: true);
+
+        Assert.DoesNotContain("approximate", report);
+    }
+
+    [TestMethod]
     public void Report_OrdinaryScope_HasNoWarningFootnote()
     {
         var report = TraceText.Write(Trace(), Metadata(), includePercentiles: true);

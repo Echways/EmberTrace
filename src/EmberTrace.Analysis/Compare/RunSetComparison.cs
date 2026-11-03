@@ -33,6 +33,7 @@ public sealed class RunSetComparison
         ArgumentNullException.ThrowIfNull(b);
 
         var settings = options ?? new ComparisonOptions();
+        Validate(settings);
         var excluded = new List<ExcludedRun>();
         var keptA = Filter(a, settings, excluded);
         var keptB = Filter(b, settings, excluded);
@@ -52,6 +53,19 @@ public sealed class RunSetComparison
             .ToList();
 
         return new RunSetComparison(verdicts, mismatches, excluded);
+    }
+
+    private static void Validate(ComparisonOptions options)
+    {
+        if (!(options.ConfidenceLevel > 0 && options.ConfidenceLevel < 1))
+            throw new ArgumentOutOfRangeException(nameof(options), options.ConfidenceLevel,
+                "ConfidenceLevel must be between 0 and 1 exclusive, for example 0.95.");
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.BootstrapIterations, nameof(options));
+
+        if (!(options.ChangeThresholdPercent >= 0))
+            throw new ArgumentOutOfRangeException(nameof(options), options.ChangeThresholdPercent,
+                "ChangeThresholdPercent must not be negative.");
     }
 
     private static List<TraceRun> Filter(IReadOnlyList<TraceRun> runs, ComparisonOptions options, List<ExcludedRun> excluded)

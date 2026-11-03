@@ -215,6 +215,37 @@ public class RunSetComparisonTests
     }
 
     [TestMethod]
+    [DataRow(0.0)]
+    [DataRow(1.0)]
+    [DataRow(95.0)]
+    [DataRow(-0.5)]
+    [DataRow(double.NaN)]
+    public void Compare_ConfidenceLevelOutsideOpenUnitInterval_Throws(double level)
+    {
+        var options = new ComparisonOptions { ConfidenceLevel = level };
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => Compare(Arm("A", 1_000), Arm("B", 1_000), options));
+    }
+
+    [TestMethod]
+    public void Compare_NonPositiveBootstrapIterations_Throws()
+    {
+        var options = new ComparisonOptions { BootstrapIterations = 0 };
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => Compare(Arm("A", 1_000), Arm("B", 1_000), options));
+    }
+
+    [TestMethod]
+    [DataRow(-1.0)]
+    [DataRow(double.NaN)]
+    public void Compare_InvalidThreshold_Throws(double threshold)
+    {
+        var options = new ComparisonOptions { ChangeThresholdPercent = threshold };
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => Compare(Arm("A", 1_000), Arm("B", 1_000), options));
+    }
+
+    [TestMethod]
     public void Compare_NullArguments_Throw()
     {
         Assert.ThrowsExactly<ArgumentNullException>(() => RunSetComparison.Compare(null!, []));

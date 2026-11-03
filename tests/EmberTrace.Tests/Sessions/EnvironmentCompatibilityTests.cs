@@ -178,9 +178,48 @@ public class EnvironmentCompatibilityTests
         Assert.AreEqual("A", session.EnvironmentAtStop!.Values["tag.arm"]);
     }
 
+    [TestMethod]
+    public void Start_WhenTheEnvironmentProbeFails_StillStartsAndStopsWithoutEnvironment()
+    {
+        var profiler = new Profiler(environmentReader: new ThrowingEnvironmentReader());
+
+        profiler.Start();
+        var session = profiler.Stop();
+
+        Assert.IsFalse(profiler.IsRunning);
+        Assert.IsNull(session.Environment);
+        Assert.IsNull(session.EnvironmentAtStop);
+    }
+
+    [TestMethod]
+    public void Start_WhenTheEnvironmentProbeFails_CanBeStartedAgain()
+    {
+        var profiler = new Profiler(environmentReader: new ThrowingEnvironmentReader());
+
+        profiler.Start();
+        profiler.Stop();
+        profiler.Start();
+
+        Assert.IsTrue(profiler.IsRunning);
+        profiler.Stop();
+    }
+
     private static TraceEnvironment Env(params (string Key, string Value)[] values)
     {
         return new TraceEnvironment(values.ToDictionary(v => v.Key, v => v.Value));
+    }
+
+    private sealed class ThrowingEnvironmentReader : IEnvironmentReader
+    {
+        public string? ReadFile(string path)
+        {
+            throw new InvalidOperationException("probe failed");
+        }
+
+        public IReadOnlyDictionary<string, string> GetEnvironmentVariables()
+        {
+            throw new InvalidOperationException("probe failed");
+        }
     }
 
     private sealed class FakeEnvironmentReader : IEnvironmentReader

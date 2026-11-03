@@ -64,7 +64,7 @@ internal sealed class Profiler
 
         var sampling = new SamplingPolicy(opts.SampleEveryNGlobal, opts.SampleEveryNById, opts.MaxEventsPerSecond);
 
-        var environment = opts.CaptureEnvironment ? EnvironmentProbe.Capture(_environmentReader, opts.Tags) : null;
+        var environment = CaptureEnvironment(opts);
 
         _metadata = meta;
         _state = new ProfilingState(opts, collector, meta, categoryFilter, sampling, Timestamp.Now(),
@@ -118,7 +118,7 @@ internal sealed class Profiler
             false,
             state.StartedAtUtc,
             state.Environment,
-            state.Options.CaptureEnvironment ? EnvironmentProbe.Capture(_environmentReader, state.Options.Tags) : null);
+            CaptureEnvironment(state.Options));
     }
 
     public TraceSession Snapshot(TimeSpan window)
@@ -162,6 +162,21 @@ internal sealed class Profiler
         finally
         {
             collector.EndSnapshot();
+        }
+    }
+
+    private TraceEnvironment? CaptureEnvironment(SessionOptions options)
+    {
+        if (!options.CaptureEnvironment)
+            return null;
+
+        try
+        {
+            return EnvironmentProbe.Capture(_environmentReader, options.Tags);
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
