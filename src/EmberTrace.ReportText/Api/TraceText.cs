@@ -1,3 +1,4 @@
+using EmberTrace.Analysis.Calibration;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
 using EmberTrace.ReportText;
@@ -13,10 +14,12 @@ public static class TraceText
         int maxDepth = 3,
         string? categoryFilter = null,
         double minPercent = 0,
-        bool includePercentiles = false)
+        bool includePercentiles = false,
+        OverheadReport? overhead = null)
     {
         return TextReportWriter.Write(
-            trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent, includePercentiles);
+            trace, meta ?? trace.Metadata, topHotspots, maxDepth, categoryFilter, minPercent, includePercentiles,
+            overhead);
     }
 
     public static void WriteCollapsedStacks(ProcessedTrace trace, TextWriter output, ITraceMetadataProvider? meta = null)

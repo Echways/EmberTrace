@@ -4,6 +4,57 @@
         <name>EmberTrace.Analysis</name>
     </assembly>
     <members>
+        <member name="T:EmberTrace.Analysis.Calibration.OverheadCalibration">
+            <summary>Measures what a scope costs on this machine, so short scopes can be judged against it.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadCalibration.Measure(System.Collections.Generic.IReadOnlyList{System.Int32},System.Int32)">
+            <summary>Runs a private session and times scopes around trivial work against the same loops without scopes.</summary>
+            <param name="batchSizes">How many work items one scope wraps in each measurement; <c>1, 10, 100, 1000</c> when <see langword="null"/>.</param>
+            <param name="iterations">How many work items each measurement runs.</param>
+            <returns>The cost of one scope, the timer resolution and the per-item cost for every batch size.</returns>
+            <remarks>Each figure is the median of five repetitions. Run it on the machine and settings the measured code runs on.</remarks>
+            <exception cref="T:System.InvalidOperationException">The tracer is already running.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="iterations"/> or a batch size is not positive.</exception>
+        </member>
+        <member name="T:EmberTrace.Analysis.Calibration.OverheadReport">
+            <summary>The measured cost of tracing on this machine.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.#ctor(System.Double,System.Double,System.Collections.Generic.IReadOnlyDictionary{System.Int32,System.Double})">
+            <summary>Creates the report.</summary>
+            <param name="ScopeNs">The cost of opening and closing one scope, in nanoseconds.</param>
+            <param name="TimerQuantumNs">The smallest step of the timestamp clock, in nanoseconds.</param>
+            <param name="NsPerItemByBatch">For each batch size, the tracing cost per work item, in nanoseconds.</param>
+        </member>
+        <member name="P:EmberTrace.Analysis.Calibration.OverheadReport.NsPerItemByBatch">
+            <summary>For each batch size, the tracing cost per work item, in nanoseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Calibration.OverheadReport.ScopeNs">
+            <summary>The cost of opening and closing one scope, in nanoseconds.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Calibration.OverheadReport.TimerQuantumNs">
+            <summary>The smallest step of the timestamp clock, in nanoseconds.</summary>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.CorrectMs(System.Double)">
+            <summary>Subtracts the cost of one scope from a measured duration.</summary>
+            <param name="measuredMs">The duration of a scope, in milliseconds.</param>
+            <returns>The corrected duration, never below zero.</returns>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.IsOverheadDominated(System.Double)">
+            <summary>Tells whether the cost of a scope exceeds 5% of a duration, that is, the scope is shorter than 20 times its own overhead.</summary>
+            <param name="medianMs">The typical duration of the scope, in milliseconds.</param>
+            <returns><see langword="true"/> when the overhead is a noticeable part of the duration.</returns>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.MinBatchWorkNs(System.Double)">
+            <summary>Gives the shortest amount of work one scope should wrap for its cost to stay under a tolerance.</summary>
+            <param name="maxOverheadPercent">The largest acceptable share of the scope cost in the measured duration, in percent.</param>
+            <returns>The work per scope, in nanoseconds; the stricter the tolerance, the larger.</returns>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="maxOverheadPercent"/> is not a positive number.</exception>
+        </member>
+        <member name="M:EmberTrace.Analysis.Calibration.OverheadReport.ShareOf(System.Double)">
+            <summary>Gives the share of a duration that the cost of one scope makes up.</summary>
+            <param name="medianMs">The typical duration of the scope, in milliseconds.</param>
+            <returns>A value from <c>0</c> to <c>1</c>; <c>1</c> when the duration is not positive.</returns>
+        </member>
         <member name="T:EmberTrace.Analysis.Model.CallTreeNode">
             <summary>One scope id at one position of a call tree, aggregated over every time it was entered there.</summary>
         </member>

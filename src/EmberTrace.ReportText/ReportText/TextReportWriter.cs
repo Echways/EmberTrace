@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using EmberTrace.Analysis.Calibration;
 using EmberTrace.Analysis.Model;
 using EmberTrace.Metadata;
 
@@ -14,7 +15,8 @@ internal static class TextReportWriter
         int maxDepth = 3,
         string? categoryFilter = null,
         double minPercent = 0,
-        bool includePercentiles = false)
+        bool includePercentiles = false,
+        OverheadReport? overhead = null)
     {
         var sb = new StringBuilder(32_768);
 
@@ -33,7 +35,7 @@ internal static class TextReportWriter
         sb.AppendLine($"MismatchedEnd: {trace.MismatchedEndCount}");
         sb.AppendLine();
 
-        WriteHotspots(sb, trace, meta, topHotspots, categoryFilter, minPercent, includePercentiles);
+        WriteHotspots(sb, trace, meta, topHotspots, categoryFilter, minPercent, includePercentiles, overhead);
         sb.AppendLine();
         if (WriteCategoryGroups(sb, trace, meta, categoryFilter))
             sb.AppendLine();
@@ -49,13 +51,18 @@ internal static class TextReportWriter
         int top,
         string? categoryFilter,
         double minPercent,
-        bool includePercentiles)
+        bool includePercentiles,
+        OverheadReport? overhead)
     {
         sb.AppendLine("Hotspots (by inclusive)");
 
-        var t = includePercentiles
-            ? new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%", "p25 ms", "p50 ms", "p75 ms", "p95 ms", "p99 ms")
-            : new TextTable("Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%");
+        var headers = new List<string> { "Id", "Name", "Category", "Count", "Incl ms", "Excl ms", "Excl%" };
+        if (includePercentiles)
+            headers.AddRange(["p25 ms", "p50 ms", "p75 ms", "p95 ms", "p99 ms"]);
+        if (overhead is not null)
+            headers.Add("Note");
+
+        var t = new TextTable(headers.ToArray());
 
         t.AddSeparator();
 
@@ -91,6 +98,9 @@ internal static class TextReportWriter
                     r.Shape is { } upper ? upper.P75Ms.ToString("F3") : string.Empty,
                     r.P95Ms.ToString("F3"),
                     r.P99Ms.ToString("F3")]);
+
+            if (overhead is not null)
+                cells.Add(overhead.IsOverheadDominated(r.P50Ms) ? "overhead-dominated" : string.Empty);
 
             t.AddRow(cells.ToArray());
             shown++;

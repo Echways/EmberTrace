@@ -7,7 +7,7 @@
         <member name="T:EmberTrace.TraceText">
             <summary>Renders a processed trace as plain text.</summary>
         </member>
-        <member name="M:EmberTrace.TraceText.Write(EmberTrace.Analysis.Model.ProcessedTrace,EmberTrace.Metadata.ITraceMetadataProvider,System.Int32,System.Int32,System.String,System.Double,System.Boolean)">
+        <member name="M:EmberTrace.TraceText.Write(EmberTrace.Analysis.Model.ProcessedTrace,EmberTrace.Metadata.ITraceMetadataProvider,System.Int32,System.Int32,System.String,System.Double,System.Boolean,EmberTrace.Analysis.Calibration.OverheadReport)">
             <summary>Builds a report with a session summary, the hottest scopes and a call tree per thread.</summary>
             <param name="trace">The trace produced by <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>.</param>
             <param name="meta">Names and categories for ids; the metadata of the trace when <see langword="null"/>.</param>
@@ -15,7 +15,8 @@
             <param name="maxDepth">How many levels of the call tree to print.</param>
             <param name="categoryFilter">When set, only scopes of this category are listed.</param>
             <param name="minPercent">Hides scopes that take less than this share of the session, in percent.</param>
-            <param name="includePercentiles">Adds p50, p95 and p99 columns to the hotspot table.</param>
+            <param name="includePercentiles">Adds p25, p50, p75, p95 and p99 columns to the hotspot table.</param>
+            <param name="overhead">The measured cost of a scope. When set, a note column marks scopes whose median is short enough for that cost to exceed 5% of it.</param>
             <returns>The report.</returns>
         </member>
         <member name="M:EmberTrace.TraceText.WriteCollapsedStacks(EmberTrace.Analysis.Model.ProcessedTrace,System.IO.TextWriter,EmberTrace.Metadata.ITraceMetadataProvider)">
