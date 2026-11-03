@@ -198,7 +198,74 @@ internal static class TraceFormatReader
     {
         var count = ReadCount(stream, MinimumEventBytes);
         var result = new List<TraceEventRecord>(Math.Min(count, MaxPreallocatedEvents));
+        result.AddRange(EnumerateEvents(stream, count));
+        return result;
+    }
 
+    public static StreamPreamble ReadPreamble(Stream stream)
+    {
+        var header = ReadHeader(stream);
+
+        Dictionary<int, string>? threadNames = null;
+        List<TraceMeta>? metadata = null;
+        TraceEnvironment? environment = null;
+        TraceEnvironment? environmentAtStop = null;
+
+        while (true)
+        {
+            var sectionId = stream.ReadByte();
+            if (sectionId < 0)
+                throw new EndOfStreamException("Unexpected end of stream; the end-of-file section is missing.");
+
+            switch (sectionId)
+            {
+                case FormatConstants.Section.EndOfFile:
+                    return Preamble(0);
+                case FormatConstants.Section.ThreadNames:
+                    threadNames = ReadThreadNames(stream);
+                    break;
+                case FormatConstants.Section.Metadata:
+                    metadata = ReadMetadata(stream);
+                    break;
+                case FormatConstants.Section.Environment when header.Version >= 2:
+                    (environment, environmentAtStop) = ReadEnvironment(stream);
+                    break;
+                case FormatConstants.Section.Events:
+                    if (threadNames is null || metadata is null)
+                        throw new InvalidDataException(
+                            "The Events section precedes the thread names or metadata; the file cannot be streamed.");
+
+                    return Preamble(ReadCount(stream, MinimumEventBytes));
+                default:
+                    throw new InvalidDataException(
+                        $"Unknown section id {sectionId} in an EmberTrace session file of version {header.Version}.");
+            }
+        }
+
+        StreamPreamble Preamble(int eventCount)
+        {
+            return new StreamPreamble(
+                header,
+                threadNames ?? new Dictionary<int, string>(),
+                TraceMetadata.FromEntries(metadata ?? []),
+                environment,
+                environmentAtStop,
+                eventCount);
+        }
+    }
+
+    public static void ReadEndOfFile(Stream stream)
+    {
+        var sectionId = stream.ReadByte();
+        if (sectionId < 0)
+            throw new EndOfStreamException("Unexpected end of stream; the end-of-file section is missing.");
+
+        if (sectionId != FormatConstants.Section.EndOfFile)
+            throw new InvalidDataException($"Unexpected section id {sectionId} after the events.");
+    }
+
+    public static IEnumerable<TraceEventRecord> EnumerateEvents(Stream stream, int count)
+    {
         long previousTimestamp = 0;
         var previousThreadId = 0;
         var previousTrackId = 0;
@@ -245,16 +312,14 @@ internal static class TraceFormatReader
                 ? previousSequence + 1
                 : VarInt.ReadInt64(stream);
 
-            result.Add(new TraceEventRecord(
-                id, threadId, timestamp, (TraceEventKind)kind, flowId, value, sequence, trackId));
+            yield return new TraceEventRecord(
+                id, threadId, timestamp, (TraceEventKind)kind, flowId, value, sequence, trackId);
 
             previousTimestamp = timestamp;
             previousThreadId = threadId;
             previousTrackId = trackId;
             previousSequence = sequence;
         }
-
-        return result;
     }
 
     private static int ReadCount(Stream stream, int minimumBytesPerEntry)

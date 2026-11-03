@@ -27,6 +27,22 @@ using var fs = File.Create("out/session.ember");
 TraceFormat.Write(session, fs);
 ```
 
+## Streaming and compression
+
+`TraceFormat.OpenRead` returns a `TraceStream`: the header, thread names, metadata and environment are available at
+once, and `Events` decodes the file lazily, in file order (already sorted by time), without building a `TraceSession`.
+Use it for traces that do not fit comfortably in memory.
+
+```csharp
+using var trace = TraceFormat.OpenRead("out/session.ember.gz");
+var scopes = new ScopeReader(trace.Events, trace.EndTimestamp);
+```
+
+`Events` can be enumerated once. A path ending in `.ember.gz` is written gzip-compressed (`CompressionLevel.Fastest`);
+`Read` and `OpenRead` recognise gzip by its signature, whatever the file is called. A truncated or corrupt gzip file
+raises `InvalidDataException`. `OpenRead` requires thread names and metadata to precede the events, as the writer
+produces them; `Read` has no such requirement.
+
 ## Why not Chrome Trace JSON
 
 Chrome Trace JSON is a display format: it is lossy, verbose, and slow to parse. `.ember` keeps every field of every
