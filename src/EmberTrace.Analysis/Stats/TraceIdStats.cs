@@ -13,4 +13,6 @@ public sealed class TraceIdStats
     public double P90Ms { get; init; }
     public double P95Ms { get; init; }
     public double P99Ms { get; init; }
+    public ReadOnlyMemory<long> Samples { get; init; }
+    public bool IsExact { get; init; }
 }

@@ -7,7 +7,7 @@ namespace EmberTrace.Analysis.Analyzers;
 
 internal static class StatsAnalyzer
 {
-    public static TraceStats Analyze(TraceSession session, bool strict)
+    public static TraceStats Analyze(TraceSession session, bool strict, int maxSamplesPerId)
     {
         var conv = TickConverter.FromSession(session);
         var perId = new Dictionary<int, Agg>(256);
@@ -20,7 +20,7 @@ internal static class StatsAnalyzer
 
             if (!perId.TryGetValue(step.Id, out var agg))
             {
-                agg = new Agg(session.TimestampFrequency);
+                agg = new Agg(session.TimestampFrequency, maxSamplesPerId);
                 perId.Add(step.Id, agg);
             }
 
@@ -32,6 +32,12 @@ internal static class StatsAnalyzer
         {
             var histogram = agg.Histogram;
             var totalMs = conv.ToMs(agg.TotalTicks);
+            var samples = agg.Samples;
+            var sorted = samples is null ? null : samples.Order().ToArray();
+
+            double PercentileMs(double percentile) => sorted is null
+                ? histogram.PercentileMs(percentile)
+                : conv.ToMs(SampleStatistics.PercentileTicks(sorted, percentile));
 
             list.Add(new TraceIdStats
             {
@@ -42,10 +48,12 @@ internal static class StatsAnalyzer
                 MinMs = conv.ToMs(histogram.MinTicks),
                 MaxMs = conv.ToMs(histogram.MaxTicks),
                 Durations = histogram,
-                P50Ms = histogram.PercentileMs(50),
-                P90Ms = histogram.PercentileMs(90),
-                P95Ms = histogram.PercentileMs(95),
-                P99Ms = histogram.PercentileMs(99)
+                P50Ms = PercentileMs(50),
+                P90Ms = PercentileMs(90),
+                P95Ms = PercentileMs(95),
+                P99Ms = PercentileMs(99),
+                Samples = samples is null ? ReadOnlyMemory<long>.Empty : samples.ToArray(),
+                IsExact = samples is not null
             });
         }
 
@@ -64,15 +72,26 @@ internal static class StatsAnalyzer
         };
     }
 
-    private sealed class Agg(long timestampFrequency)
+    private sealed class Agg(long timestampFrequency, int maxSamples)
     {
+        private List<long>? _samples = maxSamples > 0 ? new List<long>() : null;
+
         public DurationHistogram Histogram { get; } = new(timestampFrequency);
         public long TotalTicks { get; private set; }
+        public IReadOnlyList<long>? Samples => _samples;
 
         public void Add(long ticks)
         {
             Histogram.Add(ticks);
             TotalTicks += ticks;
+
+            if (_samples is null)
+                return;
+
+            if (_samples.Count >= maxSamples)
+                _samples = null;
+            else
+                _samples.Add(ticks);
         }
     }
 }

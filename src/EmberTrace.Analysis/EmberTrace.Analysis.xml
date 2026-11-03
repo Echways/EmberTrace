@@ -89,13 +89,13 @@
             <summary>Summed time in the scope including its child scopes, in milliseconds. A recursive scope counts every level.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P50Ms">
-            <summary>The median inclusive duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The median inclusive duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P95Ms">
-            <summary>The 95th percentile of the inclusive duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 95th percentile of the inclusive duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Model.HotspotRow.P99Ms">
-            <summary>The 99th percentile of the inclusive duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 99th percentile of the inclusive duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
         </member>
         <member name="T:EmberTrace.Analysis.Model.ProcessedTrace">
             <summary>A session turned into call trees and hotspot totals by <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/>.</summary>
@@ -229,6 +229,9 @@
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Id">
             <summary>The scope id.</summary>
         </member>
+        <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact">
+            <summary><see langword="true"/> when the percentiles were computed from <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.Samples"/>; <see langword="false"/> when they come from the histogram.</summary>
+        </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.MaxMs">
             <summary>The longest duration, exact, in milliseconds.</summary>
         </member>
@@ -236,22 +239,25 @@
             <summary>The shortest duration, exact, in milliseconds.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P50Ms">
-            <summary>The median duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The median duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P90Ms">
-            <summary>The 90th percentile of the duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 90th percentile of the duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P95Ms">
-            <summary>The 95th percentile of the duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 95th percentile of the duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.P99Ms">
-            <summary>The 99th percentile of the duration, in milliseconds, approximated by the histogram.</summary>
+            <summary>The 99th percentile of the duration, in milliseconds, exact when <see cref="P:EmberTrace.Analysis.Stats.TraceIdStats.IsExact"/>, otherwise approximated by the histogram.</summary>
+        </member>
+        <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.Samples">
+            <summary>The duration of every completed scope of this id, in ticks, in the order the scopes closed; empty when the id exceeded the sample limit.</summary>
         </member>
         <member name="P:EmberTrace.Analysis.Stats.TraceIdStats.TotalMs">
             <summary>The summed duration of every completed scope of this id, in milliseconds.</summary>
         </member>
         <member name="T:EmberTrace.Analysis.Stats.TraceStats">
-            <summary>Per-id duration statistics of a session, produced by <see cref="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean)"/>.</summary>
+            <summary>Per-id duration statistics of a session, produced by <see cref="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean,System.Int32)"/>.</summary>
         </member>
         <member name="M:EmberTrace.Analysis.Stats.TraceStats.#ctor">
             <summary>Creates the statistics; every required property must be set by the initializer.</summary>
@@ -283,13 +289,15 @@
         <member name="T:EmberTrace.TraceSessionExtensions">
             <summary>Analysis of a recorded session: statistics, call trees and flows.</summary>
         </member>
-        <member name="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean)">
+        <member name="M:EmberTrace.TraceSessionExtensions.Analyze(EmberTrace.Sessions.TraceSession,System.Boolean,System.Int32)">
             <summary>Computes count, total, mean, extremes and percentiles of the duration of every scope id.</summary>
             <param name="session">The session to analyze.</param>
             <param name="strict">What to do with an <c>End</c> whose id is not the innermost open scope. <see langword="false"/>, the default, closes the scopes above the nearest matching one and counts them as unmatched; <see langword="true"/> ignores that <c>End</c>.</param>
+            <param name="maxSamplesPerId">How many durations per scope id are kept for exact percentiles. An id with more completions falls back to the histogram; <c>0</c> keeps no samples.</param>
             <returns>The statistics, ordered by total time.</returns>
             <remarks>Cheaper than <see cref="M:EmberTrace.TraceSessionExtensions.Process(EmberTrace.Sessions.TraceSession,System.Boolean,System.Boolean)"/> when the call tree is not needed. Either way a mismatch is counted and reported to <see cref="P:EmberTrace.Sessions.SessionOptions.OnMismatchedEnd"/>.</remarks>
             <exception cref="T:System.ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="maxSamplesPerId"/> is negative.</exception>
         </member>
         <member name="M:EmberTrace.TraceSessionExtensions.AnalyzeFlows(EmberTrace.Sessions.TraceSession,System.Int32)">
             <summary>Finds the flows that both started and ended in the session and measures the time between their events.</summary>

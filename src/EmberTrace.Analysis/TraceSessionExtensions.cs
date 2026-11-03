@@ -7,10 +7,11 @@ namespace EmberTrace;
 
 public static class TraceSessionExtensions
 {
-    public static TraceStats Analyze(this TraceSession session, bool strict = false)
+    public static TraceStats Analyze(this TraceSession session, bool strict = false, int maxSamplesPerId = 100_000)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return StatsAnalyzer.Analyze(session, strict);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxSamplesPerId);
+        return StatsAnalyzer.Analyze(session, strict, maxSamplesPerId);
     }
 
     public static ProcessedTrace Process(this TraceSession session, bool strict = false, bool groupByThread = true)
