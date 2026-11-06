@@ -1,5 +1,7 @@
 English version: [./README.md](./README.md)
 
+[![NuGet](https://img.shields.io/nuget/v/EmberTrace.All.svg)](https://www.nuget.org/packages/EmberTrace.All)
+
 # EmberTrace
 
 **EmberTrace** — быстрый *in-process* tracer/profiler для .NET с минимальной нагрузкой на горячем пути:
@@ -157,3 +159,4 @@ dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 
 - Документация: [docs/index.md](docs/index.ru.md)
 - Примеры: [samples/](samples/)
+- NuGet: [EmberTrace.All](https://www.nuget.org/packages/EmberTrace.All)
