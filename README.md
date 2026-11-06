@@ -1,5 +1,7 @@
 Русская версия: [./README.ru.md](./README.ru.md)
 
+[![NuGet](https://img.shields.io/nuget/v/EmberTrace.All.svg)](https://www.nuget.org/packages/EmberTrace.All)
+
 # EmberTrace
 
 **EmberTrace** is a fast in-process tracer/profiler for .NET with minimal overhead on the hot path:
@@ -23,8 +25,6 @@ The easiest option is the metapackage:
 ```bash
 dotnet add package EmberTrace.All
 ```
-
-[![EmberTrace.All on NuGet](https://img.shields.io/nuget/v/EmberTrace.All.svg)](https://www.nuget.org/packages/EmberTrace.All)
 
 If you install packages selectively:
 
