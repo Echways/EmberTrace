@@ -24,6 +24,8 @@ The easiest option is the metapackage:
 dotnet add package EmberTrace.All
 ```
 
+[![EmberTrace.All on NuGet](https://img.shields.io/nuget/v/EmberTrace.All.svg)](https://www.nuget.org/packages/EmberTrace.All)
+
 If you install packages selectively:
 
 - `EmberTrace` - runtime API (`Tracer.*`)
@@ -163,3 +165,4 @@ dotnet publish samples/EmberTrace.NativeAot -c Release -p:PublishAot=true
 
 - Documentation: [docs/index.md](docs/index.md)
 - Examples: [samples/](samples/)
+- NuGet: [EmberTrace.All](https://www.nuget.org/packages/EmberTrace.All)
