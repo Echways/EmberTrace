@@ -1,7 +1,5 @@
 <div align="center">
 
-[![NuGet](https://img.shields.io/nuget/v/EmberTrace.All.svg)](https://www.nuget.org/packages/EmberTrace.All)
-
 # EmberTrace
 
 **Быстрый трассировщик и профилировщик для .NET внутри процесса.**
