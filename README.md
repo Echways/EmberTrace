@@ -1,5 +1,7 @@
 <div align="center">
 
+[![NuGet](https://img.shields.io/nuget/v/EmberTrace.All.svg)](https://www.nuget.org/packages/EmberTrace.All)
+
 # EmberTrace
 
 **A fast in-process tracer and profiler for .NET.**
