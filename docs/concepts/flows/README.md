@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Flow and async
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 **Flow** is a link between pieces of work that do not happen in the same call stack:
 - different threads
@@ -9,12 +9,14 @@
 
 In Chrome Trace/Perfetto, a flow is usually displayed as an "arrow" or a connected event chain.
 
-## API: FlowHandle (convenient)
+![Flow diagram: FlowId creation and propagation across async and threads](../../assets/flows-propagation.png)
+
+## FlowHandle
 
 ```csharp
 var flow = Tracer.FlowStartNewHandle(Ids.JobFlow);
 
-flow.Step(); // progress mark
+flow.Step();
 DoWork();
 
 await Task.Delay(10);
@@ -23,9 +25,9 @@ flow.Step();
 flow.End();
 ```
 
-`FlowHandle` is convenient when you want to keep one chain object and add steps as execution progresses.
+Use `FlowHandle` when you want to keep one chain object and add steps as execution progresses.
 
-## API: FlowScope (scope style)
+## FlowScope
 
 ```csharp
 using var flow = Tracer.Flow(Ids.JobFlow);
@@ -35,19 +37,21 @@ flow.Step();
 `FlowScope` automatically completes the flow in `Dispose()`. You can get a `FlowHandle` via `ToHandle()`
 if you need to pass the chain between threads.
 
-## API: explicit `flowId` (when you need to pass the id)
+## Explicit `flowId`
+
+Pass the id yourself when it has to travel through your own code.
 
 ```csharp
 var flowId = Tracer.NewFlowId();
 
 Tracer.FlowStart(Ids.JobFlow, flowId);
-// ...
+Stage();
 Tracer.FlowStep(Ids.JobFlow, flowId);
-// ...
+Stage();
 Tracer.FlowEnd(Ids.JobFlow, flowId);
 ```
 
-## Activity bridge
+## Activity.Current
 
 If `Activity.Current` is used, you can link a flow to the current trace id:
 
@@ -63,10 +67,7 @@ Tracer.FlowFromActivityCurrent(Ids.JobFlow);
 - A flow point does not need a synchronous scope around it. Inside one, the arrow attaches to the scope;
   outside, the export adds a zero-duration marker slice for the arrow to attach to.
 
-See also:
+## See also
+
 - [Export](../../guides/export/README.md)
 - [Usage and API](../../guides/usage/README.md)
-
-## Screenshots
-
-![Flow diagram: FlowId creation and propagation across async and threads](../../assets/flows-propagation.png)

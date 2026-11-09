@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Использование и API
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 Эта страница — практический справочник по runtime API (`EmberTrace`) и типовым паттернам.
 
@@ -13,7 +13,7 @@ Tracer.Start();
 
 using (Tracer.Scope(Ids.App))
 {
-    // ...
+    Work();
 }
 
 var session = Tracer.Stop();
@@ -68,8 +68,8 @@ var id = Tracer.Id("MySubsystem.Request");
 using var _ = Tracer.Scope(id);
 ```
 
-Не вызывай `Tracer.Id` на каждый скоуп: он хэширует строку и ищет имя в реестре при каждом вызове. Создай `TraceName`
-один раз, в `static readonly` поле, и передавай его в `Tracer.Scope`:
+Не вызывайте `Tracer.Id` на каждый scope: он хэширует строку и ищет имя в реестре при каждом вызове. Создайте `TraceName`
+один раз, в `static readonly` поле, и передавайте его в `Tracer.Scope`:
 
 ```csharp
 private static readonly TraceName Request = new("MySubsystem.Request");
@@ -84,7 +84,9 @@ var ioCategory = Tracer.CategoryId("IO");
 ```
 
 3) **Метаданные через `[assembly: TraceId(...)]`** — для красивых имён/категорий в отчёте и экспорте
-(см. docs: generator).
+(см. [Генератор и метаданные](../../reference/source-generator/README.ru.md)).
+
+![Пример кода: скриншот блока instrumentation (Scope + metadata)](../../assets/usage-instrumentation.png)
 
 ## Настройки сессии
 
@@ -96,21 +98,27 @@ Tracer.Start(new SessionOptions
 });
 ```
 
-- `ChunkCapacity` — размер чанка событий в буфере потока
-- `OverflowPolicy` — поведение при переполнении (`DropNew`, `DropOldest`, `StopSession`)
-- `MaxTotalEvents` / `MaxTotalChunks` — лимиты на общий объём
-- `MaxEventsPerSecond` — лимит событий в секунду на writer‑поток
-- `SampleEveryNGlobal` / `SampleEveryNById` — sampling на всю сессию без глобальных lock
-- `EnabledCategoryIds` / `DisabledCategoryIds` — фильтрация категорий
+| Настройка | Смысл |
+| --------- | ----- |
+| `ChunkCapacity` | Размер чанка событий в буфере потока. |
+| `OverflowPolicy` | Что происходит при переполнении: `DropNew`, `DropOldest` или `StopSession`. |
+| `MaxTotalEvents`, `MaxTotalChunks` | Лимиты на общий объём. |
+| `MaxEventsPerSecond` | Лимит событий в секунду на поток-писатель. |
+| `SampleEveryNGlobal`, `SampleEveryNById` | Sampling на всю сессию без глобальных блокировок. |
+| `EnabledCategoryIds`, `DisabledCategoryIds` | Фильтрация категорий. |
+
+Каждая настройка описана в [Настройках сессии](../../reference/session-options/README.ru.md).
 
 ## Session API
 
 После остановки сессии:
 
-- `session.EventCount` — общее число событий
-- `session.EnumerateEvents()` — сырые события (для своих инструментов)
-- `session.EnumerateEventsSorted()` — стабильная сортировка по timestamp → thread → sequence
-- `session.Process()` — агрегаты для отчётов/аналитики
+| Член | Что возвращает |
+| ---- | -------------- |
+| `session.EventCount` | Общее число событий. |
+| `session.EnumerateEvents()` | Сырые события, для своих инструментов. |
+| `session.EnumerateEventsSorted()` | События в стабильном порядке: timestamp, поток, sequence. |
+| `session.Process()` | Агрегаты для отчётов и аналитики. |
 
 ```csharp
 var processed = session.Process();
@@ -132,12 +140,12 @@ var meta = Tracer.CreateMetadata();
 
 ## Измерение коротких операций
 
-Скоуп имеет фиксированную цену. На машине, с которой сняты эти цифры (`ScopeBenchmarks`, короткий джоб на Linux),
+Scope имеет фиксированную цену. На машине, с которой сняты эти цифры (`ScopeBenchmarks`, короткий джоб на Linux),
 открытие и закрытие одного занимает около 157 нс против около 61 нс на два вызова `Stopwatch.GetTimestamp()`, а
-`Tracer.Id(...)` на каждом вызове добавляет ещё около 93 нс (используй `TraceName`, см. выше). Запусти
+`Tracer.Id(...)` на каждом вызове добавляет ещё около 93 нс (используйте `TraceName`, см. выше). Запустите
 `ScopeBenchmarks`, чтобы получить свои числа.
 
-Для операции в единицы микросекунд скоуп на каждый вызов измеряет в основном сам скоуп. Оберни пачку и раздели на её
+Для операции в единицы микросекунд scope на каждый вызов измеряет в основном сам scope. Оберни пачку и раздели на её
 размер:
 
 ```csharp
@@ -150,7 +158,7 @@ using (Tracer.Scope(ParseBatch))
 }
 ```
 
-Время на элемент — это `AverageMs / items.Length` этого скоупа. Как правило, скоуп короче 20 собственных накладных
+Время на элемент — это `AverageMs / items.Length` этого scope'а. Как правило, scope короче 20 собственных накладных
 расходов нужно измерять пачкой. `OverheadCalibration.Measure()` запускает отдельную сессию и возвращает цену на текущей
 машине:
 
@@ -161,22 +169,19 @@ Console.WriteLine($"scope: {overhead.ScopeNs:F0} ns; wrap at least {overhead.Min
 Console.WriteLine(TraceText.Write(session.Process(), includePercentiles: true, overhead: overhead));
 ```
 
-`MinBatchWorkNs(5)` — работа, которую должен обернуть один скоуп, чтобы накладные расходы остались ниже 5%; `CorrectMs`
-вычитает один скоуп из измеренной длительности; отчёт помечает скоупы, медиана которых меньше 20 накладных расходов,
-как `overhead-dominated`. Запускай калибровку на той же машине и с теми же настройками, что и измеряемый код, при
+`MinBatchWorkNs(5)` — работа, которую должен обернуть один scope, чтобы накладные расходы остались ниже 5%; `CorrectMs`
+вычитает один scope из измеренной длительности; отчёт помечает scope'ы, медиана которых меньше 20 накладных расходов,
+как `overhead-dominated`. Запускайте калибровку на той же машине и с теми же настройками, что и измеряемый код, при
 остановленном трейсере.
 
 ## Практические рекомендации
 
 - Инструментируй **крупные** участки горячего пути и внешние ожидания (IO/lock/await), а не каждую строку.
 - Стабилизируй id: либо диапазоны констант, либо `Tracer.Id("...")` с фиксированными строками.
-- Для `async` всегда используй `ScopeAsync`, иначе компилятор/рантайм ограничат сценарий.
+- Для `async` всегда используйте `ScopeAsync`, иначе компилятор/рантайм ограничат сценарий.
 
-См. также:
+## См. также
+
 - [Flow и async](../../concepts/flows/README.ru.md)
 - [Экспорт](../export/README.ru.md)
 - [Анализ и отчёты](../analysis/README.ru.md)
-
-## Скриншоты
-
-![Пример кода: скриншот блока instrumentation (Scope + metadata)](../../assets/usage-instrumentation.png)

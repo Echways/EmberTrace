@@ -1,6 +1,6 @@
-Русская версия: [./tracer.ru.md](./tracer.ru.md)
-
 # Tracer
+
+[English](tracer.md) · [Русский](tracer.ru.md) · [Documentation](../../README.md)
 
 `Tracer` is the public entry point for trace recording (scopes, flows) and session control.
 
@@ -27,7 +27,6 @@ using (Tracer.Scope(parseId))
 }
 
 var session = Tracer.Stop();
-// next: export / report - see the Export and Analysis guides
 ```
 
 ---

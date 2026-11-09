@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Analysis and reports
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 After `Tracer.Stop()`, you can perform heavy trace processing: compute aggregates and print a report.
 
@@ -15,6 +15,7 @@ var processed = session.Process();
 - print in a report
 - compare across runs
 - use in your own tools
+
 `ProcessedTrace` also stores dropped/sampled counters and stack errors.
 
 Additional modes:
@@ -23,8 +24,10 @@ Additional modes:
 var processed = session.Process(strict: true, groupByThread: false);
 ```
 
-- `strict` - does not attempt stack repair for mismatched end
-- `groupByThread` - when `false`, builds a global call tree
+| Parameter | Meaning |
+| --------- | ------- |
+| `strict` | Does not repair the stack on a mismatched end. |
+| `groupByThread` | When `false`, builds one global call tree. |
 
 One `ThreadTrace` is one writer track, not one managed thread id: `TrackId` is what the tree was grouped
 by, `ThreadId` is the managed thread that wrote it and is there for display. Two entries can therefore
@@ -127,17 +130,17 @@ var text = TraceText.Write(
 Console.WriteLine(text);
 ```
 
-Parameters:
-- `topHotspots` - number of hotspot lines to show
-- `maxDepth` - call tree depth
-- `categoryFilter` - category filter
-- `minPercent` - minimum percentage to display
-- `includePercentiles` - adds p50/p95/p99 columns to the hotspots table
+| Parameter | Meaning |
+| --------- | ------- |
+| `topHotspots` | Number of hotspot lines to show. |
+| `maxDepth` | Call tree depth. |
+| `categoryFilter` | Show only this category. |
+| `minPercent` | Minimum share to display. |
+| `includePercentiles` | Adds the p50, p95 and p99 columns to the hotspots table. |
 
-See also:
-- [Performance testing and regression gates](../testing/README.md)
-- [Export](../export/README.md)
-- [Usage and API](../usage/README.md)
+![Analysis slice: the session behind the report, opened in Perfetto](../../assets/analysis-slice.png)
+
+The [text report](../../assets/analysis-slice.txt) of this session is kept next to the image.
 
 ## Flame graphs
 
@@ -155,12 +158,10 @@ spent so far; hotspots and percentiles count only finished scopes. Scopes that b
 are missing — widen the window to see them. Concurrent async children are each weighed by their own time, so a
 parent that fans out with `Task.WhenAll` is drawn wider than it ran.
 
-## Screenshots
-
-![Analysis slice: the session behind the report, opened in Perfetto](../../assets/analysis-slice.png)
-
 ![Flame graph: collapsed stacks opened in speedscope, Left Heavy view](../../assets/analysis-flame-graph.png)
 
-## Links
+## See also
 
-- [**Analysis slice**](../../assets/analysis-slice.txt)
+- [Performance testing and regression gates](../testing/README.md)
+- [Export](../export/README.md)
+- [Usage and API](../usage/README.md)

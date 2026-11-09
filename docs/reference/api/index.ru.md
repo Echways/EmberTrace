@@ -1,6 +1,6 @@
-English version: [./index.md](./index.md)
-
 # Справочник API
+
+[English](index.md) · [Русский](index.ru.md) · [Документация](../../README.ru.md)
 
 Точные контракты публичного API.
 

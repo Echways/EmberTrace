@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Flight recorder
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 A flight recorder keeps a bounded window of the recent past in memory and lets you dump it
 *without stopping the session*. It turns EmberTrace from a benchmark tool into something you

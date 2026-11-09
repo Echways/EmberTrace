@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Roslyn analyzers
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 Пакет `EmberTrace.RoslynAnalyzers` помогает ловить типовые ошибки использования API.
 
@@ -14,10 +14,12 @@ dotnet add package EmberTrace.RoslynAnalyzers
 
 ## Диагностики
 
-- **ETA001** — `Scope` создан, но не обёрнут в `using`
-- **ETA002** — `AsyncScope` создан без `await using`
-- **ETA003** — `FlowHandle` создан, но `End/TryEnd` не вызывается
-- **ETA004** (info) — метод начинается с ручного scope и может стать `[Trace] partial` методом
+| Id | Серьёзность | Сообщает |
+| -- | ----------- | -------- |
+| `ETA001` | warning | `Scope` создан, но не обёрнут в `using`. |
+| `ETA002` | warning | `AsyncScope` создан без `await using`. |
+| `ETA003` | warning | `FlowHandle` создан, но `End` или `TryEnd` не вызывается. |
+| `ETA004` | info | Метод начинается с ручного scope и может стать `[Trace] partial` методом. |
 
 `ETA001` и `ETA002` смотрят на то, как связан сам вызов: `using`-блок где-то выше по дереву (файл,
 соединение, лок) не освобождает scope, объявленный внутри него, и такой случай сообщается.

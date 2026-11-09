@@ -1,9 +1,9 @@
-English version: [./README.md](./README.md)
-
 # Интеграция с хостингом (ASP.NET Core)
 
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
+
 `EmberTrace.Extensions.Hosting` превращает flight recorder из того, что нужно писать кодом, в то, что
-достаточно настроить: сессия живёт столько же, сколько хост, каждый запрос становится скоупом и flow,
+достаточно настроить: сессия живёт столько же, сколько хост, каждый запрос становится scope'ом и flow,
 а защищённый endpoint отдаёт последние N секунд файлом.
 
 ```bash
@@ -104,7 +104,7 @@ builder.Services.AddEmberTrace(builder.Configuration.GetSection("Tracing"));
 
 Для каждого запроса, не попавшего в `IgnoredPaths` и не адресованного `Path` эндпоинта дампа:
 
-- асинхронный скоуп с именем `"{METHOD} {шаблон маршрута}"`, например `GET /orders/{id}`; количество
+- асинхронный scope с именем `"{METHOD} {шаблон маршрута}"`, например `GET /orders/{id}`; количество
   идентификаторов ограничено `MaxTrackedRoutes`, и после достижения лимита новые маршруты схлопываются
   в `HTTP {METHOD}`;
 - flow, который начинается до пайплайна и заканчивается после него. Если `Activity.Current` — это W3C
@@ -129,6 +129,8 @@ app.MapGet("/orders/{id:int}", (int id, HttpContext context) =>
     return Results.Ok(id);
 });
 ```
+
+![Дамп `format=chrome` в Perfetto: scope'ы запросов, `Orders.Load`, медленный `Orders.Slow` и runtime-счётчики](../../assets/hosting-request-dump.png)
 
 ## Endpoint для дампа
 
@@ -189,12 +191,8 @@ Hosted service запускает сессию при старте хоста и
 `{prefix}-shutdown-{timestamp}.ember` во время штатной остановки. Ошибка записи логируется, но никогда не
 выбрасывается наружу.
 
-## Смотрите также
+## См. также
 
 - [Flight recorder (снапшоты на живой сессии)](../flight-recorder/README.ru.md)
 - [Runtime-счётчики](../runtime-counters/README.ru.md)
 - [Бинарный формат сессии (.ember)](../format/README.ru.md)
-
-## Скриншоты
-
-![Дамп `format=chrome` в Perfetto: scope'ы запросов, `Orders.Load`, медленный `Orders.Slow` и runtime-счётчики](../../assets/hosting-request-dump.png)

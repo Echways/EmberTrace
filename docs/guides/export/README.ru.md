@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Экспорт
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 EmberTrace экспортирует сессию в JSON-формат Chrome Trace, который понимают:
 - `chrome://tracing`
@@ -22,6 +22,8 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 
 Порядок событий стабилен: timestamp → track → sequence.
 
+![Открытый экспорт: json открыт в Perfetto](../../assets/export-opened.png)
+
 ## WriteChromeBeginEnd
 
 Альтернатива: отдельные Begin/End события (может быть удобнее для некоторых тулов).
@@ -41,16 +43,16 @@ Chrome-поле `tid` — это id дорожки писателя, а не man
 получает отдельную строку, а не склеенную. Managed thread id используется для имени строки — через
 метаданные `thread_name`.
 
-Как скоупы и flow раскладываются для вьюера:
+Как scope'ы и flow раскладываются для вьюера:
 
-- синхронный скоуп — слайс на строке своего потока;
-- асинхронный скоуп (`ScopeAsync`) — async-событие, привязанное к процессу (`"id2": {"local": ...}`),
+- синхронный scope — слайс на строке своего потока;
+- асинхронный scope (`ScopeAsync`) — async-событие, привязанное к процессу (`"id2": {"local": ...}`),
   поэтому Perfetto рисует его на async-строке внутри группы процесса;
 - flow-событие привязывается к слайсу, который в этот момент выполняется на его потоке (`FlowEnd`
-  пишется с `"bp": "e"`). Если такого слайса нет — flow записан вне синхронного скоупа, например прямо
-  внутри `ScopeAsync`, либо после вложенного скоупа или instant, — экспортёр пишет в ту же метку времени
+  пишется с `"bp": "e"`). Если такого слайса нет — flow записан вне синхронного scope'а, например прямо
+  внутри `ScopeAsync`, либо после вложенного scope'а или instant, — экспортёр пишет в ту же метку времени
   слайс нулевой длительности с именем flow, и стрелка крепится к нему. У такого якоря в `args.flow`
-  лежит id flow — по нему его можно отличить от записанного скоупа.
+  лежит id flow — по нему его можно отличить от записанного scope'а.
 
 ## MarkedComplete: снять короткое окно
 
@@ -96,7 +98,7 @@ result.SaveFullChromeComplete("out/slice_full.json", meta: Tracer.CreateMetadata
 историю, а другие потоки продолжают запись, пока выполняется тело. `result.CapturedSession` — это
 тот самый снапшот (`IsSnapshot` равно `true`).
 
-Чтобы работать со своей сессией, а не с глобальным `Tracer`, передай её в опциях:
+Чтобы работать со своей сессией, а не с глобальным `Tracer`, передайте её в опциях:
 
 ```csharp
 using var tracing = new TracingSession();
@@ -116,16 +118,12 @@ TraceExport.MarkedComplete("Import", () => Import(tracing),
 | `MarkedCompleteEx(...)` | `MarkedComplete(...)` — он и так возвращает `MarkedCompleteResult` |
 | `MarkedCompleteUnique(...)`, `MarkedCompleteExUnique(...)` | `new MarkedCompleteOptions { Unique = true }` |
 | аргументы `running:`, `pid:`, `processName:` | свойства `Running`, `Pid`, `ProcessName` |
-| перегрузки без имени (имя бралось из вызывающего метода) | передай `nameof(ВызывающийМетод)` |
+| перегрузки без имени (имя бралось из вызывающего метода) | передайте `nameof(ВызывающийМетод)` |
 | возвращаемый `TraceSession` | `result.CapturedSession` |
 | варианты `...Async` | те же замены на `MarkedCompleteAsync` |
 | аргумент `resumeOptions:` / свойство `ResumeOptions` | удалено — сессия больше не перезапускается |
 
-См. также:
+## См. также
+
 - [Анализ и отчёты](../analysis/README.ru.md)
 - [Flow и async](../../concepts/flows/README.ru.md)
-
-## Скриншоты
-
-![Открытый экспорт: json открыт в Perfetto](../../assets/export-opened.png)
-

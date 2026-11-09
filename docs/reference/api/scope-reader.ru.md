@@ -1,6 +1,6 @@
-English version: [./scope-reader.md](./scope-reader.md)
-
 # ScopeReader
+
+[English](scope-reader.md) · [Русский](scope-reader.ru.md) · [Документация](../../README.ru.md)
 
 `EmberTrace.Sessions.ScopeReader` восстанавливает scope из сырого потока событий. На нём построены
 `Analyze`, `Process`, Chrome-экспортёр и OpenTelemetry-экспортёр — поэтому все потребители видят одинаковую

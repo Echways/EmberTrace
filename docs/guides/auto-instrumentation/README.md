@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Auto-instrumentation with `[Trace]`
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 Declare a method `partial`, mark it `[Trace]`, and move the body into a `…Core` method. The generator
 emits the wrapper, computes a stable id, and registers the name and the category.
@@ -84,6 +84,8 @@ context restore that the runtime performs anyway when the method returns. Do not
 
 `[DebuggerNonUserCode]` sits on the helper only: stepping into a traced method lands in your `…Core`
 body, while the wrapper itself stays visible to Just My Code because that declaration *is* your method.
+
+![Generated wrapper: the sync and async `[Trace]` methods of `OrderService` as emitted under `obj/`](../../assets/auto-instrumentation-generated-code.png)
 
 ## Names, categories and ids
 
@@ -221,11 +223,8 @@ Measured with `benchmarks/EmberTrace.Benchmarks` (BenchmarkDotNet 0.15.8, .NET 1
 The 72 bytes are the benchmark method's own state machine, not a per-call allocation: the async wrapper
 never enters an `async` method while the session is stopped.
 
-See also:
+## See also
+
 - [Generator and TraceId (metadata)](../../reference/source-generator/README.md)
 - [Roslyn analyzers](../../reference/roslyn-analyzers/README.md)
 - [Usage and API](../usage/README.md)
-
-## Screenshots
-
-![Generated wrapper: the sync and async `[Trace]` methods of `OrderService` as emitted under `obj/`](../../assets/auto-instrumentation-generated-code.png)

@@ -1,51 +1,39 @@
-Русская версия: [./README.ru.md](./README.ru.md)
+# Quick start
 
-# Quick Start
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
-Goal: capture your first trace, generate a text report, and open it in Chrome Trace.
+This page takes an empty project to a recorded trace: a few scopes, a text report and a file that opens in Perfetto.
 
 ## Requirements
 
-- .NET SDK: see `global.json` (this repository uses `net10.0`)
+- .NET 10 and the SDK pinned in `global.json` when you build this repository.
 
-## 1) Install packages
+## Installation
 
-### Option A: one package
+The metapackage brings the runtime, the generator, analysis, export and text reports:
 
-```bash
+```shell
 dotnet add package EmberTrace.All
 ```
 
-### Option B: selective install
+To pick the parts yourself, the runtime alone is enough to record:
 
-Minimum for runtime tracing:
-
-```bash
+```shell
 dotnet add package EmberTrace
 ```
 
-To include **names/categories** in exports and reports:
+Names and categories in reports and exports come from metadata. Add the attributes and the generator that registers them:
 
-```bash
+```shell
 dotnet add package EmberTrace.Abstractions
 dotnet add package EmberTrace.Generator
 ```
 
-> `EmberTrace.Generator` is a source generator. It collects `[assembly: TraceId(...)]` and automatically
-> registers metadata (via `ModuleInitializer`).
+`EmberTrace.Generator` is a source generator. It collects `[assembly: TraceId(...)]` and registers the metadata through a `ModuleInitializer`. Reports and exports need `EmberTrace.Analysis`, `EmberTrace.ReportText` and `EmberTrace.Export`; the [package list](../../../README.md#installation) describes every package.
 
-Optional:
+## Ids and metadata
 
-```bash
-dotnet add package EmberTrace.OpenTelemetry
-dotnet add package EmberTrace.RoslynAnalyzers
-```
-
-> `EmberTrace.RoslynAnalyzers` includes code fixes. They work in IDE and do not affect CLI builds.
-
-## 2) Define TraceId (metadata)
-
-Add assembly-level attributes (for example in `TraceIds.cs`):
+Declare ids at the assembly level, in any file, for example `TraceIds.cs`:
 
 ```csharp
 using EmberTrace.Abstractions.Attributes;
@@ -55,11 +43,10 @@ using EmberTrace.Abstractions.Attributes;
 [assembly: TraceId(2100, "IoWait", "IO")]
 ```
 
-Recommendations:
-- keep ranges per module/subsystem (for example, `1000-1999`, `2000-2999`...)
-- names should be short and stable (they go to reports/export)
+- Give each module or subsystem its own range, for example `1000-1999` and `2000-2999`.
+- Keep names short and stable: they go into reports and exports.
 
-## 3) Instrument code
+## Recording
 
 ```csharp
 using EmberTrace;
@@ -68,14 +55,13 @@ Tracer.Start();
 
 using (Tracer.Scope(1000))
 {
-    // work
+    DoWork();
 }
 
 var session = Tracer.Stop();
 ```
 
-Important:
-- `Scope` is a `ref struct`: it **cannot** cross `await`. For `async`, use `ScopeAsync`.
+`Scope` is a `ref struct` and cannot cross an `await`. In `async` code use `ScopeAsync`:
 
 ```csharp
 await using (Tracer.ScopeAsync(2100))
@@ -84,9 +70,7 @@ await using (Tracer.ScopeAsync(2100))
 }
 ```
 
-## 4) Report and export
-
-### Text report
+## Report
 
 ```csharp
 var processed = session.Process();
@@ -95,36 +79,37 @@ var meta = Tracer.CreateMetadata();
 Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 8));
 ```
 
-### Chrome Trace (JSON)
+## Trace file
 
 ```csharp
 Directory.CreateDirectory("out");
 
-using var fs = File.Create("out/trace.json");
-TraceExport.WriteChromeComplete(session, fs, meta: meta);
+using var file = File.Create("out/trace.json");
+TraceExport.WriteChromeComplete(session, file, meta: meta);
 ```
 
-Open in:
-- `chrome://tracing` (Chrome)
-- Perfetto (web UI) - suitable for large traces
+Open `out/trace.json` in `chrome://tracing` or in the [Perfetto](https://ui.perfetto.dev) web UI, which suits large traces better.
 
-## 5) Demo project (recommended)
+![The first trace: the exported file opened in Perfetto](../../assets/getting-started-first-trace.png)
 
-The repository contains a ready-to-run scenario with scopes + flows + async + export + report:
+The [text report](../../assets/getting-started-first-trace.txt) of the same session is kept next to the image.
 
-```bash
+## A ready-made scenario
+
+The repository holds a scenario with scopes, flows, `async` code, export and a report:
+
+```shell
 dotnet run --project samples/EmberTrace.DocScreenshots -c Release -p:UseLocalEmberTrace=true
-# output files: samples/EmberTrace.DocScreenshots/out
 ```
 
-Next:
-- [Usage and API](../usage/README.md)
-- [Flow and async](../../concepts/flows/README.md)
+The files appear in `samples/EmberTrace.DocScreenshots/out`.
 
-## Screenshots
+## What to read next
 
-![First trace: the exported file opened in Perfetto](../../assets/getting-started-first-trace.png)
-
-## Links
-
-- [**Getting started**](../../assets/getting-started-first-trace.txt)
+| If you want to | Read |
+| -------------- | ---- |
+| Learn sessions, scopes and options | [Usage and API](../usage/README.md) |
+| Instrument methods with an attribute | [Auto-instrumentation](../auto-instrumentation/README.md) |
+| Follow work across threads and `await` | [Flows](../../concepts/flows/README.md) |
+| Read the numbers | [Analysis and reports](../analysis/README.md) |
+| Leave tracing on in a service | [Flight recorder](../flight-recorder/README.md) |
