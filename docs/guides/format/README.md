@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Binary session format (`.ember`)
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 `EmberTrace.Format` persists a stopped session to a compact binary file and reads it back into a fully analyzable
 `TraceSession`.

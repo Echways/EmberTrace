@@ -4,66 +4,66 @@
     "net10.0": {
       "EmberTrace": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "/PDqelcho/JE3IH5JZpUU/XeYcsnwVhAkbogDVAhOcKTcTjDQFhKqK4bP3ohesxBXPyYwIEK7KYdHFtZ5/IWfg=="
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "7K6FgxyK4Lmx8yqx7W8AbLhsb6eUdpOZr5hy9ch8TX9FX67JQFWCC/gHba0rm3hor785Qo2AhWpdDnDeHsASeg=="
       },
       "EmberTrace.Abstractions": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "F4v/dOI5QCNXJgjIl+S3AMTumiFk3eAjDZPJYOsxwXZIBxcZh6d4hqdOLwx1ZL7l3l6jmluldrp8nnFOJJ3EBA=="
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "ZUOFpc6QJaBVdeqPaso2bLj7L81pJZwDJrmChzk6StlPdRTRKkABCqRVh12+/ZiPIaKW0Soe5akdbc3kwO1mgA=="
       },
       "EmberTrace.Analysis": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "16P7hOqDJslZQPIvWSj6zteruBrnwdNO28mGAVa8Hk6CJXPbnLv6IZai118DnQHG7eidjsQY73PUVH01Hapi9w==",
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "gcIwproso38k22Jb3IdN/y2LEe40CtEz6AH+tubqWeLG9Hoha9fFkIjAmqG8gFTwoRdpi/YMrvOOLg+z440OGA==",
         "dependencies": {
-          "EmberTrace": "0.4.0"
+          "EmberTrace": "0.4.1"
         }
       },
       "EmberTrace.Export": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "ugeOFMCg67XuXHRtIeIJaUPNvHF01KaDa0d5TqysbWhRUoVI5WvJXbAwC6g3T/bQ5xMI6mvpFfDA7cJ4/fO49Q==",
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "rtq5AqiYyRK3YllXDrKSgPLsWAPCQW2FM9LYCJh9ciocDU1upIFU5+na+D2OytikU9M5whDapVTPhX/j93sitw==",
         "dependencies": {
-          "EmberTrace": "0.4.0"
+          "EmberTrace": "0.4.1"
         }
       },
       "EmberTrace.Format": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "yMmPciCMLNHJ71szqoF3rNYiq3XiuAcVNscOG8vWvzPuM99pZQvoWcJIQGSlUbCUlXv/V29gzYa1YuYf2VjJrw==",
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "BF6k/rkF1icPsG5u/MJSCgnsGWckAlXeuYcXtHiRmRc9jL396GySSTU6gRUzza2Z1IdioGwVqQzzwTMSW+fxag==",
         "dependencies": {
-          "EmberTrace": "0.4.0"
+          "EmberTrace": "0.4.1"
         }
       },
       "EmberTrace.Generator": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "SExMb3cb9sbYUOVAE2M2T3wUgMa609ILPYnXD19ZPujmsyjx9CMpeZMpXdoOgV1XOhc5KElmV0LCsTPw0UD7sQ=="
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "AEeo/x0cgSDcuEQ0uoihc/ihQTNV2XHRoexmXDNb4j5UL09ag7h45HU6Rx1zDS8YeaCLt5GFQn6E4vQ9ocigOQ=="
       },
       "EmberTrace.OpenTelemetry": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "WUA3YpISkgaxXO2YM2J9TZ3lSGSWra6YIxXCf/RInSHgo60a8slBQm5cX6WKMsaFomz9L5nCuv7QNNlmoFR1KQ==",
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "DJNmavh4vxoqJDQXAbCiPDbFe8AAjfAIp6eOvsHuEfB2V2FF0M8eaq+GIb+kFo0QFpEyq9sYO9TAcZEpHJL/Zw==",
         "dependencies": {
-          "EmberTrace": "0.4.0"
+          "EmberTrace": "0.4.1"
         }
       },
       "EmberTrace.ReportText": {
         "type": "Direct",
-        "requested": "[0.4.0, )",
-        "resolved": "0.4.0",
-        "contentHash": "JLCEyn89b1TS1B3ckWJcelcfzR/POxrSttWsMO381YV4sPDxmHieNw2xCQm6iAR7cnHqC8xmVy/SL13M9HBrYQ==",
+        "requested": "[0.4.1, )",
+        "resolved": "0.4.1",
+        "contentHash": "G0C0bAO4uwe/IHDx5/4653yWem2W0s3XUPZ+fAukEH6p8BPxXmOgDfHgYe7g9cD5ezrwZKYYgrZrcjraoXivWQ==",
         "dependencies": {
-          "EmberTrace": "0.4.0",
-          "EmberTrace.Analysis": "0.4.0"
+          "EmberTrace": "0.4.1",
+          "EmberTrace.Analysis": "0.4.1"
         }
       }
     }

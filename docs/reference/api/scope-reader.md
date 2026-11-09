@@ -1,6 +1,6 @@
-Русская версия: [./scope-reader.ru.md](./scope-reader.ru.md)
-
 # ScopeReader
+
+[English](scope-reader.md) · [Русский](scope-reader.ru.md) · [Documentation](../../README.md)
 
 `EmberTrace.Sessions.ScopeReader` reconstructs scopes from a raw event stream. `Analyze`, `Process`,
 the Chrome exporter, and the OpenTelemetry exporter are all built on it, so every consumer sees the same

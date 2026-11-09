@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Бинарный формат сессии (`.ember`)
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 `EmberTrace.Format` сохраняет остановленную сессию в компактный бинарный файл и читает его обратно в полноценный
 `TraceSession`, пригодный для анализа.

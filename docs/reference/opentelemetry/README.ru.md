@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # OpenTelemetry export
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 Пакет `EmberTrace.OpenTelemetry` позволяет конвертировать сессию EmberTrace в `Activity`‑спаны.
 
@@ -20,16 +20,19 @@ var spans = OpenTelemetryExport.CreateSpans(session);
 
 foreach (var span in spans)
 {
-    // отправка в свой экспортёр
+    Send(span);
 }
 ```
 
 ## Опции
 
-`OpenTelemetryExportOptions`:
-- `IncludeFlowsAsLinks` — добавить Flow как links
-- `IncludeThreadIdTag` — добавить `thread.id`
-- `BaseUtc` — UTC‑время начала сессии. По умолчанию берётся `TraceSession.StartedAtUtc`: для сессии его записывает
+| Опция | Смысл |
+| ----- | ----- |
+| `IncludeFlowsAsLinks` | Добавлять flow как `ActivityLink`. |
+| `IncludeThreadIdTag` | Добавлять тег `thread.id`. |
+| `BaseUtc` | UTC-время начала сессии. См. ниже. |
+
+`BaseUtc` по умолчанию берётся `TraceSession.StartedAtUtc`: для сессии его записывает
   `Tracer.Start`, а снапшот выводит своё из системных часов в момент среза, поэтому его спаны совпадают с логами,
   записанными в тот же момент. Значение сохраняется в `.ember`; только сессии без него откатываются к «сейчас минус
   длительность сессии».

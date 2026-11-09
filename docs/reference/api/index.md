@@ -1,6 +1,6 @@
-Русская версия: [./index.ru.md](./index.ru.md)
-
 # API Reference
+
+[English](index.md) · [Русский](index.ru.md) · [Documentation](../../README.md)
 
 Precise contracts of the public API.
 

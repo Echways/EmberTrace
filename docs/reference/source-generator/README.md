@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Generator and TraceId (metadata)
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 `EmberTrace` works with `int id`. To get readable **names** and **categories** in exports/reports,
 use assembly attributes and the source generator.
@@ -19,6 +19,8 @@ use assembly attributes and the source generator.
 
 An assembly that declares no trace metadata gets no generated file at all - no empty provider and no
 module initializer.
+
+![Generated code: the metadata provider and its module initializer as emitted under `obj/`](../../assets/generator-generated-code.png)
 
 ## TraceId attribute
 
@@ -81,20 +83,20 @@ constant that your code already uses.
 
 ### Diagnostics
 
-- **ETG001** (error) - the same `id` is declared more than once
-- **ETG002** (warning) - `name` is empty
-- **ETG003** (warning) - `category` is empty
-- **ETG004** (warning) - `TraceId` arguments are not a constant `int` id and `string` name, so the
-  attribute is skipped; the rest of the assembly still generates
-- **ETG005** (warning) - `[TraceName]` / `[TraceCategory]` sit on a field that is not `const int`
-- **ETG006** (warning) - two names normalize to the same constant name; the later one gets a suffix
-- **ETG010** (error) - `[Trace]` is not on a `partial` declaration that lacks an implementation
-- **ETG011** (error) - no `…Core` member with a compatible signature holds the body
-- **ETG012** (error) - unsupported shape: `ref` returns, by-reference parameters on asynchronous
-  methods, `unsafe` methods and interface members
-- **ETG013** (error) - the containing type, or an enclosing type, is not `partial`
-- **ETG014** (error) - `[Trace]` on a class with no unambiguous interface; set `Interface = typeof(…)`
-- **ETG015** (info) - an interface member of an unsupported shape is forwarded by the decorator untraced
+| Id | Severity | Reports |
+| -- | -------- | ------- |
+| `ETG001` | error | The same `id` is declared more than once. |
+| `ETG002` | warning | `name` is empty. |
+| `ETG003` | warning | `category` is empty. |
+| `ETG004` | warning | `TraceId` arguments are not a constant `int` id and `string` name, so the attribute is skipped; the rest of the assembly still generates. |
+| `ETG005` | warning | `[TraceName]` or `[TraceCategory]` sits on a field that is not `const int`. |
+| `ETG006` | warning | Two names normalize to the same constant name; the later one gets a suffix. |
+| `ETG010` | error | `[Trace]` is not on a `partial` declaration that lacks an implementation. |
+| `ETG011` | error | No `…Core` member with a compatible signature holds the body. |
+| `ETG012` | error | Unsupported shape: `ref` returns, by-reference parameters on asynchronous methods, `unsafe` methods and interface members. |
+| `ETG013` | error | The containing type, or an enclosing type, is not `partial`. |
+| `ETG014` | error | `[Trace]` on a class with no unambiguous interface; set `Interface = typeof(…)`. |
+| `ETG015` | info | An interface member of an unsupported shape is forwarded by the decorator untraced. |
 
 ## The global registry
 
@@ -118,11 +120,8 @@ The snapshot is cached and rebuilt lazily, so registering late is cheap and corr
 `Tracer.CreateMetadata()` returns an empty provider (without names). This is fine - the trace remains valid,
 but reports/export are less readable.
 
-See also:
+## See also
+
 - [Auto-instrumentation with [Trace]](../../guides/auto-instrumentation/README.md)
 - [Quick Start](../../guides/getting-started/README.md)
 - [Usage and API](../../guides/usage/README.md)
-
-## Screenshots
-
-![Generated code: the metadata provider and its module initializer as emitted under `obj/`](../../assets/generator-generated-code.png)

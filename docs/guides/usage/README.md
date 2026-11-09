@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Usage and API
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 This page is a practical guide to the runtime API (`EmberTrace`) and common usage patterns.
 
@@ -13,7 +13,7 @@ Tracer.Start();
 
 using (Tracer.Scope(Ids.App))
 {
-    // ...
+    Work();
 }
 
 var session = Tracer.Stop();
@@ -84,7 +84,9 @@ var ioCategory = Tracer.CategoryId("IO");
 ```
 
 3) **Metadata via `[assembly: TraceId(...)]`** - for readable names/categories in reports and export
-(see docs: generator).
+(see [Generator and metadata](../../reference/source-generator/README.md)).
+
+![Code sample: the instrumentation block (Scope + metadata)](../../assets/usage-instrumentation.png)
 
 ## Session settings
 
@@ -96,21 +98,27 @@ Tracer.Start(new SessionOptions
 });
 ```
 
-- `ChunkCapacity` - size of the event chunk in a thread buffer
-- `OverflowPolicy` - overflow behavior (`DropNew`, `DropOldest`, `StopSession`)
-- `MaxTotalEvents` / `MaxTotalChunks` - limits for total volume
-- `MaxEventsPerSecond` - events-per-second limit per writer thread
-- `SampleEveryNGlobal` / `SampleEveryNById` - session-wide sampling without global locks
-- `EnabledCategoryIds` / `DisabledCategoryIds` - category filtering
+| Option | Meaning |
+| ------ | ------- |
+| `ChunkCapacity` | Size of the event chunk in a thread buffer. |
+| `OverflowPolicy` | What happens on overflow: `DropNew`, `DropOldest` or `StopSession`. |
+| `MaxTotalEvents`, `MaxTotalChunks` | Limits on the total volume. |
+| `MaxEventsPerSecond` | Events-per-second limit per writer thread. |
+| `SampleEveryNGlobal`, `SampleEveryNById` | Session-wide sampling without global locks. |
+| `EnabledCategoryIds`, `DisabledCategoryIds` | Category filtering. |
+
+Every option is described in [Session options](../../reference/session-options/README.md).
 
 ## Session API
 
 After stopping a session:
 
-- `session.EventCount` - total number of events
-- `session.EnumerateEvents()` - raw events (for custom tooling)
-- `session.EnumerateEventsSorted()` - stable sort by timestamp -> thread -> sequence
-- `session.Process()` - aggregates for reports/analytics
+| Member | Returns |
+| ------ | ------- |
+| `session.EventCount` | The total number of events. |
+| `session.EnumerateEvents()` | Raw events, for custom tooling. |
+| `session.EnumerateEventsSorted()` | Events in a stable order: timestamp, thread, sequence. |
+| `session.Process()` | Aggregates for reports and analytics. |
 
 ```csharp
 var processed = session.Process();
@@ -170,11 +178,8 @@ from a measured duration; the report marks scopes whose median is below 20 times
 - Keep IDs stable: either constant ranges or `Tracer.Id("...")` with fixed strings.
 - For `async`, always use `ScopeAsync`; otherwise compiler/runtime constraints will block the scenario.
 
-See also:
+## See also
+
 - [Flow and async](../../concepts/flows/README.md)
 - [Export](../export/README.md)
 - [Analysis and reports](../analysis/README.md)
-
-## Screenshots
-
-![Code sample: the instrumentation block (Scope + metadata)](../../assets/usage-instrumentation.png)

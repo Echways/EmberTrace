@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Performance testing and regression gates
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 `EmberTrace.Testing` turns a trace into assertions you can run in CI. It does not depend on a test framework — every
 failure is a `TraceAssertionException`, which MSTest, xUnit and NUnit all report as a failed test.
@@ -68,6 +68,7 @@ Durations are bucketed in a log-linear histogram with 8 significant bits, so a r
 the true value and is always rounded **up** — a gate never passes because a latency was under-reported. Durations below
 512 ticks are recorded exactly, and `MinMs`/`MaxMs` are always exact.
 
-See also:
+## See also
+
 - [Analysis and reports](../analysis/README.md)
 - [Binary session format (.ember)](../format/README.md)

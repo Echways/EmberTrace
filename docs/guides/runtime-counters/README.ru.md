@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Runtime-счётчики
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 EmberTrace умеет снимать метрики здоровья .NET-рантайма на ту же временную шкалу, что и ваши scope'ы: медленный
 scope и вызвавшая его сборка Gen2 совпадают визуально.
@@ -37,6 +37,8 @@ Tracer.Start(new SessionOptions
 
 Сэмплер работает на отдельном фоновом потоке с именем `EmberTrace.Runtime`, поэтому его события попадают на
 собственную дорожку и рисуются отдельной строкой в Perfetto, под дорожками ваших scope'ов.
+
+![Runtime-счётчики в Perfetto: паузы GC на дорожке `EmberTrace.Runtime`, дорожки счётчиков под scope'ами воркеров](../../assets/runtime-counters-timeline.png)
 
 ## Зарезервированные id
 
@@ -75,7 +77,3 @@ Runtime-счётчики обходят `EnabledCategoryIds` / `DisabledCategory
 Сэмплер — это один фоновый поток с приоритетом `BelowNormal`, делающий несколько чтений свойств за интервал.
 Он пишет через тот же lock-free путь, что и любое другое событие, и ничего не добавляет к горячему пути вашего
 приложения. При интервале по умолчанию в 50 мс он даёт примерно 200 событий в секунду.
-
-## Скриншоты
-
-![Runtime-счётчики в Perfetto: паузы GC на дорожке `EmberTrace.Runtime`, дорожки счётчиков под scope'ами воркеров](../../assets/runtime-counters-timeline.png)

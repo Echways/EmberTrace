@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # OpenTelemetry export
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 Package `EmberTrace.OpenTelemetry` lets you convert an EmberTrace session into `Activity` spans.
 
@@ -20,16 +20,19 @@ var spans = OpenTelemetryExport.CreateSpans(session);
 
 foreach (var span in spans)
 {
-    // send to your own exporter
+    Send(span);
 }
 ```
 
 ## Options
 
-`OpenTelemetryExportOptions`:
-- `IncludeFlowsAsLinks` - include Flow as links
-- `IncludeThreadIdTag` - include `thread.id`
-- `BaseUtc` - UTC time of the session start. Defaults to `TraceSession.StartedAtUtc`: `Tracer.Start` records it for
+| Option | Meaning |
+| ------ | ------- |
+| `IncludeFlowsAsLinks` | Include flows as `ActivityLink`s. |
+| `IncludeThreadIdTag` | Add the `thread.id` tag. |
+| `BaseUtc` | UTC time of the session start. See below. |
+
+`BaseUtc` defaults to `TraceSession.StartedAtUtc`: `Tracer.Start` records it for
   the session, and a snapshot derives its own from the wall clock at the moment it is cut, so its spans line up with
   logs written at that moment. It is stored in `.ember` files; only sessions without it fall back to "now minus the
   session duration".

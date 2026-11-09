@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Export
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 EmberTrace exports a session to the Chrome Trace JSON format understood by:
 - `chrome://tracing`
@@ -21,6 +21,8 @@ TraceExport.WriteChromeComplete(session, fs, meta: meta);
 ```
 
 Event ordering is stable: timestamp -> track -> sequence.
+
+![Exported trace: the json opened in Perfetto](../../assets/export-opened.png)
 
 ## WriteChromeBeginEnd
 
@@ -121,10 +123,7 @@ The overloads marked obsolete in 0.3 are gone in 0.4. Every one of them maps ont
 | `...Async` variants | the same replacements on `MarkedCompleteAsync` |
 | `resumeOptions:` argument / `ResumeOptions` property | removed — the session is no longer restarted |
 
-See also:
+## See also
+
 - [Analysis and reports](../analysis/README.md)
 - [Flow and async](../../concepts/flows/README.md)
-
-## Screenshots
-
-![Exported trace: the json opened in Perfetto](../../assets/export-opened.png)

@@ -1,51 +1,39 @@
-English version: [./README.md](./README.md)
-
 # Быстрый старт
 
-Цель: зафиксировать первую трассу, получить текстовый отчёт и открыть её в Chrome Trace.
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
+
+Эта страница ведёт от пустого проекта к записанной трассе: несколько scope, текстовый отчёт и файл, который открывается в Perfetto.
 
 ## Требования
 
-- .NET SDK: см. `global.json` (в репозитории используется `net10.0`)
+- .NET 10 и SDK, закреплённый в `global.json`, если вы собираете этот репозиторий.
 
-## 1) Подключение пакетов
+## Установка
 
-### Вариант A: один пакет
+Метапакет приносит runtime, генератор, анализ, экспорт и текстовые отчёты:
 
-```bash
+```shell
 dotnet add package EmberTrace.All
 ```
 
-### Вариант B: выборочно
+Чтобы выбрать части самостоятельно: для записи достаточно одного runtime.
 
-Минимум для runtime-трассировки:
-
-```bash
+```shell
 dotnet add package EmberTrace
 ```
 
-Чтобы были **имена/категории** в экспорте и отчётах:
+Имена и категории в отчётах и экспорте берутся из метаданных. Добавьте атрибуты и генератор, который их регистрирует:
 
-```bash
+```shell
 dotnet add package EmberTrace.Abstractions
 dotnet add package EmberTrace.Generator
 ```
 
-> `EmberTrace.Generator` — source generator. Он собирает `[assembly: TraceId(...)]` и автоматически
-> регистрирует метаданные (через `ModuleInitializer`).
+`EmberTrace.Generator` — source generator. Он собирает `[assembly: TraceId(...)]` и регистрирует метаданные через `ModuleInitializer`. Для отчётов и экспорта нужны `EmberTrace.Analysis`, `EmberTrace.ReportText` и `EmberTrace.Export`; все пакеты описаны в [списке пакетов](../../../README.ru.md#установка).
 
-Опционально:
+## Id и метаданные
 
-```bash
-dotnet add package EmberTrace.OpenTelemetry
-dotnet add package EmberTrace.RoslynAnalyzers
-```
-
-> `EmberTrace.RoslynAnalyzers` включает code fixes. Они работают в IDE и не влияют на сборку в CLI.
-
-## 2) Описать TraceId (метаданные)
-
-Добавь атрибуты на уровне assembly (например, в `TraceIds.cs`):
+Объявите id на уровне assembly, в любом файле, например `TraceIds.cs`:
 
 ```csharp
 using EmberTrace.Abstractions.Attributes;
@@ -55,11 +43,10 @@ using EmberTrace.Abstractions.Attributes;
 [assembly: TraceId(2100, "IoWait", "IO")]
 ```
 
-Рекомендации:
-- держи диапазоны по модулям/подсистемам (например, `1000–1999`, `2000–2999`…)
-- имена — короткие и стабильные (они уйдут в отчёты/экспорт)
+- Выделите каждому модулю или подсистеме свой диапазон, например `1000-1999` и `2000-2999`.
+- Делайте имена короткими и стабильными: они попадают в отчёты и экспорт.
 
-## 3) Инструментировать код
+## Запись
 
 ```csharp
 using EmberTrace;
@@ -68,14 +55,13 @@ Tracer.Start();
 
 using (Tracer.Scope(1000))
 {
-    // работа
+    DoWork();
 }
 
 var session = Tracer.Stop();
 ```
 
-Важно:
-- `Scope` — `ref struct`: **нельзя** переносить через `await`. Для `async` используй `ScopeAsync`.
+`Scope` — `ref struct`, его нельзя переносить через `await`. В `async`-коде используйте `ScopeAsync`:
 
 ```csharp
 await using (Tracer.ScopeAsync(2100))
@@ -84,9 +70,7 @@ await using (Tracer.ScopeAsync(2100))
 }
 ```
 
-## 4) Отчёт и экспорт
-
-### Текстовый отчёт
+## Отчёт
 
 ```csharp
 var processed = session.Process();
@@ -95,36 +79,37 @@ var meta = Tracer.CreateMetadata();
 Console.WriteLine(TraceText.Write(processed, meta: meta, topHotspots: 20, maxDepth: 8));
 ```
 
-### Chrome Trace (JSON)
+## Файл трассы
 
 ```csharp
 Directory.CreateDirectory("out");
 
-using var fs = File.Create("out/trace.json");
-TraceExport.WriteChromeComplete(session, fs, meta: meta);
+using var file = File.Create("out/trace.json");
+TraceExport.WriteChromeComplete(session, file, meta: meta);
 ```
 
-Открыть:
-- `chrome://tracing` (Chrome)
-- Perfetto (веб-UI) — подходит для больших трасс
+Откройте `out/trace.json` в `chrome://tracing` или в веб-интерфейсе [Perfetto](https://ui.perfetto.dev): он лучше подходит для больших трасс.
 
-## 5) Демо-проект (рекомендуется)
+![Первая трасса: экспортированный файл, открытый в Perfetto](../../assets/getting-started-first-trace.png)
 
-В репозитории есть готовый сценарий со scopes + flows + async + экспорт + отчёт:
+[Текстовый отчёт](../../assets/getting-started-first-trace.txt) этой же сессии лежит рядом с изображением.
 
-```bash
+## Готовый сценарий
+
+В репозитории есть сценарий со scope, flow, `async`-кодом, экспортом и отчётом:
+
+```shell
 dotnet run --project samples/EmberTrace.DocScreenshots -c Release -p:UseLocalEmberTrace=true
-# выходные файлы: samples/EmberTrace.DocScreenshots/out
 ```
 
-Дальше:
-- [Использование и API](../usage/README.ru.md)
-- [Flow и async](../../concepts/flows/README.ru.md)
+Файлы появятся в `samples/EmberTrace.DocScreenshots/out`.
 
-## Скриншоты
+## Что читать дальше
 
-![Первый trace: экспортированный файл, открытый в Perfetto](../../assets/getting-started-first-trace.png)
-
-## Ссылки
-
-- [**Getting started**](../../assets/getting-started-first-trace.txt)
+| Если нужно | Читайте |
+| ---------- | ------- |
+| Разобраться с сессиями, scope и настройками | [Использование и API](../usage/README.ru.md) |
+| Инструментировать методы атрибутом | [Автоинструментация](../auto-instrumentation/README.ru.md) |
+| Следить за работой между потоками и через `await` | [Flow](../../concepts/flows/README.ru.md) |
+| Прочитать цифры | [Анализ и отчёты](../analysis/README.ru.md) |
+| Оставить трассировку включённой в сервисе | [Flight recorder](../flight-recorder/README.ru.md) |

@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Тесты производительности и гейты регрессий
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 `EmberTrace.Testing` превращает трассу в проверки, которые можно гонять в CI. Пакет не зависит от тестового
 фреймворка — любая неудача это `TraceAssertionException`, который MSTest, xUnit и NUnit одинаково показывают как
@@ -69,6 +69,7 @@ var baseline = TraceFormat.Read("baselines/checkout.ember").Analyze();
 не больше чем на 0.39% и всегда округляется **вверх** — гейт не пройдёт из-за заниженной задержки. Длительности ниже
 512 тиков записываются точно, `MinMs` и `MaxMs` всегда точные.
 
-См. также:
+## См. также
+
 - [Анализ и отчёты](../analysis/README.ru.md)
 - [Бинарный формат сессии (.ember)](../format/README.ru.md)

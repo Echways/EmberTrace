@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Troubleshooting
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../README.md)
 
 Below are common symptoms, causes, and short fixes.
 
@@ -42,6 +42,8 @@ await using (Tracer.ScopeAsync(Ids.Io))
 - add `[assembly: TraceId(...)]`
 - connect `EmberTrace.Abstractions` + `EmberTrace.Generator`
 - rebuild the project (the source generator creates and registers the provider at compile time)
+
+![No names in the report: the TraceId metadata is missing](../assets/troubleshooting-common.png)
 
 ## Buffer overflow / "missing events"
 
@@ -87,10 +89,7 @@ runtime or `DOTNET_*` setting, affinity or cgroup limits).
 
 **Fix:** enable `EnableRuntimeMetadata = true` or add `[assembly: TraceId(...)]`.
 
-See also:
+## See also
+
 - [Usage and API](../guides/usage/README.md)
 - [Flow and async](../concepts/flows/README.md)
-
-## Screenshots
-
-![No names in the report: the TraceId metadata is missing](../assets/troubleshooting-common.png)

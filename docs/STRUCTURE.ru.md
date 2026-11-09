@@ -1,32 +1,30 @@
-English version: [./STRUCTURE.md](./STRUCTURE.md)
+# Устройство docs
 
-# Docs layout
+[English](STRUCTURE.md) · [Русский](STRUCTURE.ru.md) · [Документация](README.ru.md)
 
-## Текущая структура
+Как организованы страницы и куда добавлять новую.
+
+## Структура
 
 ```
 docs/
-  index.md
   README.md
-  STRUCTURE.md              # этот файл
+  STRUCTURE.md
   assets/
   guides/
-    index.md
     getting-started/
     usage/
+    auto-instrumentation/
     export/
     analysis/
     format/
     flight-recorder/
-    auto-instrumentation/
     runtime-counters/
     hosting/
     testing/
   concepts/
-    index.md
     flows/
   reference/
-    index.md
     api/
       index.md
       tracer.md
@@ -36,18 +34,18 @@ docs/
     opentelemetry/
     roslyn-analyzers/
   troubleshooting/
-    index.md
-    README.md
 ```
 
-Страница раздела лежит в `README.md`; `index.md` — оглавление каталога, у которого есть вложенные
-страницы. У каждой страницы есть русская пара с суффиксом `.ru.md`, обе версии ссылаются друг на
-друга первой строкой.
+`README.md` — оглавление. Страница лежит в `README.md` своего каталога; у каталога с несколькими страницами есть
+собственный `index.md`. У каждой страницы есть русская пара с суффиксом `.ru.md`, и они ссылаются друг на друга в первой
+строке.
 
-## Правила именования
+## Разделы
 
-- **guides/** — пошаговые сценарии («сделай X»)
-- **concepts/** — ментальная модель и инварианты («как оно работает внутри»)
-- **reference/** — точная справка/контракты (API, конфиги, генераторы, форматы)
-- **troubleshooting/** — симптомы → причины → фиксы
-- **assets/** — изображения и диаграммы, на которые ссылаются страницы docs; перегенерируются скриптом `samples/EmberTrace.DocScreenshots/capture.py`
+| Каталог       | Что в нём                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `guides/`          | Пошаговые сценарии: сделай X.                                                                                              |
+| `concepts/`        | Ментальная модель и инварианты: как это устроено внутри.                                           |
+| `reference/`       | Точные контракты: API, настройки, генератор, диагностики.                                             |
+| `troubleshooting/` | Симптом, причина, решение.                                                                                                   |
+| `assets/`          | Изображения для страниц; перегенерируются скриптом `samples/EmberTrace.DocScreenshots/capture.py`. |

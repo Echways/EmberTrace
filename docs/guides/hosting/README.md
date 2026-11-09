@@ -1,6 +1,6 @@
-Русская версия: [./README.ru.md](./README.ru.md)
-
 # Hosting integration (ASP.NET Core)
+
+[English](README.md) · [Русский](README.ru.md) · [Documentation](../../README.md)
 
 `EmberTrace.Extensions.Hosting` turns the flight recorder into something you configure instead of
 something you code: the session follows the host lifetime, every request becomes a scope and a flow,
@@ -129,6 +129,8 @@ app.MapGet("/orders/{id:int}", (int id, HttpContext context) =>
 });
 ```
 
+![A `format=chrome` dump in Perfetto: request scopes, `Orders.Load`, a slow `Orders.Slow` and the runtime counters](../../assets/hosting-request-dump.png)
+
 ## The dump endpoint
 
 `MapEmberTraceDump()` exposes `GET /embertrace/dump`. It is **disabled by default** and refuses to
@@ -186,12 +188,8 @@ Set `ShutdownDumpDirectory` to have the final session written there as
 `{prefix}-shutdown-{timestamp}.ember` during graceful shutdown. A failed write is logged, never
 thrown.
 
-## Related
+## See also
 
 - [Flight recorder (live snapshots)](../flight-recorder/README.md)
 - [Runtime counters](../runtime-counters/README.md)
 - [Binary session format (.ember)](../format/README.md)
-
-## Screenshots
-
-![A `format=chrome` dump in Perfetto: request scopes, `Orders.Load`, a slow `Orders.Slow` and the runtime counters](../../assets/hosting-request-dump.png)

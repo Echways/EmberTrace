@@ -1,6 +1,6 @@
-English version: [./README.md](./README.md)
-
 # Автоинструментация через `[Trace]`
+
+[English](README.md) · [Русский](README.ru.md) · [Документация](../../README.ru.md)
 
 Объяви метод `partial`, помести на него `[Trace]` и перенеси тело в метод `…Core`. Генератор выпустит
 обёртку, вычислит стабильный id и зарегистрирует имя и категорию.
@@ -82,8 +82,10 @@ private async global::System.Threading.Tasks.Task<int> GetAsync__EmberTraceTrace
 `MethodScopeAsync` — это `ScopeAsync` для scope, покрывающего весь `async`-метод: он пропускает
 восстановление контекста, которое рантайм и так выполняет при выходе из метода. Не вызывайте его вручную.
 
-`[DebuggerNonUserCode]` стоит только на хелпере: шаг внутрь трассируемого метода приводит в твоё тело
-`…Core`, а сама обёртка остаётся видимой для Just My Code, потому что это объявление *и есть* твой метод.
+`[DebuggerNonUserCode]` стоит только на хелпере: шаг внутрь трассируемого метода приводит в ваше тело
+`…Core`, а сама обёртка остаётся видимой для Just My Code, потому что это объявление *и есть* ваш метод.
+
+![Сгенерированная обёртка: синхронный и асинхронный `[Trace]`-методы `OrderService` из `obj/`](../../assets/auto-instrumentation-generated-code.png)
 
 ## Имена, категории и id
 
@@ -105,7 +107,7 @@ private async global::System.Threading.Tasks.Task<int> GetAsync__EmberTraceTrace
 `OrderService.GetAsync<T>(string, int)`.
 
 Следствие стоит проговорить прямо: **добавление второй перегрузки переименовывает — и переопределяет id
-— первой**. Там, где id обязан пережить рефакторинг, ставь `[Trace("…")]`.
+— первой**. Там, где id обязан пережить рефакторинг, ставьте `[Trace("…")]`.
 
 ## Асимметрия синхронного throw
 
@@ -194,7 +196,7 @@ public sealed class TracedInventoryService : global::Acme.IInventoryService
 - Обобщённый интерфейс даёт обобщённый декоратор вместе с ограничениями.
 - `AddTracedInventoryService(this IServiceCollection services, ServiceLifetime lifetime)` выпускается
   **только если** `Microsoft.Extensions.DependencyInjection.IServiceCollection` есть в компиляции —
-  генератор не может добавить ссылку на пакет за тебя. Он регистрирует декоратор под интерфейсом и
+  генератор не может добавить ссылку на пакет за вас. Он регистрирует декоратор под интерфейсом и
   создаёт конкретный сервис через `ActivatorUtilities.CreateInstance`, так что constructor injection
   продолжает работать, а нетрассируемый экземпляр в контейнер не попадает.
 
@@ -222,11 +224,8 @@ public sealed class TracedInventoryService : global::Acme.IInventoryService
 72 байта — это собственная стейт-машина метода бенчмарка, а не аллокация на вызов: при остановленной
 сессии асинхронная обёртка вообще не входит в `async`-метод.
 
-См. также:
+## См. также
+
 - [Генератор и TraceId (метаданные)](../../reference/source-generator/README.ru.md)
 - [Roslyn-анализаторы](../../reference/roslyn-analyzers/README.ru.md)
 - [Использование и API](../usage/README.ru.md)
-
-## Скриншоты
-
-![Сгенерированная обёртка: синхронный и асинхронный `[Trace]`-методы `OrderService` из `obj/`](../../assets/auto-instrumentation-generated-code.png)
