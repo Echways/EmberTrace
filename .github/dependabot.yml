@@ -30,5 +30,13 @@ updates:
     ignore:
       - dependency-name: EmberTrace*
       - dependency-name: System.Composition*
+      - dependency-name: Microsoft.CodeAnalysis.CSharp
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: Microsoft.CodeAnalysis.CSharp.Workspaces
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: Microsoft.CodeAnalysis.Workspaces.Common
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: Microsoft.CodeAnalysis.Features
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: System.Text.Json
         update-types: ['version-update:semver-major']
